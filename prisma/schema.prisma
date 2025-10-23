@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String
+  price       Float
+  imageUrl    String
+  gender      Gender
+  isOutlet    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ErrorLog {
+  id        Int      @id @default(autoincrement())
+  message   String
+  stack     String?
+  createdAt DateTime @default(now())
+}
+
+enum Gender {
+  HOMBRE
+  MUJER
+}
+
+model Collection {
+  code_col    String  @id @db.Char(1)
+  name        String  @db.VarChar(50)
+  description String? @db.VarChar(200)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Category_t {
+  code_cat    String  @id @db.Char(2)
+  name        String  @db.VarChar(50)
+  description String? @db.VarChar(200)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Consecutive_Category {
+  code_con    Int     @id @default(autoincrement())
+  code_cat    String  @db.Char(2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Year_Production {
+  code_year   String  @id @db.Char(1)
+  year        String  @db.Char(4)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Reference {
+  ref         String  @id @db.Char(7)
+  name        String  @db.VarChar(50)
+  description String? @db.VarChar(200)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Consecutive_Reference {
+  code_con    Int     @id @default(autoincrement())
+  ref         String
+}
