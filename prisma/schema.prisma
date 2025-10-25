@@ -23,6 +23,9 @@ model ErrorLog {
   id        Int      @id @default(autoincrement())
   message   String
   stack     String?
+  componentStack String?
+  app       String?  @db.VarChar(4)
+  page      String?  @db.VarChar(20)
   createdAt DateTime @default(now())
 
   @@map("error_log")
@@ -74,4 +77,9 @@ model Reference {
 model Consecutive_Reference {
   code_con    Int     @id @default(autoincrement())
   ref         String
+}
+
+model Clothing {
+  id   String @id @db.Char(2)
+  name String @db.VarChar(50)
 }
