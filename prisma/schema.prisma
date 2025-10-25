@@ -24,6 +24,8 @@ model ErrorLog {
   message   String
   stack     String?
   createdAt DateTime @default(now())
+
+  @@map("error_log")
 }
 
 enum Gender {
