@@ -31,6 +31,28 @@ model ErrorLog {
   @@map("error_log")
 }
 
+model Role {
+  code_role Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     UserRole[]
+
+  @@map("role")
+}
+
+model UserRole {
+  code_user_role Int      @id @default(autoincrement())
+  user           Usuario  @relation(fields: [code_user], references: [code_user])
+  code_user      Int
+  role           Role     @relation(fields: [code_role], references: [code_role])
+  code_role      Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("user_role")
+}
+
 enum Gender {
   HOMBRE
   MUJER
@@ -42,21 +64,27 @@ model Collection {
   description String? @db.VarChar(200)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@map("collection")
 }
 
-model Category_t {
-  code_cat    String  @id @db.Char(2)
+model Category {
+  code_cat    String  @id @db.VarChar(2)
   name        String  @db.VarChar(50)
   description String? @db.VarChar(200)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@map("category")
 }
 
-model Consecutive_Category {
+model ConsecutiveCategory {
   code_con    Int     @id @default(autoincrement())
-  code_cat    String  @db.Char(2)
+  code_cat    String  @db.VarChar(2)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@map("consecutive_category")
 }
 
 model Year_Production {
@@ -64,6 +92,8 @@ model Year_Production {
   year        String  @db.Char(4)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@map("year_production")
 }
 
 model Reference {
@@ -72,14 +102,25 @@ model Reference {
   description String? @db.VarChar(200)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@map("reference")
 }
 
 model Consecutive_Reference {
   code_con    Int     @id @default(autoincrement())
   ref         String
+
+  @@map("consecutive_reference")
 }
 
 model Clothing {
   id   String @id @db.Char(2)
   name String @db.VarChar(50)
+
+  @@map("clothing")
+}
+
+model Type_Clothing {
+  code String @id @db.Char(1)
+  name String @db.VarChar(30)
 }
