@@ -16,7 +16,7 @@ export class UserRoleService {
   findAll() {
     return this.prisma.userRole.findMany({
       include: {
-        usuario: true,
+        user: true,
         role: true,
       },
     });
@@ -26,7 +26,7 @@ export class UserRoleService {
     const userRole = await this.prisma.userRole.findUnique({
       where: { code_user_role: id },
       include: {
-        usuario: true,
+        user: true,
         role: true,
       },
     });

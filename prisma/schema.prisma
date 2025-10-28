@@ -31,28 +31,6 @@ model ErrorLog {
   @@map("error_log")
 }
 
-model Role {
-  code_role Int      @id @default(autoincrement())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  users     UserRole[]
-
-  @@map("role")
-}
-
-model UserRole {
-  code_user_role Int      @id @default(autoincrement())
-  user           Usuario  @relation(fields: [code_user], references: [code_user])
-  code_user      Int
-  role           Role     @relation(fields: [code_role], references: [code_role])
-  code_role      Int
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  @@map("user_role")
-}
-
 enum Gender {
   HOMBRE
   MUJER
@@ -123,4 +101,37 @@ model Clothing {
 model Type_Clothing {
   code String @id @db.Char(1)
   name String @db.VarChar(30)
+}
+
+model UserApp {
+  code_user Int        @id @default(autoincrement())
+  login     String     @unique
+  name      String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  userRoles UserRole[]
+
+  @@map("user_app")
+}
+
+model Role {
+  code_role Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userRoles UserRole[]
+
+  @@map("role")
+}
+
+model UserRole {
+  code_user_role Int      @id @default(autoincrement())
+  user           UserApp  @relation(fields: [code_user], references: [code_user])
+  code_user      Int
+  role           Role     @relation(fields: [code_role], references: [code_role])
+  code_role      Int 
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("user_role")
 }
