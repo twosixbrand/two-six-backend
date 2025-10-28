@@ -8,7 +8,7 @@ import { ProductModule } from './api/product/product.module';
 import { ClothingModule } from './api/clothing/clothing.module';
 import { CategoryModule } from './api/category/category.module';
 import { TypeClothingModule } from './api/type-clothing/type-clothing.module';
-import { UserModule } from './api/user/user.module';
+import { UserAppModule } from './api/user-app/user-app.module';
 import { RolesModule } from './api/role/roles.module';
 import { UserRoleModule } from './api/user-role/user-role.module';
 
@@ -23,7 +23,7 @@ import { UserRoleModule } from './api/user-role/user-role.module';
     ClothingModule,
     CategoryModule,
     TypeClothingModule,
-    UserModule,
+    UserAppModule,
     RolesModule,
     UserRoleModule,
   ],
