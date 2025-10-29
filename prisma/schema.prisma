@@ -135,3 +135,18 @@ model UserRole {
 
   @@map("user_role")
 }
+
+model proveedor {
+  nit             String   @id
+  razon_social    String
+  direccion       String
+  telefono        String
+  email           String   @unique
+  cuenta_bancaria String
+  tipo_cuenta     String
+  banco           String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+   @@map("proveedor")
+}
