@@ -1,8 +1,9 @@
-import { Role } from '@prisma/client';
+import { Role as RoleModel } from '@prisma/client';
 
-export class RoleEntity implements Role {
-  code_role: number;
+export class RoleEntity implements RoleModel {
+  id: number;
   name: string;
+  description: string | null;
   createdAt: Date;
-  updatedAt: Date;
+  updatedAt: Date | null;
 }

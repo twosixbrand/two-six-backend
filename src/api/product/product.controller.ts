@@ -25,7 +25,7 @@ export class ProductController {
 
   @Get()
   findAll(@Query() query: QueryProductDto) {
-    return this.productService.findAll(query.gender, query.isOutlet);
+    return this.productService.findAll(query.gender, query.outlet);
   }
 
   @Get(':id')

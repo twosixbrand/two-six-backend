@@ -1,33 +1,69 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateErrorLogDto } from './dto/create-error-log.dto';
 import { UpdateErrorLogDto } from './dto/update-error-log.dto';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { ErrorLog } from '@prisma/client';
 
 @Injectable()
 export class ErrorLogService {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(createErrorLogDto: CreateErrorLogDto) {
-    return this.prisma.errorLog.create({ data: createErrorLogDto });
+  /**
+   * Crea un nuevo log de error.
+   */
+  create(createErrorLogDto: CreateErrorLogDto): Promise<ErrorLog> {
+    return this.prisma.errorLog.create({
+      data: createErrorLogDto,
+    });
   }
 
-  findAll() {
-    return this.prisma.errorLog.findMany();
+  /**
+   * Obtiene todos los logs de error.
+   */
+  findAll(): Promise<ErrorLog[]> {
+    return this.prisma.errorLog.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
   }
 
-  async findOne(id: number) {
-    const errorLog = await this.prisma.errorLog.findUnique({ where: { id } });
+  /**
+   * Busca un log de error por su ID.
+   * @throws NotFoundException si el log no se encuentra.
+   */
+  async findOne(id: number): Promise<ErrorLog> {
+    const errorLog = await this.prisma.errorLog.findUnique({
+      where: { id },
+    });
+
     if (!errorLog) {
-      throw new NotFoundException(`ErrorLog with ID #${id} not found`);
+      throw new NotFoundException(`Log de error con ID #${id} no encontrado.`);
     }
+
     return errorLog;
   }
 
-  update(id: number, updateErrorLogDto: UpdateErrorLogDto) {
-    return this.prisma.errorLog.update({ where: { id }, data: updateErrorLogDto });
+  /**
+   * Actualiza un log de error existente.
+   * @throws NotFoundException si el log no se encuentra.
+   */
+  async update(id: number, updateErrorLogDto: UpdateErrorLogDto): Promise<ErrorLog> {
+    await this.findOne(id); // Asegura que el log exista
+    return this.prisma.errorLog.update({
+      where: { id },
+      data: updateErrorLogDto,
+    });
   }
 
-  remove(id: number) {
-    return this.prisma.errorLog.delete({ where: { id } });
+  /**
+   * Elimina un log de error existente.
+   * @throws NotFoundException si el log no se encuentra.
+   */
+  async remove(id: number): Promise<ErrorLog> {
+    await this.findOne(id); // Asegura que el log exista
+    return this.prisma.errorLog.delete({
+      where: { id },
+    });
   }
 }

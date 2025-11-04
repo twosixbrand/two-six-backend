@@ -2,45 +2,78 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateUserAppDto } from './dto/create-user-app.dto';
 import { UpdateUserAppDto } from './dto/update-user-app.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { UserApp } from '@prisma/client';
 
 @Injectable()
 export class UserAppService {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(createUserAppDto: CreateUserAppDto) {
+  /**
+   * Crea un nuevo usuario.
+   */
+  create(createUserAppDto: CreateUserAppDto): Promise<UserApp> {
     return this.prisma.userApp.create({
       data: createUserAppDto,
     });
   }
 
-  findAll() {
-    return this.prisma.userApp.findMany();
+  /**
+   * Obtiene todos los usuarios con sus roles.
+   */
+  findAll(): Promise<UserApp[]> {
+    return this.prisma.userApp.findMany({
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
   }
 
-  async findOne(id: number) {
+  /**
+   * Busca un usuario por su ID, incluyendo sus roles.
+   * @throws NotFoundException si el usuario no se encuentra.
+   */
+  async findOne(id: number): Promise<UserApp> {
     const userApp = await this.prisma.userApp.findUnique({
-      where: { code_user: id },
+      where: { id },
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
     });
 
     if (!userApp) {
       throw new NotFoundException(`UserApp con ID #${id} no encontrado.`);
     }
-
     return userApp;
   }
 
-  async update(id: number, updateUserAppDto: UpdateUserAppDto) {
+  /**
+   * Actualiza un usuario existente.
+   * @throws NotFoundException si el usuario no se encuentra.
+   */
+  async update(id: number, updateUserAppDto: UpdateUserAppDto): Promise<UserApp> {
     await this.findOne(id);
     return this.prisma.userApp.update({
-      where: { code_user: id },
+      where: { id },
       data: updateUserAppDto,
     });
   }
 
-  async remove(id: number) {
+  /**
+   * Elimina un usuario existente.
+   * @throws NotFoundException si el usuario no se encuentra.
+   */
+  async remove(id: number): Promise<UserApp> {
     await this.findOne(id);
     return this.prisma.userApp.delete({
-      where: { code_user: id },
+      where: { id },
     });
   }
 }

@@ -1,3 +1,6 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,146 +10,474 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Product {
-  id          Int      @id @default(autoincrement())
-  name        String
-  description String
-  price       Float
-  imageUrl    String
-  gender      Gender
-  isOutlet    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
+// -----------------------------------------------------
+// Tablas de Autenticación y Logs
+// -----------------------------------------------------
 
 model ErrorLog {
-  id        Int      @id @default(autoincrement())
-  message   String
-  stack     String?
-  componentStack String?
-  app       String?  @db.VarChar(4)
-  page      String?  @db.VarChar(20)
-  createdAt DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  message        String
+  stack          String?
+  componentStack String?  @map("component_stack")
+  app            String?  @db.VarChar(4)
+  page           String?  @db.VarChar(20)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime? @updatedAt @map("updated_at")
 
-  @@map("error_log")
-}
-
-enum Gender {
-  HOMBRE
-  MUJER
-}
-
-model Collection {
-  code_col    String  @id @db.Char(1)
-  name        String  @db.VarChar(50)
-  description String? @db.VarChar(200)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("collection")
-}
-
-model Category {
-  code_cat    String  @id @db.VarChar(2)
-  name        String  @db.VarChar(50)
-  description String? @db.VarChar(200)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("category")
-}
-
-model ConsecutiveCategory {
-  code_con    Int     @id @default(autoincrement())
-  code_cat    String  @db.VarChar(2)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("consecutive_category")
-}
-
-model Year_Production {
-  code_year   String  @id @db.Char(1)
-  year        String  @db.Char(4)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("year_production")
-}
-
-model Reference {
-  ref         String  @id @db.Char(7)
-  name        String  @db.VarChar(50)
-  description String? @db.VarChar(200)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("reference")
-}
-
-model Consecutive_Reference {
-  code_con    Int     @id @default(autoincrement())
-  ref         String
-
-  @@map("consecutive_reference")
-}
-
-model Clothing {
-  id   String @id @db.Char(2)
-  name String @db.VarChar(50)
-
-  @@map("clothing")
-}
-
-model Type_Clothing {
-  code String @id @db.Char(1)
-  name String @db.VarChar(30)
+  @@map("log_error")
 }
 
 model UserApp {
-  code_user Int        @id @default(autoincrement())
-  login     String     @unique
-  name      String
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  userRoles UserRole[]
+  id           Int        @id @default(autoincrement()) @map("id_user_app")
+  name         String
+  login        String     @unique
+  email        String     @unique
+  phone        String
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime?   @updatedAt @map("updated_at")
+  userRoles    UserRole[]
 
   @@map("user_app")
 }
 
 model Role {
-  code_role Int      @id @default(autoincrement())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  userRoles UserRole[]
+  id          Int        @id @default(autoincrement()) @map("id_role")
+  name        String     @unique
+  description String?
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime?   @updatedAt @map("updated_at")
+  userRoles   UserRole[]
 
   @@map("role")
 }
 
 model UserRole {
-  code_user_role Int      @id @default(autoincrement())
-  user           UserApp  @relation(fields: [code_user], references: [code_user])
-  code_user      Int
-  role           Role     @relation(fields: [code_role], references: [code_role])
-  code_role      Int 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id          Int      @id @default(autoincrement())
+  user        UserApp  @relation(fields: [id_user_app], references: [id])
+  id_user_app Int      @map("id_user_app")
+  role        Role     @relation(fields: [id_role], references: [id])
+  id_role     Int      @map("id_role")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
 
   @@map("user_role")
 }
 
-model proveedor {
-  nit             String   @id
-  razon_social    String
-  direccion       String
-  telefono        String
-  email           String   @unique
-  cuenta_bancaria String
-  tipo_cuenta     String
-  banco           String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+// -----------------------------------------------------
+// Tablas de Inventario y Diseño
+// -----------------------------------------------------
 
-   @@map("proveedor")
+model Provider {
+  id             String   @id @map("nit")
+  company_name   String   @map("company_name")
+  email          String   @unique
+  phone          String
+  account_number String   @map("account_number")
+  account_type   String   @map("account_type")
+  bank_name      String   @map("bank_name")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime? @updatedAt @map("updated_at")
+  designs        Design[]
+
+  @@map("provider")
+}
+
+model YearProduction {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+  designs     Design[]
+
+  @@map("year_production")
+}
+
+model Collection {
+  id          Int      @id @default(autoincrement())
+  season      String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+  designs     Design[]
+
+  @@map("collection")
+}
+
+model TypeClothing {
+  id        Int        @id @default(autoincrement())
+  name      String
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime?   @updatedAt @map("updated_at")
+  clothing  Clothing[]
+
+  @@map("type_clothing")
+}
+
+model Category {
+  id        Int        @id @default(autoincrement())
+  name      String
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime?   @updatedAt @map("updated_at")
+  clothing  Clothing[]
+
+  @@map("category")
+}
+
+enum Gender {
+  MASCULINO
+  FEMENINO
+  UNISEX
+}
+
+model Clothing {
+  id               Int          @id @default(autoincrement())
+  typeClothing     TypeClothing @relation(fields: [id_type_clothing], references: [id])
+  id_type_clothing Int          @map("id_type_clothing")
+  category         Category     @relation(fields: [id_category], references: [id])
+  id_category      Int          @map("id_category")
+  name             String
+  gender           Gender
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime?     @updatedAt @map("updated_at")
+  designs          Design[]
+
+  @@map("clothing")
+}
+
+model Color {
+  id             Int              @id @default(autoincrement())
+  name           String
+  hex            String
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime?         @updatedAt @map("updated_at")
+  designClothing DesignClothing[]
+
+  @@map("color")
+}
+
+model Size {
+  id             Int              @id @default(autoincrement())
+  name           String
+  description    String?
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime?         @updatedAt @map("updated_at")
+  designClothing DesignClothing[]
+
+  @@map("size")
+}
+
+model Design {
+  id                 Int              @id @default(autoincrement())
+  provider           Provider         @relation(fields: [id_provider], references: [id])
+  id_provider        String           @map("id_provider") // NIT del provider
+  clothing           Clothing         @relation(fields: [id_clothing], references: [id])
+  id_clothing        Int              @map("id_clothing")
+  collection         Collection       @relation(fields: [id_collection], references: [id])
+  id_collection      Int              @map("id_collection")
+  yearProduction     YearProduction   @relation(fields: [id_year_production], references: [id])
+  id_year_production Int              @map("id_year_production")
+  name               String
+  reference          String
+  manufactured_cost  Float
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime?         @updatedAt @map("updated_at")
+  designClothing     DesignClothing[]
+
+  @@map("design")
+}
+
+model DesignClothing {
+  id                      Int      @id @default(autoincrement())
+  color                   Color    @relation(fields: [id_color], references: [id])
+  id_color                Int      @map("id_color")
+  size                    Size     @relation(fields: [id_size], references: [id])
+  id_size                 Int      @map("id_size")
+  design                  Design   @relation(fields: [id_design], references: [id])
+  id_design               Int      @map("id_design")
+  quantity_produced       Int
+  quantity_available      Int
+  quantity_sold           Int
+  quantity_on_consignment Int
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime? @updatedAt @map("updated_at")
+  product                 Product? // Relación 1-a-1 con Product
+  stock                   Stock? // Relación 1-a-1 con Stock
+
+  @@map("design_clothing")
+}
+
+model Stock {
+  id                   Int            @id @default(autoincrement())
+  designClothing       DesignClothing @relation(fields: [id_design_clothing], references: [id])
+  id_design_clothing   Int            @unique @map("id_design_clothing")
+  current_quantity     Int
+  available_quantity   Int
+  sold_quantity        Int
+  consignment_quantity Int
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime?       @updatedAt @map("updated_at")
+
+  @@map("stock")
+}
+
+// -----------------------------------------------------
+// Tablas de Producto (Tienda) y Clientes
+// -----------------------------------------------------
+
+model Product {
+  id                         Int            @id @default(autoincrement())
+  designClothing             DesignClothing @relation(fields: [id_design_clothing], references: [id])
+  id_design_clothing         Int            @unique @map("id_design_clothing")
+  name                       String
+  description                String
+  price                      Float
+  consecutive_number         String?
+  image_url                  String?
+  active                     Boolean
+  outlet                     Boolean
+  createdAt                  DateTime       @default(now()) @map("created_at")
+  updatedAt                  DateTime?       @updatedAt @map("updated_at")
+  orderItems                 OrderItems[]
+  returnItems                ReturnItems[]
+
+  @@map("product")
+}
+
+model Customer {
+  id                     Int                @id @default(autoincrement()) @map("id_customer")
+  customerType           CustomerType       @relation(fields: [id_customer_type], references: [id])
+  id_customer_type       Int                @map("id_customer_type")
+  identificationType     IdentificationType @relation(fields: [id_identification_type], references: [id])
+  id_identification_type Int                @map("id_identification_type")
+  name                   String
+  email                  String             @unique
+  current_phone_number   String
+  responsable_for_vat    Boolean
+  shipping_address       String
+  city                   String
+  state                  String
+  postal_code            String
+  country                String
+  createdAt              DateTime           @default(now()) @map("created_at")
+  updatedAt              DateTime?           @updatedAt @map("updated_at")
+  orders                 Orders[]
+  returns                Returns[]
+  payments               Payments[]
+
+  @@map("customer")
+}
+
+model CustomerType {
+  id        Int        @id @default(autoincrement())
+  name      String
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime?   @updatedAt @map("updated_at")
+  customers Customer[]
+
+  @@map("customer_type")
+}
+
+model IdentificationType {
+  id        Int        @id @default(autoincrement())
+  name      String
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime?   @updatedAt @map("updated_at")
+  customers Customer[]
+
+  @@map("identification_type")
+}
+
+// -----------------------------------------------------
+// Tablas de Órdenes y Pagos
+// -----------------------------------------------------
+
+model Orders {
+  id               Int             @id @default(autoincrement()) @map("id_order")
+  customer         Customer        @relation(fields: [id_customer], references: [id])
+  id_customer      Int             @map("id_customer")
+  order_date       DateTime
+  status           String
+  sub_total        Float
+  tax              Float
+  total            Float
+  is_paid          Boolean
+  payment_method   String
+  shipping_address String
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime?        @updatedAt @map("updated_at")
+  orderItems       OrderItems[]
+  returns          Returns[]
+  shipments        Shipment[]
+  dianEInvoicing   DianEInvoicing?
+  payments         Payments[] // Relación añadida (no estaba explícita en el ERD pero es necesaria)
+
+  @@map("orders")
+}
+
+model OrderItems {
+  id           Int           @id @default(autoincrement())
+  order        Orders        @relation(fields: [id_order], references: [id])
+  id_order     Int           @map("id_order")
+  product      Product       @relation(fields: [id_product], references: [id])
+  id_product   Int           @map("id_product")
+  product_name String
+  size         String
+  color        String
+  quantity     Int
+  unit_price   Float
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime?      @updatedAt @map("updated_at")
+  returnItems  ReturnItems[]
+
+  @@map("order_items")
+}
+
+model Returns {
+  id              Int           @id @default(autoincrement())
+  order           Orders        @relation(fields: [id_order], references: [id])
+  id_order        Int           @map("id_order")
+  customer        Customer      @relation(fields: [id_customer], references: [id])
+  id_customer     Int           @map("id_customer")
+  type            String
+  reason          String
+  status          String
+  request_date    DateTime
+  refund_amount   Float
+  shipping_method String
+  tracking        String?
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime?      @updatedAt @map("updated_at")
+  returnItems     ReturnItems[]
+
+  @@map("returns")
+}
+
+model ReturnItems {
+  id            Int        @id @default(autoincrement())
+  return        Returns    @relation(fields: [id_return], references: [id])
+  id_return     Int        @map("id_return")
+  orderItem     OrderItems @relation(fields: [id_order_item], references: [id])
+  id_order_item Int        @map("id_order_item")
+  product       Product    @relation(fields: [id_product], references: [id])
+  id_product    Int        @map("id_product")
+  quantity      Int
+  reason_return String
+  condition     String
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime?   @updatedAt @map("updated_at")
+
+  @@map("return_items")
+}
+
+model PaymentMethod {
+  id        Int        @id @default(autoincrement())
+  name      String
+  enabled   Boolean
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime?   @updatedAt @map("updated_at")
+  payments  Payments[]
+
+  @@map("payment_method")
+}
+
+model Payments {
+  id                    Int           @id @default(autoincrement())
+  order                 Orders        @relation(fields: [id_order], references: [id])
+  id_order              Int           @map("id_order")
+  customer              Customer      @relation(fields: [id_customer], references: [id])
+  id_customer           Int           @map("id_customer")
+  paymentMethod         PaymentMethod @relation(fields: [id_payment_method], references: [id])
+  id_payment_method     Int           @map("id_payment_method")
+  status                String
+  transaction_date      DateTime
+  transaction_reference String
+  amount                Float
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime?      @updatedAt @map("updated_at")
+
+  @@map("payments")
+}
+
+model DianEInvoicing {
+  id              Int      @id @default(autoincrement())
+  order           Orders   @relation(fields: [id_order], references: [id])
+  id_order        Int      @unique @map("id_order")
+  cufe_code       String
+  qr_code         String
+  document_number String
+  issue_date      DateTime
+  due_date        DateTime
+  status          String
+  url_pdf         String
+  url_xml         String
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime? @updatedAt @map("updated_at")
+
+  @@map("dian_e_invoicing")
+}
+
+// -----------------------------------------------------
+// Tablas de Envíos
+// -----------------------------------------------------
+
+model ShippingProvider {
+  id                Int            @id @default(autoincrement())
+  name              String
+  set_tracking_base String
+  active            Boolean
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime?       @updatedAt @map("updated_at")
+  shipments         Shipment[]
+  shipmentRates     ShipmentRate[]
+
+  @@map("shipping_provider")
+}
+
+model ShipmentRate {
+  id                       Int              @id @default(autoincrement())
+  shippingProvider         ShippingProvider @relation(fields: [id_shipping_provider], references: [id])
+  id_shipping_provider     Int              @map("id_shipping_provider")
+  destination_zone         String
+  weight_unit              String
+  base_cost                Float
+  cost_per_additional_unit Float
+  estimated_delivery_time  String
+  shipping_code            String
+  createdAt                DateTime         @default(now()) @map("created_at")
+  updatedAt                DateTime?         @updatedAt @map("updated_at")
+
+  @@map("shipment_rate")
+}
+
+model Shipment {
+  id                      Int               @id @default(autoincrement())
+  order                   Orders            @relation(fields: [id_order], references: [id])
+  id_order                Int               @map("id_order")
+  shippingProvider        ShippingProvider  @relation(fields: [id_shipping_provider], references: [id])
+  id_shipping_provider    Int               @map("id_shipping_provider")
+  guide_number            String
+  status                  String
+  estimated_delivery_date DateTime
+  delivery_date           DateTime?
+  id_tracking             String?
+  createdAt               DateTime          @default(now()) @map("created_at")
+  updatedAt               DateTime?          @updatedAt @map("updated_at")
+  trackingHistory         TrackingHistory[]
+
+  @@map("shipment")
+}
+
+model TrackingHistory {
+  id            Int      @id @default(autoincrement())
+  shipment      Shipment @relation(fields: [id_shipment], references: [id])
+  id_shipment   Int      @map("id_shipment")
+  status        String
+  update_date   DateTime
+  location      String
+  provider_code String
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime? @updatedAt @map("updated_at")
+
+  @@map("tracking_history")
 }
