@@ -1,13 +1,5 @@
-import {
-  IsString,
-  IsNotEmpty,
-  IsNumber,
-  IsUrl,
-  IsEnum,
-  IsBoolean,
-  IsOptional,
-} from 'class-validator';
-import { Gender } from '@prisma/client';
+// src/api/product/dto/create-product.dto.ts
+import { IsString, IsNumber, IsNotEmpty, IsOptional, IsBoolean } from 'class-validator';
 
 export class CreateProductDto {
   @IsString()
@@ -22,11 +14,20 @@ export class CreateProductDto {
   @IsNotEmpty()
   price: number;
 
-  @IsUrl()
+  @IsNumber()
   @IsNotEmpty()
-  imageUrl: string;
+  id_design_clothing: number; // Propiedad clave para la relación
 
-  @IsEnum(Gender)
-  @IsNotEmpty()
-  gender: Gender;
+  @IsString()
+  @IsOptional()
+  image_url?: string;
+
+  // Opcional: si quieres controlar estos desde el cliente
+  @IsBoolean()
+  @IsOptional()
+  active?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  outlet?: boolean;
 }

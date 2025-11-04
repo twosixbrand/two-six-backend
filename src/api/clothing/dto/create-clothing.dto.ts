@@ -1,13 +1,27 @@
-import { IsNotEmpty, IsString, Length } from 'class-validator';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+  Length,
+} from 'class-validator';
+import { Gender } from '@prisma/client';
 
 export class CreateClothingDto {
   @IsString()
   @IsNotEmpty()
-  @Length(2, 2, { message: 'El id debe tener exactamente 2 caracteres' })
-  id: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @Length(1, 50)
+  @Length(1, 255)
   name: string;
+
+  @IsEnum(Gender)
+  @IsNotEmpty()
+  gender: Gender;
+
+  @IsNumber()
+  @IsNotEmpty()
+  id_type_clothing: number;
+
+  @IsNumber()
+  @IsNotEmpty()
+  id_category: number;
 }

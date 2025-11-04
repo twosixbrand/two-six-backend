@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import * as request from 'supertest';
-import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
+import { AppModule } from '../../app.module';
+import { PrismaService } from '../../prisma/prisma.service';
 
 describe('RolesController (e2e)', () => {
   let app: INestApplication;
@@ -38,8 +38,9 @@ describe('RolesController (e2e)', () => {
         .expect(201)
         .then((res) => {
           expect(res.body).toEqual({
-            code_role: expect.any(Number),
+            id: expect.any(Number),
             name: 'Test Role',
+            description: null,
             createdAt: expect.any(String),
             updatedAt: expect.any(String),
           });
@@ -70,7 +71,7 @@ describe('RolesController (e2e)', () => {
       .send({ name: 'Editor' })
       .expect(201);
 
-    const roleId = createRes.body.code_role;
+    const roleId = createRes.body.id;
     expect(createRes.body.name).toBe('Editor');
 
     // 2. Read

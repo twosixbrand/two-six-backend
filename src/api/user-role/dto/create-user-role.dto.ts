@@ -3,9 +3,9 @@ import { IsInt, IsNotEmpty } from 'class-validator';
 export class CreateUserRoleDto {
   @IsInt()
   @IsNotEmpty()
-  code_user: number;
+  id_user_app: number;
 
   @IsInt()
   @IsNotEmpty()
-  code_role: number;
+  id_role: number;
 }

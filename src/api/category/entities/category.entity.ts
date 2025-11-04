@@ -1,7 +1,8 @@
-export class Category {
-  code_cat: string;
+import { Category as CategoryModel } from '@prisma/client';
+
+export class CategoryEntity implements CategoryModel {
+  id: number;
   name: string;
-  description: string | null;
   createdAt: Date;
-  updatedAt: Date;
+  updatedAt: Date | null;
 }

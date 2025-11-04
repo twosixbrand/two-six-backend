@@ -1,13 +1,40 @@
-import { Gender } from '@prisma/client';
+import {
+  Category,
+  Clothing,
+  Color,
+  Design,
+  Product as ProductModel,
+  Size,
+  TypeClothing,
+} from '@prisma/client';
 
-export class Product {
+// Entidad para la variante de diseño, que incluye sus relaciones
+class DesignClothingEntity {
   id: number;
+  quantity_available: number;
+  color: Color;
+  size: Size;
+  design: Design & {
+    clothing: Clothing & {
+      typeClothing: TypeClothing;
+      category: Category;
+    };
+  };
+}
+
+export class Product implements ProductModel {
+  id: number;
+  id_design_clothing: number;
   name: string;
   description: string;
   price: number;
-  imageUrl: string;
-  gender: Gender;
-  isOutlet: boolean;
+  consecutive_number: string | null;
+  image_url: string | null;
+  active: boolean;
+  outlet: boolean;
   createdAt: Date;
-  updatedAt: Date;
+  updatedAt: Date | null;
+
+  // Relaciones anidadas que se incluyen en las consultas
+  designClothing: DesignClothingEntity;
 }

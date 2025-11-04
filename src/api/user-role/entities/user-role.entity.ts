@@ -1,9 +1,13 @@
-import { UserRole } from '@prisma/client';
+import { Role, UserApp, UserRole as UserRoleModel } from '@prisma/client';
 
-export class UserRoleEntity implements UserRole {
-  code_user_role: number;
-  code_user: number;
-  code_role: number;
+export class UserRoleEntity implements UserRoleModel {
+  id: number;
+  id_user_app: number;
+  id_role: number;
   createdAt: Date;
-  updatedAt: Date;
+  updatedAt: Date | null;
+
+  // Relaciones
+  user: UserApp;
+  role: Role;
 }

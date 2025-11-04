@@ -11,7 +11,7 @@ import { TypeClothingModule } from './api/type-clothing/type-clothing.module';
 import { UserAppModule } from './api/user-app/user-app.module';
 import { RolesModule } from './api/role/roles.module';
 import { UserRoleModule } from './api/user-role/user-role.module';
-import { ProveedorModule } from './api/proveedor/proveedor.module';
+import { ProviderModule } from './api/provider/provider.module';
 
 @Module({
   imports: [
@@ -27,7 +27,7 @@ import { ProveedorModule } from './api/proveedor/proveedor.module';
     UserAppModule,
     RolesModule,
     UserRoleModule,
-    ProveedorModule,
+    ProviderModule,
   ],
   controllers: [AppController],
   providers: [AppService],

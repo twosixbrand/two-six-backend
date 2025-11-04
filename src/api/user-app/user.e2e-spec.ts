@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import * as request from 'supertest';
-import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
+import { AppModule } from '../../app.module';
+import { PrismaService } from '../../prisma/prisma.service';
 
 describe('UserAppController (e2e)', () => {
   let app: INestApplication;
@@ -34,13 +34,20 @@ describe('UserAppController (e2e)', () => {
     it('should create a new user', () => {
       return request(app.getHttpServer())
         .post('/user-app')
-        .send({ login: 'testuser', name: 'Test User' })
+        .send({
+          login: 'testuser',
+          name: 'Test User',
+          email: 'test@example.com',
+          phone: '1234567890',
+        })
         .expect(201)
         .then((res) => {
           expect(res.body).toEqual({
-            code_user: expect.any(Number),
+            id: expect.any(Number),
             login: 'testuser',
             name: 'Test User',
+            email: 'test@example.com',
+            phone: '1234567890',
             createdAt: expect.any(String),
             updatedAt: expect.any(String),
           });
@@ -51,7 +58,12 @@ describe('UserAppController (e2e)', () => {
   describe('/user-app (GET)', () => {
     it('should return an array of users', async () => {
       await prisma.userApp.create({
-        data: { login: 'viewer', name: 'Viewer User' },
+        data: {
+          login: 'viewer',
+          name: 'Viewer User',
+          email: 'viewer@example.com',
+          phone: '0987654321',
+        },
       });
 
       return request(app.getHttpServer())
@@ -61,6 +73,7 @@ describe('UserAppController (e2e)', () => {
           expect(Array.isArray(res.body)).toBe(true);
           expect(res.body.length).toBeGreaterThan(0);
           expect(res.body[0]).toHaveProperty('login');
+          expect(res.body[0]).toHaveProperty('userRoles');
         });
     });
   });
@@ -69,17 +82,26 @@ describe('UserAppController (e2e)', () => {
     // 1. Create
     const createRes = await request(app.getHttpServer())
       .post('/user-app')
-      .send({ login: 'editor', name: 'Editor User' })
+      .send({
+        login: 'editor',
+        name: 'Editor User',
+        email: 'editor@example.com',
+        phone: '5555555555',
+      })
       .expect(201);
 
-    const userId = createRes.body.code_user;
+    const userId = createRes.body.id;
     expect(createRes.body.name).toBe('Editor User');
 
     // 2. Read
     await request(app.getHttpServer()).get(`/user-app/${userId}`).expect(200);
 
     // 3. Update
-    await request(app.getHttpServer()).patch(`/user-app/${userId}`).send({ name: 'Commentator User' }).expect(200);
+    const updateRes = await request(app.getHttpServer())
+      .patch(`/user-app/${userId}`)
+      .send({ name: 'Commentator User' })
+      .expect(200);
+    expect(updateRes.body.name).toBe('Commentator User');
 
     // 4. Delete
     await request(app.getHttpServer()).delete(`/user-app/${userId}`).expect(200);

@@ -1,7 +1,8 @@
-import { IsString, IsOptional, Length } from 'class-validator';
+import { IsString, IsOptional, Length, IsNotEmpty } from 'class-validator';
 
 export class CreateErrorLogDto {
   @IsString()
+  @IsNotEmpty()
   message: string;
 
   @IsOptional()
