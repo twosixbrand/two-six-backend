@@ -6,7 +6,6 @@ import {
   Patch,
   Param,
   Delete,
-  ParseIntPipe,
 } from '@nestjs/common';
 import { TypeClothingService } from './type-clothing.service';
 import { CreateTypeClothingDto } from './dto/create-type-clothing.dto';
@@ -27,20 +26,20 @@ export class TypeClothingController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  findOne(@Param('id') id: string) {
     return this.typeClothingService.findOne(id);
   }
 
   @Patch(':id')
   update(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() updateTypeClothingDto: UpdateTypeClothingDto,
   ) {
     return this.typeClothingService.update(id, updateTypeClothingDto);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
+  remove(@Param('id') id: string) {
     return this.typeClothingService.remove(id);
   }
 }

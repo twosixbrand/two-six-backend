@@ -17,9 +17,10 @@ export class CreateClothingDto {
   @IsNotEmpty()
   gender: Gender;
 
-  @IsNumber()
+  @IsString()
   @IsNotEmpty()
-  id_type_clothing: number;
+  @Length(1, 2)
+  id_type_clothing: string;
 
   @IsNumber()
   @IsNotEmpty()
