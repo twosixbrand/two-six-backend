@@ -7,7 +7,7 @@ import {
 
 export class ClothingEntity implements ClothingModel {
   id: number;
-  id_type_clothing: number;
+  id_type_clothing: string;
   id_category: number;
   name: string;
   gender: Gender;

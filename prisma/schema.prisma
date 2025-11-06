@@ -83,7 +83,7 @@ model Provider {
 }
 
 model YearProduction {
-  id          Int      @id @default(autoincrement())
+  id          String   @id @db.Char(2)
   name        String
   description String?
   createdAt   DateTime @default(now()) @map("created_at")
@@ -105,7 +105,7 @@ model Collection {
 }
 
 model TypeClothing {
-  id        Int        @id @default(autoincrement())
+  id        String     @id @db.Char(2)
   name      String
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime?   @updatedAt @map("updated_at")
@@ -133,7 +133,7 @@ enum Gender {
 model Clothing {
   id               Int          @id @default(autoincrement())
   typeClothing     TypeClothing @relation(fields: [id_type_clothing], references: [id])
-  id_type_clothing Int          @map("id_type_clothing")
+  id_type_clothing String       @map("id_type_clothing") @db.Char(2)
   category         Category     @relation(fields: [id_category], references: [id])
   id_category      Int          @map("id_category")
   name             String
@@ -176,7 +176,7 @@ model Design {
   collection         Collection       @relation(fields: [id_collection], references: [id])
   id_collection      Int              @map("id_collection")
   yearProduction     YearProduction   @relation(fields: [id_year_production], references: [id])
-  id_year_production Int              @map("id_year_production")
+  id_year_production String           @map("id_year_production") @db.Char(2)
   name               String
   reference          String
   manufactured_cost  Float
@@ -281,6 +281,7 @@ model CustomerType {
 model IdentificationType {
   id        Int        @id @default(autoincrement())
   name      String
+  code      String
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime?   @updatedAt @map("updated_at")
   customers Customer[]

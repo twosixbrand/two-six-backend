@@ -1,154 +1,208 @@
--- Archivo de seed para poblar la base de datos de la tienda de ropa
+-- =================================================================
+-- INSERCIÓN DE DATOS DE EJEMPLO PARA TWO-SIX-BACKEND
+-- =================================================================
+-- Este script puebla la base de datos con datos de muestra.
+-- El orden de las inserciones es importante para respetar las claves foráneas.
 
--- Roles de Usuario
-INSERT INTO "role" (id_role, name, description, created_at, updated_at) VALUES
-(1, 'ADMIN', 'Administrador con todos los permisos', NOW(), NOW()),
-(2, 'VENDEDOR', 'Vendedor con permisos para gestionar ventas y clientes', NOW(), NOW());
+-- Limpieza de tablas en orden inverso para evitar conflictos de FK (opcional, usar con precaución)
+-- TRUNCATE TABLE "tracking_history", "shipment", "shipment_rate", "dian_e_invoicing", "payments", "payment_method", "return_items", "returns", "order_items", "orders", "customer", "customer_type", "identification_type", "product", "stock", "design_clothing", "design", "color", "size", "clothing", "category", "type_clothing", "collection", "year_production", "provider", "user_role", "role", "user_app", "log_error" RESTART IDENTITY CASCADE;
 
--- Usuarios de la Aplicación
-INSERT INTO "user_app" (id_user_app, name, login, email, phone, created_at, updated_at) VALUES
-(1, 'Admin User', 'admin', 'admin@example.com', '3001234567', NOW(), NOW()),
-(2, 'Sales Person', 'vendedor1', 'vendedor1@example.com', '3011234567', NOW(), NOW());
 
--- Asignación de Roles a Usuarios
-INSERT INTO "user_role" (id_user_app, id_role, created_at, updated_at) VALUES
-(1, 1, NOW(), NOW()),
-(2, 2, NOW(), NOW());
+-- 1. Tablas de Autenticación y Roles
+--------------------------------------------------------------------
+INSERT INTO "role" (name, description) VALUES
+('Admin', 'Administrador con todos los permisos'),
+('Manager', 'Gerente de tienda'),
+('Sales', 'Vendedor'),
+('Shipping', 'Encargado de envio de productos'),
+('Counter', 'Rol para contador de la empresa'),
+('Reader', 'Rol de solo consultas');
 
--- Proveedores
-INSERT INTO "provider" (nit, company_name, email, phone, account_number, account_type, bank_name, created_at, updated_at) VALUES
-('900123456-1', 'Textiles Modernos S.A.S', 'contacto@textilesmodernos.com', '3109876543', '123-456789-01', 'Ahorros', 'Bancolombia', NOW(), NOW()),
-('800987654-2', 'Diseños Andinos Ltda.', 'ventas@disenosandinos.com', '3201234567', '987-654321-02', 'Corriente', 'Davivienda', NOW(), NOW());
+INSERT INTO "user_app" (name, login, email, phone) VALUES
+('Jorge Manrique', 'jmanrique', 'jamanrique@gmail.com', '3101234567'),
+('Vanessa Buitrago', 'vbuitrago', 'vanebuitragop6@gmail.com', '21526059');
 
--- Año de Producción y Colección
-INSERT INTO "year_production" (id, name, description, created_at, updated_at) VALUES
-(1, '2024', 'Producción del año 2024', NOW(), NOW());
+INSERT INTO "user_role" (id_user_app, id_role) VALUES
+(1, 1), -- Jorge es Admin
+(2, 2); -- Vanessa es Manager
 
-INSERT INTO "collection" (id, season, description, created_at, updated_at) VALUES
-(1, 'Verano 2024', 'Colección vibrante para la temporada de verano', NOW(), NOW());
 
--- Tipos de Prenda y Categorías
-INSERT INTO "type_clothing" (id, name, created_at, updated_at) VALUES
-(1, 'Parte Superior', NOW(), NOW()),
-(2, 'Parte Inferior', NOW(), NOW());
+-- 2. Tablas de Catálogo Base (sin dependencias complejas)
+--------------------------------------------------------------------
+INSERT INTO "provider" (nit, company_name, email, phone, account_number, account_type, bank_name) VALUES
+('900123456-7', 'Textiles de Colombia S.A.S', 'contacto@textilescol.com', '6015551234', '123-456789-0', 'Ahorros', 'Bancolombia'),
+('800987654-3', 'Diseños Modernos Ltda', 'ventas@dismod.com', '6045559876', '987-654321-1', 'Corriente', 'Davivienda');
 
-INSERT INTO "category" (id, name, created_at, updated_at) VALUES
-(1, 'Camisetas', NOW(), NOW()),
-(2, 'Pantalones', NOW(), NOW());
+INSERT INTO "year_production" (id, name, description) VALUES
+('Q', 'Año 2025', 'Producción para el año 2025'),
+('R', 'Año 2026', 'Producción para el año 2026'),
+('S', 'Año 2027', 'Producción para el año 2027'),
+('T', 'Año 2028', 'Producción para el año 2028'),
+('U', 'Año 2029', 'Producción para el año 2029'),
+('V', 'Año 2030', 'Producción para el año 2030');
 
--- Prendas
-INSERT INTO "clothing" (id, id_type_clothing, id_category, name, gender, created_at, updated_at) VALUES
-(1, 1, 1, 'Camiseta Básica', 'UNISEX', NOW(), NOW()),
-(2, 2, 2, 'Jean Clásico', 'UNISEX', NOW(), NOW());
+INSERT INTO "collection" (season, description) VALUES
+('Verano 2025', 'Colección fresca y vibrante para el verano'),
+('Invierno 2025', 'Colección abrigada para la temporada de frío');
 
--- Colores y Tallas
-INSERT INTO "color" (id, name, hex, created_at, updated_at) VALUES
-(1, 'Blanco', '#FFFFFF', NOW(), NOW()),
-(2, 'Negro', '#000000', NOW(), NOW()),
-(3, 'Azul Oscuro', '#00008B', NOW(), NOW());
+-- IDs personalizados de Char(2)
+INSERT INTO "type_clothing" (id, name) VALUES
+('A', 'Camiseta'),
+('B', 'Polo'),
+('C', 'Camisa'),
+('D', 'Buso'),
+('E', 'Chaqueta'),
+('F', 'Pantalon Largo'),
+('G', 'Jean'),
+('H', 'Calzado'),
+('I', 'Gorra');
 
-INSERT INTO "size" (id, name, description, created_at, updated_at) VALUES
-(1, 'S', 'Talla Pequeña', NOW(), NOW()),
-(2, 'M', 'Talla Mediana', NOW(), NOW()),
-(3, 'L', 'Talla Grande', NOW(), NOW());
+INSERT INTO "category" (name) VALUES
+('Ropa Parte Superior'),
+('Ropa Parte Inferior'),
+('Accesorios');
 
--- Diseños
-INSERT INTO "design" (id, id_provider, id_clothing, id_collection, id_year_production, name, reference, manufactured_cost, created_at, updated_at) VALUES
-(1, '900123456-1', 1, 1, 1, 'Camiseta Algodón Premium', 'REF-CAM-001', 15000.00, NOW(), NOW()),
-(2, '800987654-2', 2, 1, 1, 'Jean Denim Clásico', 'REF-JEA-001', 45000.00, NOW(), NOW());
+INSERT INTO "color" (name, hex) VALUES
+('Blanco', '#FFFFFF'),
+('Negro', '#000000'),
+('Azul Oscuro', '#00008B'),
+('Rojo', '#FF0000'),
+('Blanco Hueso', '#F5F5F5'),
+('Gris Claro', '#D3D3D3'),
+('Azul Claro', '#ADD8E6'),
+('Amarillo Claro', '#FFFFE0'),
+('Verde Claro', '#90EE90'),
+('Rosa Claro', '#FFB6C1'),
+('Morado Claro', '#E6E6FA'),
+('Naranja Claro', '#FFDAB9'),
+('Cafe', '#FFDAB9'),
+('Plateado','#C0C0C0'),
+('Chocolate', '#D2691E');
 
--- Variantes de Diseño (Prenda-Diseño)
--- Camiseta Blanca S, M, L
-INSERT INTO "design_clothing" (id, id_color, id_size, id_design, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment, created_at, updated_at) VALUES
-(1, 1, 1, 1, 50, 50, 0, 0, NOW(), NOW()),
-(2, 1, 2, 1, 100, 100, 0, 0, NOW(), NOW()),
-(3, 1, 3, 1, 50, 50, 0, 0, NOW(), NOW());
+INSERT INTO "size" (name, description) VALUES
+('XS', 'Extra Pequeña'),
+('S', 'Pequeña'),
+('M', 'Mediana'),
+('L', 'Grande'),
+('XL', 'Extra Grande'),
+('U', 'Único');
 
--- Camiseta Negra S, M, L
-INSERT INTO "design_clothing" (id, id_color, id_size, id_design, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment, created_at, updated_at) VALUES
-(4, 2, 1, 1, 50, 50, 0, 0, NOW(), NOW()),
-(5, 2, 2, 1, 100, 100, 0, 0, NOW(), NOW()),
-(6, 2, 3, 1, 50, 50, 0, 0, NOW(), NOW());
 
--- Jean Azul Oscuro S, M, L
-INSERT INTO "design_clothing" (id, id_color, id_size, id_design, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment, created_at, updated_at) VALUES
-(7, 3, 1, 2, 30, 30, 0, 0, NOW(), NOW()),
-(8, 3, 2, 2, 60, 60, 0, 0, NOW(), NOW()),
-(9, 3, 3, 2, 30, 30, 0, 0, NOW(), NOW());
+-- 3. Tabla "Clothing" (depende de TypeClothing y Category)
+--------------------------------------------------------------------
+INSERT INTO "clothing" (id_type_clothing, id_category, name, gender) VALUES
+('A', 1, 'Camisa de Vestir Slim Fit', 'MASCULINO'),
+('G', 2, 'Jean Clásico Azul', 'UNISEX'),
+('F', 1, 'Vestido de Noche Elegante', 'FEMENINO');
 
--- Stock Inicial
--- Stock para Camisetas Blancas
-INSERT INTO "stock" (id_design_clothing, current_quantity, available_quantity, sold_quantity, consignment_quantity, created_at, updated_at) VALUES
-(1, 50, 50, 0, 0, NOW(), NOW()),
-(2, 100, 100, 0, 0, NOW(), NOW()),
-(3, 50, 50, 0, 0, NOW(), NOW());
 
--- Stock para Camisetas Negras
-INSERT INTO "stock" (id_design_clothing, current_quantity, available_quantity, sold_quantity, consignment_quantity, created_at, updated_at) VALUES
-(4, 50, 50, 0, 0, NOW(), NOW()),
-(5, 100, 100, 0, 0, NOW(), NOW()),
-(6, 50, 50, 0, 0, NOW(), NOW());
+-- 4. Tabla "Design" (depende de Provider, Clothing, Collection, YearProduction)
+--------------------------------------------------------------------
+INSERT INTO "design" (id_provider, id_clothing, id_collection, id_year_production, name, reference, manufactured_cost) VALUES
+('900123456-7', 1, 1, 'Q', 'Camisa Lino Blanca', 'CLB-001', 35000.0),
+('800987654-3', 2, 1, 'Q', 'Jean Bota Recta', 'JBR-002', 45000.0),
+('800987654-3', 3, 2, 'Q', 'Vestido Largo de Gala', 'VLG-001', 80000.0);
 
--- Stock para Jeans
-INSERT INTO "stock" (id_design_clothing, current_quantity, available_quantity, sold_quantity, consignment_quantity, created_at, updated_at) VALUES
-(7, 30, 30, 0, 0, NOW(), NOW()),
-(8, 60, 60, 0, 0, NOW(), NOW()),
-(9, 30, 30, 0, 0, NOW(), NOW());
 
--- Productos para la tienda
--- Producto para Camiseta Blanca Talla M
-INSERT INTO "product" (id, id_design_clothing, name, description, price, active, outlet, created_at, updated_at) VALUES
-(1, 2, 'Camiseta Blanca Premium', 'Camiseta de algodón suave y duradero, perfecta para cualquier ocasión.', 35000.00, true, false, NOW(), NOW());
+-- 5. Tabla "DesignClothing" (SKUs - depende de Design, Color, Size)
+--------------------------------------------------------------------
+-- Camisa Lino Blanca (Diseño 1)
+INSERT INTO "design_clothing" (id_design, id_color, id_size, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment) VALUES
+(1, 1, 1, 50, 40, 10, 0), -- Talla S, Blanca
+(1, 1, 2, 100, 80, 20, 0), -- Talla M, Blanca
+(1, 1, 3, 50, 30, 20, 0); -- Talla L, Blanca
 
--- Producto para Jean Azul Oscuro Talla M
-INSERT INTO "product" (id, id_design_clothing, name, description, price, active, outlet, created_at, updated_at) VALUES
-(2, 8, 'Jean Clásico Azul Oscuro', 'Jean de corte clásico, cómodo y versátil.', 95000.00, true, false, NOW(), NOW());
+-- Jean Bota Recta (Diseño 2)
+INSERT INTO "design_clothing" (id_design, id_color, id_size, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment) VALUES
+(2, 3, 1, 80, 70, 10, 0), -- Talla S, Azul Oscuro
+(2, 3, 2, 120, 100, 20, 0), -- Talla M, Azul Oscuro
+(2, 3, 3, 80, 60, 20, 0); -- Talla L, Azul Oscuro
 
--- Tipos de Cliente e Identificación
-INSERT INTO "customer_type" (id, name, created_at, updated_at) VALUES
-(1, 'Minorista', NOW(), NOW()),
-(2, 'Mayorista', NOW(), NOW());
+-- Vestido Largo de Gala (Diseño 3)
+INSERT INTO "design_clothing" (id_design, id_color, id_size, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment) VALUES
+(3, 2, 1, 30, 25, 5, 0), -- Talla S, Negro
+(3, 4, 2, 30, 20, 10, 0); -- Talla M, Rojo
 
-INSERT INTO "identification_type" (id, name, created_at, updated_at) VALUES
-(1, 'Cédula de Ciudadanía', NOW(), NOW()),
-(2, 'NIT', NOW(), NOW());
-_
--- Cliente de ejemplo
-INSERT INTO "customer" (id_customer, id_customer_type, id_identification_type, name, email, current_phone_number, responsable_for_vat, shipping_address, city, state, postal_code, country, created_at, updated_at) VALUES
-(1, 1, 1, 'Juan Perez', 'juan.perez@email.com', '3151234567', false, 'Calle 100 # 20-30', 'Bogotá', 'Cundinamarca', '110111', 'Colombia', NOW(), NOW());
 
--- Métodos de Pago
-INSERT INTO "payment_method" (id, name, enabled, created_at, updated_at) VALUES
-(1, 'Tarjeta de Crédito', true, NOW(), NOW()),
-(2, 'PSE', true, NOW(), NOW()),
-(3, 'Efectivo', false, NOW(), NOW());
+-- 6. Tablas "Stock" y "Product" (dependen de DesignClothing)
+--------------------------------------------------------------------
+-- Stock y Productos para Camisa Lino Blanca
+INSERT INTO "stock" (id_design_clothing, current_quantity, available_quantity, sold_quantity, consignment_quantity) VALUES
+(1, 40, 40, 10, 0),
+(2, 80, 80, 20, 0),
+(3, 30, 30, 20, 0);
+INSERT INTO "product" (id_design_clothing, name, description, price, image_url, active, outlet) VALUES
+(1, 'Camisa Lino Blanca Talla S', 'Camisa de lino ideal para clima cálido, corte slim.', 89900, 'https://example.com/img/clb-s.jpg', true, false),
+(2, 'Camisa Lino Blanca Talla M', 'Camisa de lino ideal para clima cálido, corte slim.', 89900, 'https://example.com/img/clb-m.jpg', true, false),
+(3, 'Camisa Lino Blanca Talla L', 'Camisa de lino ideal para clima cálido, corte slim.', 89900, 'https://example.com/img/clb-l.jpg', true, false);
 
--- Orden de ejemplo
-INSERT INTO "orders" (id_order, id_customer, order_date, status, sub_total, tax, total, is_paid, payment_method, shipping_address, created_at, updated_at) VALUES
-(1, 1, NOW(), 'PROCESANDO', 130000.00, 24700.00, 154700.00, true, 'Tarjeta de Crédito', 'Calle 100 # 20-30', NOW(), NOW());
+-- Stock y Productos para Jean Bota Recta
+INSERT INTO "stock" (id_design_clothing, current_quantity, available_quantity, sold_quantity, consignment_quantity) VALUES
+(4, 70, 70, 10, 0),
+(5, 100, 100, 20, 0),
+(6, 60, 60, 20, 0);
+INSERT INTO "product" (id_design_clothing, name, description, price, image_url, active, outlet) VALUES
+(4, 'Jean Clásico Bota Recta Talla S', 'Jean de 5 bolsillos, color azul oscuro.', 120000, 'https://example.com/img/jbr-s.jpg', true, false),
+(5, 'Jean Clásico Bota Recta Talla M', 'Jean de 5 bolsillos, color azul oscuro.', 120000, 'https://example.com/img/jbr-m.jpg', true, false),
+(6, 'Jean Clásico Bota Recta Talla L', 'Jean de 5 bolsillos, color azul oscuro.', 120000, 'https://example.com/img/jbr-l.jpg', true, false);
 
--- Items de la Orden
-INSERT INTO "order_items" (id_order, id_product, product_name, size, color, quantity, unit_price, created_at, updated_at) VALUES
-(1, 1, 'Camiseta Blanca Premium', 'M', 'Blanco', 1, 35000.00, NOW(), NOW()),
-(1, 2, 'Jean Clásico Azul Oscuro', 'M', 'Azul Oscuro', 1, 95000.00, NOW(), NOW());
+-- Stock y Productos para Vestido de Gala
+INSERT INTO "stock" (id_design_clothing, current_quantity, available_quantity, sold_quantity, consignment_quantity) VALUES
+(7, 25, 25, 5, 0),
+(8, 20, 20, 10, 0);
+INSERT INTO "product" (id_design_clothing, name, description, price, image_url, active, outlet) VALUES
+(7, 'Vestido de Noche Negro Talla S', 'Vestido largo elegante para ocasiones especiales.', 250000, 'https://example.com/img/vlg-s.jpg', true, false),
+(8, 'Vestido de Noche Rojo Talla M', 'Vestido largo elegante para ocasiones especiales.', 250000, 'https://example.com/img/vlg-m.jpg', true, true); -- Este producto está en outlet
 
--- Pago de la Orden
-INSERT INTO "payments" (id_order, id_customer, id_payment_method, status, transaction_date, transaction_reference, amount, created_at, updated_at) VALUES
-(1, 1, 1, 'APROBADO', NOW(), 'TXN12345ABC', 154700.00, NOW(), NOW());
 
--- Proveedor de Envío
-INSERT INTO "shipping_provider" (id, name, set_tracking_base, active, created_at, updated_at) VALUES
-(1, 'Interrapidísimo', 'https://www.interrapidisimo.com/sigue-tu-envio/?guia=', true, NOW(), NOW());
+-- 7. Tablas de Clientes
+--------------------------------------------------------------------
+INSERT INTO "customer_type" (name, created_at) VALUES
+('Persona Natural', NOW()),
+('Persona Juridica', NOW());
 
--- Envío de la Orden
-INSERT INTO "shipment" (id_order, id_shipping_provider, guide_number, status, estimated_delivery_date, created_at, updated_at) VALUES
-(1, 1, 'GUIA-XYZ-98765', 'EN_TRANSITO', NOW() + interval '3 day', NOW(), NOW());
+INSERT INTO "identification_type" (code, name, created_at, updated_at) VALUES
+('CC', 'Cédula de Ciudadanía', NOW(), NOW()),
+('NIT', 'Número de Identificación Tributaria', NOW(), NOW()),
+('CE', 'Cédula de Extranjería', NOW(), NOW()),
+('PAS', 'Pasaporte', NOW(), NOW()),
+('TI', 'Tarjeta de Identidad', NOW(), NOW());
 
--- Historial de Seguimiento del Envío
-INSERT INTO "tracking_history" (id_shipment, status, update_date, location, provider_code, created_at, updated_at) VALUES
-(1, 'EN_BODEGA_ORIGEN', NOW() - interval '1 hour', 'BOGOTA', '101', NOW(), NOW()),
-(1, 'EN_TRANSITO', NOW(), 'BOGOTA', '201', NOW(), NOW());
+INSERT INTO "customer" (id_customer_type, id_identification_type, name, email, current_phone_number, responsable_for_vat, shipping_address, city, state, postal_code, country) VALUES
+(1, 1, 'Carlos Ramirez', 'carlos.r@email.com', '3209876543', false, 'Calle 100 # 20-30', 'Bogotá', 'Cundinamarca', '110111', 'Colombia'),
+(2, 2, 'Moda Express SAS', 'compras@modaexpress.co', '3001112233', true, 'Carrera 45 # 10-15 Bodega 5', 'Medellín', 'Antioquia', '050001', 'Colombia');
 
--- Actualizar los IDs de las secuencias para que las nuevas inserciones no fallen
--- Esto es importante si estás insertando IDs manualmente
 
+-- 8. Tablas de Órdenes y Pagos
+--------------------------------------------------------------------
+INSERT INTO "orders" (id_customer, order_date, status, sub_total, tax, total, is_paid, payment_method, shipping_address) VALUES
+(1, '2024-05-10 10:30:00', 'Entregado', 209900, 39881, 249781, true, 'Tarjeta de Crédito', 'Calle 100 # 20-30, Bogotá');
+
+INSERT INTO "order_items" (id_order, id_product, product_name, size, color, quantity, unit_price) VALUES
+(1, 2, 'Camisa Lino Blanca Talla M', 'M', 'Blanco', 1, 89900),
+(1, 5, 'Jean Clásico Bota Recta Talla M', 'M', 'Azul Oscuro', 1, 120000);
+
+INSERT INTO "payment_method" (name, enabled, created_at) VALUES
+('Tarjeta de Crédito', true, NOW()),
+('PSE', true, NOW()),
+('Efectivo', false, NOW());
+
+INSERT INTO "payments" (id_order, id_customer, id_payment_method, status, transaction_date, transaction_reference, amount) VALUES
+(1, 1, 1, 'Aprobado', '2024-05-10 10:32:00', 'TXN123ABC456', 249781);
+
+
+-- 9. Tablas de Envíos
+--------------------------------------------------------------------
+INSERT INTO "shipping_provider" (name, set_tracking_base, active) VALUES
+('Servientrega', 'https://www.servientrega.com/wps/portal/rastreo-envio/!ut/p/z1/04.../?guia=', true),
+('Interrapidísimo', 'https://www.interrapidisimo.com/sigue-tu-envio/?guia=', true);
+
+INSERT INTO "shipment" (id_order, id_shipping_provider, guide_number, status, estimated_delivery_date, delivery_date) VALUES
+(1, 1, '1234567890', 'Entregado', '2024-05-13', '2024-05-12 15:00:00');
+
+INSERT INTO "tracking_history" (id_shipment, status, update_date, location, provider_code) VALUES
+(1, 'En centro de distribución', '2024-05-11 08:00:00', 'Bogotá, Colombia', 'BOG-CEDI'),
+(1, 'En reparto', '2024-05-12 09:00:00', 'Bogotá, Colombia', 'BOG-REP'),
+(1, 'Entregado', '2024-05-12 15:00:00', 'Bogotá, Colombia', 'ENTREGADO-OK');
+
+-- Fin del script
