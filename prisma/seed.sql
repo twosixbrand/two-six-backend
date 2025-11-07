@@ -18,9 +18,9 @@ INSERT INTO "role" (name, description) VALUES
 ('Counter', 'Rol para contador de la empresa'),
 ('Reader', 'Rol de solo consultas');
 
-INSERT INTO "user_app" (name, login, email, phone) VALUES
-('Jorge Manrique', 'jmanrique', 'jamanrique@gmail.com', '3101234567'),
-('Vanessa Buitrago', 'vbuitrago', 'vanebuitragop6@gmail.com', '21526059');
+INSERT INTO "user_app" (name, login, email, phone, password) VALUES
+('Jorge Manrique', 'jmanrique', 'jamanrique@gmail.com', '3101234567', '$2b$10$f9a8s7d6f5g4h3j2k1l0iOu9n8b7v6c5d4f3g2h1j0k9l8m7n6b5v'),
+('Vanessa Buitrago', 'vbuitrago', 'vanebuitragop6@gmail.com', '21526059', '$2b$10$z1x2c3v4b5n6m7l8k9j0hOg9f8d7s6a5s4d3f2g1h2j3k4l5m6n');
 
 INSERT INTO "user_role" (id_user_app, id_role) VALUES
 (1, 1), -- Jorge es Admin
@@ -41,9 +41,17 @@ INSERT INTO "year_production" (id, name, description) VALUES
 ('U', 'Año 2029', 'Producción para el año 2029'),
 ('V', 'Año 2030', 'Producción para el año 2030');
 
-INSERT INTO "collection" (season, description) VALUES
-('Verano 2025', 'Colección fresca y vibrante para el verano'),
-('Invierno 2025', 'Colección abrigada para la temporada de frío');
+INSERT INTO "season" (name, description) VALUES
+('Verano', 'Temporada de verano'),
+('Invierno', 'Temporada de invierno'),
+('Otoño', 'Temporada de otoño'),
+('Primavera', 'Temporada de primavera');
+
+INSERT INTO "collection" (id_year_production, id_season, name, description) VALUES
+('Q', 1, 'Colección Verano 2025', 'Colección fresca y vibrante para el verano'),
+('Q', 2, 'Colección Invierno 2025', 'Colección abrigada para la temporada de frío'),
+('Q', 3, 'Colección Otoño 2025', 'Colección abrigada para la temporada de frío'),
+('Q', 4, 'Colección Primavera 2025', 'Colección comoda para la temporada fresca');
 
 -- IDs personalizados de Char(2)
 INSERT INTO "type_clothing" (id, name) VALUES
@@ -55,7 +63,9 @@ INSERT INTO "type_clothing" (id, name) VALUES
 ('F', 'Pantalon Largo'),
 ('G', 'Jean'),
 ('H', 'Calzado'),
-('I', 'Gorra');
+('I', 'Gorra'),
+('J', 'Pantalon Corto'),
+('K', 'Vestido');
 
 INSERT INTO "category" (name) VALUES
 ('Ropa Parte Superior'),
@@ -98,10 +108,10 @@ INSERT INTO "clothing" (id_type_clothing, id_category, name, gender) VALUES
 
 -- 4. Tabla "Design" (depende de Provider, Clothing, Collection, YearProduction)
 --------------------------------------------------------------------
-INSERT INTO "design" (id_provider, id_clothing, id_collection, id_year_production, name, reference, manufactured_cost) VALUES
-('900123456-7', 1, 1, 'Q', 'Camisa Lino Blanca', 'CLB-001', 35000.0),
-('800987654-3', 2, 1, 'Q', 'Jean Bota Recta', 'JBR-002', 45000.0),
-('800987654-3', 3, 2, 'Q', 'Vestido Largo de Gala', 'VLG-001', 80000.0);
+INSERT INTO "design" (id_provider, id_clothing, id_collection, reference, manufactured_cost, quantity) VALUES
+('900123456-7', 1, 1, 'CLB-001', 35000.0, 100),
+('800987654-3', 2, 1, 'JBR-002', 45000.0, 150),
+('800987654-3', 3, 2, 'VLG-001', 80000.0, 50);
 
 
 -- 5. Tabla "DesignClothing" (SKUs - depende de Design, Color, Size)
@@ -205,4 +215,5 @@ INSERT INTO "tracking_history" (id_shipment, status, update_date, location, prov
 (1, 'En reparto', '2024-05-12 09:00:00', 'Bogotá, Colombia', 'BOG-REP'),
 (1, 'Entregado', '2024-05-12 15:00:00', 'Bogotá, Colombia', 'ENTREGADO-OK');
 
--- Fin del script
+-- Fin del script, para ejecutar los insert desde la terminal:
+-- psql -U jmanmrique -d twosixDB -a -f prisma/seed.sql

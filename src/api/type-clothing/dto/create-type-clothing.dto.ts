@@ -7,5 +7,4 @@ export class CreateTypeClothingDto {
   @IsNotEmpty()
   @Length(1, 255)
   name: string;
-  
 }

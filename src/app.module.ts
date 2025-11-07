@@ -12,6 +12,13 @@ import { UserAppModule } from './api/user-app/user-app.module';
 import { RolesModule } from './api/role/roles.module';
 import { UserRoleModule } from './api/user-role/user-role.module';
 import { ProviderModule } from './api/provider/provider.module';
+import { MasterDesignModule } from './api/master-design/master-design.module';
+import { CollectionModule } from './api/collection/collection.module';
+import { YearProductionModule } from './api/year-production/year-production.module';
+import { ColorModule } from './api/color/color.module';
+import { SizeModule } from './api/size/size.module';
+import { DesignClothingModule } from './api/design-clothing/design-clothing.module';
+import { SeasonModule } from './api/season/season.module';
 
 @Module({
   imports: [
@@ -28,6 +35,13 @@ import { ProviderModule } from './api/provider/provider.module';
     RolesModule,
     UserRoleModule,
     ProviderModule,
+    MasterDesignModule,
+    CollectionModule,
+    YearProductionModule,
+    ColorModule,
+    SizeModule,
+    DesignClothingModule,
+    SeasonModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -33,6 +33,7 @@ model UserApp {
   login        String     @unique
   email        String     @unique
   phone        String
+  password     String?
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime?   @updatedAt @map("updated_at")
   userRoles    UserRole[]
@@ -88,14 +89,29 @@ model YearProduction {
   description String?
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime? @updatedAt @map("updated_at")
-  designs     Design[]
+  collections Collection[]
 
   @@map("year_production")
 }
 
+model Season {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  description String?
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime?    @updatedAt @map("updated_at")
+  collections Collection[]
+
+  @@map("season")
+}
+
 model Collection {
   id          Int      @id @default(autoincrement())
-  season      String
+  name        String
+  season      Season   @relation(fields: [id_season], references: [id])
+  id_season   Int      @map("id_season")
+  yearProduction     YearProduction @relation(fields: [id_year_production], references: [id])
+  id_year_production  String         @map("id_year_production") @db.Char(2)
   description String?
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime? @updatedAt @map("updated_at")
@@ -169,17 +185,15 @@ model Size {
 
 model Design {
   id                 Int              @id @default(autoincrement())
-  provider           Provider         @relation(fields: [id_provider], references: [id])
-  id_provider        String           @map("id_provider") // NIT del provider
-  clothing           Clothing         @relation(fields: [id_clothing], references: [id])
-  id_clothing        Int              @map("id_clothing")
-  collection         Collection       @relation(fields: [id_collection], references: [id])
   id_collection      Int              @map("id_collection")
-  yearProduction     YearProduction   @relation(fields: [id_year_production], references: [id])
-  id_year_production String           @map("id_year_production") @db.Char(2)
-  name               String
+  collection         Collection       @relation(fields: [id_collection], references: [id])
+  id_provider        String           @map("id_provider") // NIT del provider
+  provider           Provider         @relation(fields: [id_provider], references: [id])
+  id_clothing        Int              @map("id_clothing")
+  clothing           Clothing         @relation(fields: [id_clothing], references: [id])
   reference          String
   manufactured_cost  Float
+  quantity           BigInt
   createdAt          DateTime         @default(now()) @map("created_at")
   updatedAt          DateTime?         @updatedAt @map("updated_at")
   designClothing     DesignClothing[]

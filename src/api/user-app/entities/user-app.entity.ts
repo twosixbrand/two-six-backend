@@ -1,8 +1,4 @@
-import { UserApp as UserAppModel, Role } from '@prisma/client';
-
-class UserRoleEntity {
-  role: Role;
-}
+import { UserApp as UserAppModel } from '@prisma/client';
 
 export class UserAppEntity implements UserAppModel {
   id: number;
@@ -10,7 +6,7 @@ export class UserAppEntity implements UserAppModel {
   login: string;
   email: string;
   phone: string;
+  password: string | null;
   createdAt: Date;
   updatedAt: Date | null;
-  userRoles: UserRoleEntity[];
 }
