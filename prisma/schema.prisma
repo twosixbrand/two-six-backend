@@ -254,14 +254,14 @@ model Product {
   is_outlet                  Boolean        @map("is_outlet")
   createdAt                  DateTime       @default(now()) @map("created_at")
   updatedAt                  DateTime?       @updatedAt @map("updated_at")
-  orderItems                 OrderItems[]
+  orderItems                 OrderItem[]
   returnItems                ReturnItems[]
 
   @@map("product")
 }
 
 model Customer {
-  id                     Int                @id @default(autoincrement()) @map("id_customer")
+  id                     Int                @id @default(autoincrement())
   customerType           CustomerType       @relation(fields: [id_customer_type], references: [id])
   id_customer_type       Int                @map("id_customer_type")
   identificationType     IdentificationType @relation(fields: [id_identification_type], references: [id])
@@ -277,7 +277,7 @@ model Customer {
   country                String
   createdAt              DateTime           @default(now()) @map("created_at")
   updatedAt              DateTime?           @updatedAt @map("updated_at")
-  orders                 Orders[]
+  order                  Order[]
   returns                Returns[]
   payments               Payments[]
 
@@ -309,32 +309,32 @@ model IdentificationType {
 // Tablas de Órdenes y Pagos
 // -----------------------------------------------------
 
-model Orders {
+model Order {
   id               Int             @id @default(autoincrement()) @map("id_order")
   customer         Customer        @relation(fields: [id_customer], references: [id])
   id_customer      Int             @map("id_customer")
   order_date       DateTime
   status           String
-  sub_total        Float
-  tax              Float
-  total            Float
+  iva              Float
+  shipping_cost    Float           @map("shipping_cost")
+  total_payment    Float           @map("total_payment")
+  purchase_date    DateTime        @map("purchase_date")
   is_paid          Boolean
-  payment_method   String
   shipping_address String
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime?        @updatedAt @map("updated_at")
-  orderItems       OrderItems[]
+  orderItems       OrderItem[]
   returns          Returns[]
   shipments        Shipment[]
   dianEInvoicing   DianEInvoicing?
   payments         Payments[] // Relación añadida (no estaba explícita en el ERD pero es necesaria)
 
-  @@map("orders")
+  @@map("order")
 }
 
-model OrderItems {
+model OrderItem {
   id           Int           @id @default(autoincrement())
-  order        Orders        @relation(fields: [id_order], references: [id])
+  order        Order         @relation(fields: [id_order], references: [id])
   id_order     Int           @map("id_order")
   product      Product       @relation(fields: [id_product], references: [id])
   id_product   Int           @map("id_product")
@@ -347,12 +347,12 @@ model OrderItems {
   updatedAt    DateTime?      @updatedAt @map("updated_at")
   returnItems  ReturnItems[]
 
-  @@map("order_items")
+  @@map("order_item")
 }
 
 model Returns {
   id              Int           @id @default(autoincrement())
-  order           Orders        @relation(fields: [id_order], references: [id])
+  order           Order         @relation(fields: [id_order], references: [id])
   id_order        Int           @map("id_order")
   customer        Customer      @relation(fields: [id_customer], references: [id])
   id_customer     Int           @map("id_customer")
@@ -373,8 +373,8 @@ model Returns {
 model ReturnItems {
   id            Int        @id @default(autoincrement())
   return        Returns    @relation(fields: [id_return], references: [id])
-  id_return     Int        @map("id_return")
-  orderItem     OrderItems @relation(fields: [id_order_item], references: [id])
+  id_return     Int        @map("id_return") 
+  orderItem     OrderItem @relation(fields: [id_order_item], references: [id])
   id_order_item Int        @map("id_order_item")
   product       Product    @relation(fields: [id_product], references: [id])
   id_product    Int        @map("id_product")
@@ -400,7 +400,7 @@ model PaymentMethod {
 
 model Payments {
   id                    Int           @id @default(autoincrement())
-  order                 Orders        @relation(fields: [id_order], references: [id])
+  order                 Order         @relation(fields: [id_order], references: [id])
   id_order              Int           @map("id_order")
   customer              Customer      @relation(fields: [id_customer], references: [id])
   id_customer           Int           @map("id_customer")
@@ -418,7 +418,7 @@ model Payments {
 
 model DianEInvoicing {
   id              Int      @id @default(autoincrement())
-  order           Orders   @relation(fields: [id_order], references: [id])
+  order           Order    @relation(fields: [id_order], references: [id])
   id_order        Int      @unique @map("id_order")
   cufe_code       String
   qr_code         String
@@ -469,7 +469,7 @@ model ShipmentRate {
 
 model Shipment {
   id                      Int               @id @default(autoincrement())
-  order                   Orders            @relation(fields: [id_order], references: [id])
+  order                   Order             @relation(fields: [id_order], references: [id])
   id_order                Int               @map("id_order")
   shippingProvider        ShippingProvider  @relation(fields: [id_shipping_provider], references: [id])
   id_shipping_provider    Int               @map("id_shipping_provider")
