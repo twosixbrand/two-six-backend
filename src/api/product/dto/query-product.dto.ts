@@ -16,5 +16,5 @@ export class QueryProductDto {
     // Si el parámetro no está en la URL, `value` será `undefined` y se mantendrá así.
     return value;
   })
-  outlet?: boolean;
+  is_outlet?: boolean;
 }

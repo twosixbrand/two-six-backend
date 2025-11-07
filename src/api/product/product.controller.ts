@@ -12,6 +12,7 @@ import {
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { Product } from './entities/product.entity';
 import { QueryProductDto } from './dto/query-product.dto';
 
 @Controller('products')
@@ -24,8 +25,8 @@ export class ProductController {
   }
 
   @Get()
-  findAll(@Query() query: QueryProductDto) {
-    return this.productService.findAll(query.gender, query.outlet);
+  findAll(@Query() query: QueryProductDto): Promise<Product[]> {
+    return this.productService.findAll(query.gender, query.is_outlet);
   }
 
   @Get(':id')

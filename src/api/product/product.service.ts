@@ -33,8 +33,8 @@ export class ProductService {
       data: {
         ...productData,
         // Asignar valores por defecto si no vienen en el DTO.
-        active: productData.active ?? true,
-        outlet: productData.outlet ?? false,
+        active: productData.active ?? true, // Mantenido
+        is_outlet: productData.is_outlet ?? false, // Corregido de 'outlet' a 'is_outlet'
         designClothing: {
           connect: {
             id: id_design_clothing,
@@ -50,13 +50,13 @@ export class ProductService {
    * @param gender - Género para filtrar los productos (opcional).
    * @param outlet - Booleano para filtrar si el producto es outlet (opcional).
    */
-  findAll(gender?: Gender, outlet?: boolean) {
+  findAll(gender?: Gender, is_outlet?: boolean) {
     const where: Prisma.ProductWhereInput = {
       active: true, // Por defecto, solo trae productos activos.
     };
 
-    if (outlet !== undefined) {
-      where.outlet = outlet;
+    if (is_outlet !== undefined) {
+      where.is_outlet = is_outlet;
     }
 
     if (gender) {
@@ -179,4 +179,3 @@ export class ProductService {
     });
   }
 }
-

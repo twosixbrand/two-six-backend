@@ -29,5 +29,5 @@ export class CreateProductDto {
 
   @IsBoolean()
   @IsOptional()
-  outlet?: boolean;
+  is_outlet?: boolean;
 }
