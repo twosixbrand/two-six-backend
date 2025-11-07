@@ -9,6 +9,7 @@ export class DesignClothingEntity implements DesignClothingModel {
   quantity_available: number;
   quantity_sold: number;
   quantity_on_consignment: number;
+  quantity_under_warranty: number;
   createdAt: Date;
   updatedAt: Date | null;
 }

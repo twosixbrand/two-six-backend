@@ -117,21 +117,21 @@ INSERT INTO "design" (id_provider, id_clothing, id_collection, reference, manufa
 -- 5. Tabla "DesignClothing" (SKUs - depende de Design, Color, Size)
 --------------------------------------------------------------------
 -- Camisa Lino Blanca (Diseño 1)
-INSERT INTO "design_clothing" (id_design, id_color, id_size, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment) VALUES
-(1, 1, 1, 50, 40, 10, 0), -- Talla S, Blanca
-(1, 1, 2, 100, 80, 20, 0), -- Talla M, Blanca
-(1, 1, 3, 50, 30, 20, 0); -- Talla L, Blanca
+INSERT INTO "design_clothing" (id_design, id_color, id_size, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment, quantity_under_warranty) VALUES
+(1, 1, 1, 50, 40, 10, 0, 0), -- Talla S, Blanca
+(1, 1, 2, 100, 80, 20, 0, 0), -- Talla M, Blanca
+(1, 1, 3, 50, 30, 20, 0, 0); -- Talla L, Blanca
 
 -- Jean Bota Recta (Diseño 2)
-INSERT INTO "design_clothing" (id_design, id_color, id_size, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment) VALUES
-(2, 3, 1, 80, 70, 10, 0), -- Talla S, Azul Oscuro
-(2, 3, 2, 120, 100, 20, 0), -- Talla M, Azul Oscuro
-(2, 3, 3, 80, 60, 20, 0); -- Talla L, Azul Oscuro
+INSERT INTO "design_clothing" (id_design, id_color, id_size, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment, quantity_under_warranty) VALUES
+(2, 3, 1, 80, 70, 10, 0, 0), -- Talla S, Azul Oscuro
+(2, 3, 2, 120, 100, 20, 0, 0), -- Talla M, Azul Oscuro
+(2, 3, 3, 80, 60, 20, 0, 0); -- Talla L, Azul Oscuro
 
 -- Vestido Largo de Gala (Diseño 3)
-INSERT INTO "design_clothing" (id_design, id_color, id_size, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment) VALUES
-(3, 2, 1, 30, 25, 5, 0), -- Talla S, Negro
-(3, 4, 2, 30, 20, 10, 0); -- Talla M, Rojo
+INSERT INTO "design_clothing" (id_design, id_color, id_size, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment, quantity_under_warranty) VALUES
+(3, 2, 1, 30, 25, 5, 0, 0), -- Talla S, Negro
+(3, 4, 2, 30, 20, 10, 0, 0); -- Talla M, Rojo
 
 
 -- 6. Tablas "Stock" y "Product" (dependen de DesignClothing)

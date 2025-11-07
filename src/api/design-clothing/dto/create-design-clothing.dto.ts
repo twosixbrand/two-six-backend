@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsInt, Min } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsInt, Min, IsOptional } from 'class-validator';
 
 export class CreateDesignClothingDto {
   @IsNumber()
@@ -28,4 +28,9 @@ export class CreateDesignClothingDto {
   @IsInt()
   @Min(0)
   quantity_on_consignment: number;
+
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  quantity_under_warranty?: number;
 }
