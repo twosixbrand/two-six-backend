@@ -19,6 +19,7 @@ import { ColorModule } from './api/color/color.module';
 import { SizeModule } from './api/size/size.module';
 import { DesignClothingModule } from './api/design-clothing/design-clothing.module';
 import { SeasonModule } from './api/season/season.module';
+import { OrderModule } from './api/order/order.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { SeasonModule } from './api/season/season.module';
     SizeModule,
     DesignClothingModule,
     SeasonModule,
+    OrderModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -188,10 +188,10 @@ INSERT INTO "customer" (id_customer_type, id_identification_type, name, email, c
 
 -- 8. Tablas de Órdenes y Pagos
 --------------------------------------------------------------------
-INSERT INTO "orders" (id_customer, order_date, status, sub_total, tax, total, is_paid, payment_method, shipping_address) VALUES
-(1, '2024-05-10 10:30:00', 'Entregado', 209900, 39881, 249781, true, 'Tarjeta de Crédito', 'Calle 100 # 20-30, Bogotá');
+INSERT INTO "order" (id_customer, order_date, status, iva, shipping_cost, total_payment, purchase_date, is_paid, shipping_address) VALUES
+(1, '2024-05-10 10:30:00', 'Entregado', 39881, 10000, 219900, '2024-05-10 10:32:00', true, 'Calle 100 # 20-30, Bogotá');
 
-INSERT INTO "order_items" (id_order, id_product, product_name, size, color, quantity, unit_price) VALUES
+INSERT INTO "order_item" (id_order, id_product, product_name, size, color, quantity, unit_price) VALUES
 (1, 2, 'Camisa Lino Blanca Talla M', 'M', 'Blanco', 1, 89900),
 (1, 5, 'Jean Clásico Bota Recta Talla M', 'M', 'Azul Oscuro', 1, 120000);
 
