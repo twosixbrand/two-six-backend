@@ -246,11 +246,12 @@ model Product {
   id_design_clothing         Int            @unique @map("id_design_clothing")
   name                       String
   description                String
+  sku                        String?
   price                      Float
   consecutive_number         String?
   image_url                  String?
   active                     Boolean
-  outlet                     Boolean
+  is_outlet                  Boolean        @map("is_outlet")
   createdAt                  DateTime       @default(now()) @map("created_at")
   updatedAt                  DateTime?       @updatedAt @map("updated_at")
   orderItems                 OrderItems[]

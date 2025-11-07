@@ -27,11 +27,12 @@ export class Product implements ProductModel {
   id_design_clothing: number;
   name: string;
   description: string;
+  sku: string | null;
   price: number;
   consecutive_number: string | null;
   image_url: string | null;
   active: boolean;
-  outlet: boolean;
+  is_outlet: boolean;
   createdAt: Date;
   updatedAt: Date | null;
 

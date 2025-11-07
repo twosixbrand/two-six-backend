@@ -141,29 +141,32 @@ INSERT INTO "stock" (id_design_clothing, current_quantity, available_quantity, s
 (1, 40, 40, 10, 0),
 (2, 80, 80, 20, 0),
 (3, 30, 30, 20, 0);
-INSERT INTO "product" (id_design_clothing, name, description, price, image_url, active, outlet) VALUES
-(1, 'Camisa Lino Blanca Talla S', 'Camisa de lino ideal para clima cálido, corte slim.', 89900, 'https://example.com/img/clb-s.jpg', true, false),
-(2, 'Camisa Lino Blanca Talla M', 'Camisa de lino ideal para clima cálido, corte slim.', 89900, 'https://example.com/img/clb-m.jpg', true, false),
-(3, 'Camisa Lino Blanca Talla L', 'Camisa de lino ideal para clima cálido, corte slim.', 89900, 'https://example.com/img/clb-l.jpg', true, false);
+
+INSERT INTO "product" (id_design_clothing, name, description, sku, price, image_url, active, is_outlet) VALUES
+(1, 'Camisa Lino Blanca Talla S', 'Camisa de lino ideal para clima cálido, corte slim.', 'CLB-S', 89900, 'https://example.com/img/clb-s.jpg', true, false),
+(2, 'Camisa Lino Blanca Talla M', 'Camisa de lino ideal para clima cálido, corte slim.', 'CLB-M', 89900, 'https://example.com/img/clb-m.jpg', true, false),
+(3, 'Camisa Lino Blanca Talla L', 'Camisa de lino ideal para clima cálido, corte slim.', 'CLB-L', 89900, 'https://example.com/img/clb-l.jpg', true, false);
+
 
 -- Stock y Productos para Jean Bota Recta
 INSERT INTO "stock" (id_design_clothing, current_quantity, available_quantity, sold_quantity, consignment_quantity) VALUES
 (4, 70, 70, 10, 0),
 (5, 100, 100, 20, 0),
 (6, 60, 60, 20, 0);
-INSERT INTO "product" (id_design_clothing, name, description, price, image_url, active, outlet) VALUES
-(4, 'Jean Clásico Bota Recta Talla S', 'Jean de 5 bolsillos, color azul oscuro.', 120000, 'https://example.com/img/jbr-s.jpg', true, false),
-(5, 'Jean Clásico Bota Recta Talla M', 'Jean de 5 bolsillos, color azul oscuro.', 120000, 'https://example.com/img/jbr-m.jpg', true, false),
-(6, 'Jean Clásico Bota Recta Talla L', 'Jean de 5 bolsillos, color azul oscuro.', 120000, 'https://example.com/img/jbr-l.jpg', true, false);
+
+INSERT INTO "product" (id_design_clothing, name, description, sku, price, image_url, active, is_outlet) VALUES
+(4, 'Jean Clásico Bota Recta Talla S', 'Jean de 5 bolsillos, color azul oscuro.', 'JBR-S', 120000, 'https://example.com/img/jbr-s.jpg', true, false),
+(5, 'Jean Clásico Bota Recta Talla M', 'Jean de 5 bolsillos, color azul oscuro.', 'JBR-M', 120000, 'https://example.com/img/jbr-m.jpg', true, false),
+(6, 'Jean Clásico Bota Recta Talla L', 'Jean de 5 bolsillos, color azul oscuro.', 'JBR-L', 120000, 'https://example.com/img/jbr-l.jpg', true, false);
 
 -- Stock y Productos para Vestido de Gala
 INSERT INTO "stock" (id_design_clothing, current_quantity, available_quantity, sold_quantity, consignment_quantity) VALUES
 (7, 25, 25, 5, 0),
 (8, 20, 20, 10, 0);
-INSERT INTO "product" (id_design_clothing, name, description, price, image_url, active, outlet) VALUES
-(7, 'Vestido de Noche Negro Talla S', 'Vestido largo elegante para ocasiones especiales.', 250000, 'https://example.com/img/vlg-s.jpg', true, false),
-(8, 'Vestido de Noche Rojo Talla M', 'Vestido largo elegante para ocasiones especiales.', 250000, 'https://example.com/img/vlg-m.jpg', true, true); -- Este producto está en outlet
 
+INSERT INTO "product" (id_design_clothing, name, description, sku, price, image_url, active, is_outlet) VALUES
+(7, 'Vestido de Noche Negro Talla S', 'Vestido largo elegante para ocasiones especiales.', 'VLG-S', 250000, 'https://example.com/img/vlg-s.jpg', true, false),
+(8, 'Vestido de Noche Rojo Talla M', 'Vestido largo elegante para ocasiones especiales.', 'VLG-M', 250000, 'https://example.com/img/vlg-m.jpg', true, true); -- Este producto está en outlet
 
 -- 7. Tablas de Clientes
 --------------------------------------------------------------------
