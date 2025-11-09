@@ -193,7 +193,7 @@ model Design {
   clothing           Clothing         @relation(fields: [id_clothing], references: [id])
   reference          String
   manufactured_cost  Float
-  quantity           BigInt
+  quantity           Int
   createdAt          DateTime         @default(now()) @map("created_at")
   updatedAt          DateTime?         @updatedAt @map("updated_at")
   designClothing     DesignClothing[]
