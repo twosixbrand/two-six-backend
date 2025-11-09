@@ -343,6 +343,7 @@ model OrderItem {
   color        String
   quantity     Int
   unit_price   Float
+  iva_item     Float    @map("iva_item")
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime?      @updatedAt @map("updated_at")
   returnItems  ReturnItems[]
