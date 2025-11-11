@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { Gender, Prisma, Product } from '@prisma/client';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -7,6 +7,29 @@ import { UpdateProductDto } from './dto/update-product.dto';
 @Injectable()
 export class ProductService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private readonly productWithDetails = {
+    designClothing: {
+      include: {
+        color: true,
+        size: true,
+        design: {
+          include: {
+            clothing: {
+              include: {
+                typeClothing: true,
+                category: true,
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+
+  private getProductWithDetails() {
+    return this.productWithDetails;
+  }
 
   /**
    * Crea un nuevo producto en la base de datos.
@@ -48,7 +71,7 @@ export class ProductService {
    * Encuentra todos los productos, con filtros opcionales por género y si es outlet.
    * Devuelve una vista enriquecida del producto con sus relaciones.
    * @param gender - Género para filtrar los productos (opcional).
-   * @param outlet - Booleano para filtrar si el producto es outlet (opcional).
+   * @param is_outlet - Booleano para filtrar si el producto es outlet (opcional).
    */
   findAll(gender?: Gender, is_outlet?: boolean) {
     const where: Prisma.ProductWhereInput = {
@@ -91,6 +114,35 @@ export class ProductService {
         },
       },
     });
+  }
+
+  /**
+   * Encuentra todos los productos activos asociados a una referencia de diseño específica.
+   * @param reference - La referencia del diseño a buscar.
+   * @returns Una lista de productos que coinciden con la referencia.
+   * @throws NotFoundException si no se encuentran productos para la referencia.
+   */
+  async findByDesignReference(
+    reference: string,
+  ): Promise<(Product & { designClothing: any })[]> {
+    const products = await this.prisma.product.findMany({
+      where: {
+        designClothing: {
+          design: {
+            reference: reference,
+          },
+        },
+        active: true, // Solo traer variantes activas
+      },
+      include: this.getProductWithDetails(),
+    });
+
+    if (!products || products.length === 0) {
+      throw new NotFoundException(
+        `No se encontraron productos para la referencia de diseño '${reference}'.`,
+      );
+    }
+    return products;
   }
 
   /**

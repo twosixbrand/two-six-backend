@@ -34,6 +34,13 @@ export class ProductController {
     return this.productService.findOne(id);
   }
 
+  @Get('by-reference/:reference')
+  findByDesignReference(
+    @Param('reference') reference: string,
+  ): Promise<(Product & { designClothing: any })[]> {
+    return this.productService.findByDesignReference(reference);
+  }
+
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
