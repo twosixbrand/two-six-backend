@@ -42,16 +42,16 @@ INSERT INTO "year_production" (id, name, description) VALUES
 ('V', 'Año 2030', 'Producción para el año 2030');
 
 INSERT INTO "season" (name, description) VALUES
-('Verano', 'Temporada de verano'),
-('Invierno', 'Temporada de invierno'),
-('Otoño', 'Temporada de otoño'),
-('Primavera', 'Temporada de primavera');
+('1er Ciclo', 'Temporada de enero a marzo'),
+('2do Ciclo', 'Temporada de abril a junio'),
+('3er Ciclo', 'Temporada de julio a septiembre'),
+('4to Ciclo', 'Temporada de octubre a diciembre');
 
 INSERT INTO "collection" (id_year_production, id_season, name, description) VALUES
-('Q', 1, 'Colección Verano 2025', 'Colección fresca y vibrante para el verano'),
-('Q', 2, 'Colección Invierno 2025', 'Colección abrigada para la temporada de frío'),
-('Q', 3, 'Colección Otoño 2025', 'Colección abrigada para la temporada de frío'),
-('Q', 4, 'Colección Primavera 2025', 'Colección comoda para la temporada fresca');
+('Q', 1, 'Colección 1 trimestre del año 2025', 'La Renovación del Básico'),
+('Q', 2, 'Colección 2 trimestre del año 2025', 'La Excelencia en la Silueta'),
+('Q', 3, 'Colección 3 trimestre del año 2025', 'Regreso a la Rutina'),
+('Q', 4, 'Colección 4 trimestre del año 2025', 'Cápsula de Fin de Año');
 
 -- IDs personalizados de Char(2)
 INSERT INTO "type_clothing" (id, name) VALUES
@@ -108,10 +108,10 @@ INSERT INTO "clothing" (id_type_clothing, id_category, name, gender) VALUES
 
 -- 4. Tabla "Design" (depende de Provider, Clothing, Collection, YearProduction)
 --------------------------------------------------------------------
-INSERT INTO "design" (id_provider, id_clothing, id_collection, reference, manufactured_cost, quantity) VALUES
-('900123456-7', 1, 1, 'CLB-001', 35000.0, 100),
-('800987654-3', 2, 1, 'JBR-002', 45000.0, 150),
-('800987654-3', 3, 2, 'VLG-001', 80000.0, 50);
+INSERT INTO "design" (id_clothing, id_collection, reference, manufactured_cost, description, quantity) VALUES
+(1, 1, 'CLB-001', 35000.0, 'Camisa de lino para hombre, manga larga, ideal para climas cálidos.', 100),
+(2, 1, 'JBR-002', 45000.0, 'Jean clásico de 5 bolsillos para hombre, corte recto.', 150),
+(3, 2, 'VLG-001', 80000.0, 'Vestido largo de gala para mujer, perfecto para eventos formales.', 50);
 
 
 -- 5. Tabla "DesignClothing" (SKUs - depende de Design, Color, Size)

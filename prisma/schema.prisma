@@ -78,7 +78,7 @@ model Provider {
   bank_name      String   @map("bank_name")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime? @updatedAt @map("updated_at")
-  designs        Design[]
+  designProviders DesignProvider[] // Nueva relación con DesignProvider
 
   @@map("provider")
 }
@@ -187,18 +187,49 @@ model Design {
   id                 Int              @id @default(autoincrement())
   id_collection      Int              @map("id_collection")
   collection         Collection       @relation(fields: [id_collection], references: [id])
-  id_provider        String           @map("id_provider") // NIT del provider
-  provider           Provider         @relation(fields: [id_provider], references: [id])
   id_clothing        Int              @map("id_clothing")
   clothing           Clothing         @relation(fields: [id_clothing], references: [id])
   reference          String
   manufactured_cost  Float
+  description        String?
   quantity           Int
   createdAt          DateTime         @default(now()) @map("created_at")
   updatedAt          DateTime?         @updatedAt @map("updated_at")
   designClothing     DesignClothing[]
+  designProviders    DesignProvider[] // Nueva relación con DesignProvider
 
   @@map("design")
+}
+
+// Nueva tabla para el tipo de producción
+model ProductionType {
+  id                 Int      @id @default(autoincrement()) @map("id_production_type")
+  name               String
+  creationDate       DateTime @default(now()) @map("created_at")
+  updateDate         DateTime @updatedAt @map("updated_at")
+  designProviders    DesignProvider[]
+
+  @@map("production_type")
+}
+
+// Nueva tabla intermedia para la relación entre Design y Provider
+model DesignProvider {
+  id                 Int              @id @default(autoincrement())
+  design             Design           @relation(fields: [id_design], references: [id])
+  id_design          Int              @map("id_design")
+  provider           Provider         @relation(fields: [id_provider], references: [id])
+  id_provider        String           @map("id_provider")
+  productionType     ProductionType   @relation(fields: [id_production_type], references: [id])
+  id_production_type Int              @map("id_production_type")
+  start_date         DateTime?
+  end_date           DateTime?
+  price              Decimal
+  rating             Int?
+  comment            String?
+  creationDate       DateTime @default(now()) @map("created_at")
+  updateDate         DateTime? @updatedAt @map("updated_at")
+
+  @@map("design_provider")
 }
 
 model DesignClothing {

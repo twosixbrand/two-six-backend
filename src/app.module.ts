@@ -20,6 +20,8 @@ import { SizeModule } from './api/size/size.module';
 import { DesignClothingModule } from './api/design-clothing/design-clothing.module';
 import { SeasonModule } from './api/season/season.module';
 import { OrderModule } from './api/order/order.module';
+import { ProductionTypeModule } from './api/production-type/production-type.module';
+import { DesignProviderModule } from './api/design-provider/design-provider.module';
 
 @Module({
   imports: [
@@ -44,6 +46,8 @@ import { OrderModule } from './api/order/order.module';
     DesignClothingModule,
     SeasonModule,
     OrderModule,
+    ProductionTypeModule,
+    DesignProviderModule,
   ],
   controllers: [AppController],
   providers: [AppService],

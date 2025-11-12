@@ -1,34 +1,39 @@
-import {
-  IsNotEmpty,
-  IsString,
-  IsNumber,
-  IsPositive,
-  IsInt,
-  Min,
-} from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateMasterDesignDto {
+  @ApiProperty()
+  @IsInt()
+  @IsNotEmpty()
+  id_collection: number;
+
+  @ApiProperty()
   @IsString()
   @IsNotEmpty()
   id_provider: string;
 
-  @IsNumber()
+  @ApiProperty()
+  @IsInt()
   @IsNotEmpty()
   id_clothing: number;
 
-  @IsNumber()
-  @IsNotEmpty()
-  id_collection: number;
-
+  @ApiProperty()
   @IsString()
   @IsNotEmpty()
   reference: string;
 
+  @ApiProperty()
   @IsNumber()
-  @IsPositive()
+  @IsNotEmpty()
   manufactured_cost: number;
 
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @ApiProperty()
   @IsInt()
-  @Min(0)
+  @IsNotEmpty()
   quantity: number;
 }
