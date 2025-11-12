@@ -7,6 +7,7 @@ export class MasterDesign implements Design {
   id_collection: number;
   reference: string;
   manufactured_cost: number;
+  description: string | null;
   quantity: number;
   createdAt: Date;
   updatedAt: Date | null;

@@ -3,15 +3,17 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   ParseIntPipe,
+  Put,
 } from '@nestjs/common';
 import { MasterDesignService } from './master-design.service';
 import { CreateMasterDesignDto } from './dto/create-master-design.dto';
 import { UpdateMasterDesignDto } from './dto/update-master-design.dto';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Master Design')
 @Controller('master-design')
 export class MasterDesignController {
   constructor(private readonly masterDesignService: MasterDesignService) {}
@@ -31,7 +33,7 @@ export class MasterDesignController {
     return this.masterDesignService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateMasterDesignDto: UpdateMasterDesignDto,
