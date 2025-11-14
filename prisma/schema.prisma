@@ -279,6 +279,8 @@ model Product {
   description                String
   sku                        String?
   price                      Float
+  discount_price             Float?
+  discount_percentage        Float?
   consecutive_number         String?
   image_url                  String?
   active                     Boolean
@@ -287,6 +289,7 @@ model Product {
   updatedAt                  DateTime?       @updatedAt @map("updated_at")
   orderItems                 OrderItem[]
   returnItems                ReturnItem[]
+ 
 
   @@map("product")
 }

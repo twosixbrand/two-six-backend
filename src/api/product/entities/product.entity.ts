@@ -29,6 +29,8 @@ export class Product implements ProductModel {
   description: string;
   sku: string | null;
   price: number;
+  discount_price: number | null;
+  discount_percentage: number | null;
   consecutive_number: string | null;
   image_url: string | null;
   active: boolean;
