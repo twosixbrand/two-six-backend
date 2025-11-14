@@ -1,6 +1,10 @@
 import { DesignClothing as DesignClothingModel } from '@prisma/client';
 
 export class DesignClothingEntity implements DesignClothingModel {
+  clothing_name?: string; // Campo añadido para el nombre de la prenda
+  color_name?: string; // Campo añadido para el nombre del color
+  size_name?: string; // Campo añadido para el nombre de la talla
+
   id: number;
   id_color: number;
   id_size: number;
