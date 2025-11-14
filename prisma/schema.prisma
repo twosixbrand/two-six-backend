@@ -286,7 +286,7 @@ model Product {
   createdAt                  DateTime       @default(now()) @map("created_at")
   updatedAt                  DateTime?       @updatedAt @map("updated_at")
   orderItems                 OrderItem[]
-  returnItems                ReturnItems[]
+  returnItems                ReturnItem[]
 
   @@map("product")
 }
@@ -377,7 +377,7 @@ model OrderItem {
   iva_item     Float    @map("iva_item")
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime?      @updatedAt @map("updated_at")
-  returnItems  ReturnItems[]
+  returnItems  ReturnItem[]
 
   @@map("order_item")
 }
@@ -397,12 +397,12 @@ model Returns {
   tracking        String?
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime?      @updatedAt @map("updated_at")
-  returnItems     ReturnItems[]
+  returnItems     ReturnItem[]
 
   @@map("returns")
 }
 
-model ReturnItems {
+model ReturnItem {
   id            Int        @id @default(autoincrement())
   return        Returns    @relation(fields: [id_return], references: [id])
   id_return     Int        @map("id_return") 
@@ -416,7 +416,7 @@ model ReturnItems {
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime?   @updatedAt @map("updated_at")
 
-  @@map("return_items")
+  @@map("return_item")
 }
 
 model PaymentMethod {
