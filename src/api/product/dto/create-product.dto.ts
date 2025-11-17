@@ -36,6 +36,10 @@ export class CreateProductDto {
   @IsOptional()
   image_url?: string;
 
+  @IsString()
+  @IsOptional()
+  sku?: string;
+
   // Opcional: si quieres controlar estos desde el cliente
   @IsBoolean()
   @IsOptional()

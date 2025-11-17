@@ -8,11 +8,6 @@ export class CreateMasterDesignDto {
   id_collection: number;
 
   @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  id_provider: string;
-
-  @ApiProperty()
   @IsInt()
   @IsNotEmpty()
   id_clothing: number;
