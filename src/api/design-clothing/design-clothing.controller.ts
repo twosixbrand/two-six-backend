@@ -11,6 +11,8 @@ import {
 import { DesignClothingService } from './design-clothing.service';
 import { CreateDesignClothingDto } from './dto/create-design-clothing.dto';
 import { UpdateDesignClothingDto } from './dto/update-design-clothing.dto';
+import { ApiOkResponse } from '@nestjs/swagger';
+import { DesignClothingEntity } from './entities/design-clothing.entity';
 
 @Controller('design-clothing')
 export class DesignClothingController {
@@ -32,6 +34,7 @@ export class DesignClothingController {
   }
 
   @Patch(':id')
+  @ApiOkResponse({ type: DesignClothingEntity })
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDesignClothingDto: UpdateDesignClothingDto,

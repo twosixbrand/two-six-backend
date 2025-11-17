@@ -20,6 +20,6 @@ export class CreateErrorLogDto {
 
   @IsOptional()
   @IsString()
-  @Length(1, 20)
+  @Length(1, 50)
   page?: string;
 }

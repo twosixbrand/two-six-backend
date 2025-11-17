@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "log_error" ALTER COLUMN "page" SET DATA TYPE VARCHAR(50);

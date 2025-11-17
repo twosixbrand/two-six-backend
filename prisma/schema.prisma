@@ -20,7 +20,7 @@ model ErrorLog {
   stack          String?
   componentStack String?  @map("component_stack")
   app            String?  @db.VarChar(4)
-  page           String?  @db.VarChar(20)
+  page           String?  @db.VarChar(50)
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime? @updatedAt @map("updated_at")
 

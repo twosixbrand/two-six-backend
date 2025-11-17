@@ -7,9 +7,15 @@ import { UpdateDesignProviderDto } from './dto/update-design-provider.dto';
 export class DesignProviderService {
   constructor(private prisma: PrismaService) {}
 
-  create(createDesignProviderDto: CreateDesignProviderDto) {
+  createDesignProvider(createDesignProviderDto: CreateDesignProviderDto) {
     return this.prisma.designProvider.create({
       data: createDesignProviderDto,
+    });
+  }
+
+  findByDesignId(id_design: number) {
+    return this.prisma.designProvider.findMany({
+      where: { id_design },
     });
   }
 

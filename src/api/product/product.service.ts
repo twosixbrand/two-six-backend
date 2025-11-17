@@ -117,6 +117,48 @@ export class ProductService {
   }
 
   /**
+   * Encuentra todos los productos sin filtros para administración desde el CMS.
+   * Devuelve una vista enriquecida con nombres de relaciones.
+   * @returns Una lista de todos los productos con detalles adicionales.
+   */
+  async findAllForAdmin() {
+    const products = await this.prisma.product.findMany({
+      include: {
+        designClothing: {
+          include: {
+            color: true,
+            size: true,
+            design: {
+              include: {
+                clothing: true,
+                collection: {
+                  include: {
+                    yearProduction: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Mapea el resultado para aplanar la estructura y añadir los nombres.
+    return products.map((product) => {
+      const { designClothing, ...restOfProduct } = product;
+      return {
+        ...restOfProduct,
+        clothing_name: designClothing?.design?.clothing?.name ?? null,
+        color_name: designClothing?.color?.name ?? null,
+        size_name: designClothing?.size?.name ?? null,
+        collection_name: designClothing?.design?.collection?.name ?? null,
+        year_production:
+          designClothing?.design?.collection?.yearProduction?.name ?? null,
+      };
+    });
+  }
+
+  /**
    * Encuentra todos los productos activos asociados a una referencia de diseño específica.
    * @param reference - La referencia del diseño a buscar.
    * @returns Una lista de productos que coinciden con la referencia.
@@ -183,36 +225,37 @@ export class ProductService {
    * @throws NotFoundException si el producto o el nuevo id_design_clothing no existen.
    */
   async update(id: number, updateProductDto: UpdateProductDto): Promise<Product> {
-    // 1. Asegurarse de que el producto exista.
-    await this.findOne(id);
-
     const { id_design_clothing, ...productData } = updateProductDto;
     const dataToUpdate: Prisma.ProductUpdateInput = { ...productData };
 
-    // 2. Si se va a cambiar la variante de diseño, verificar que la nueva exista.
+    // Si se va a cambiar la variante de diseño, verificar que la nueva exista.
     if (id_design_clothing) {
-      const designClothingExists = await this.prisma.designClothing.findUnique({
-        where: { id: id_design_clothing },
-      });
-
-      if (!designClothingExists) {
+      try {
+        await this.prisma.designClothing.findUniqueOrThrow({
+          where: { id: id_design_clothing },
+        });
+        dataToUpdate.designClothing = { connect: { id: id_design_clothing } };
+      } catch (error) {
         throw new NotFoundException(
           `La nueva variante de diseño con ID #${id_design_clothing} no fue encontrada.`,
         );
       }
-      // Preparamos la conexión a la nueva variante.
-      dataToUpdate.designClothing = {
-        connect: {
-          id: id_design_clothing,
-        },
-      };
     }
 
-    // 3. Actualizar el producto.
-    return this.prisma.product.update({
-      where: { id },
-      data: dataToUpdate,
-    });
+    // Actualizar el producto y manejar el caso de que no se encuentre.
+    try {
+      return await this.prisma.product.update({
+        where: { id },
+        data: dataToUpdate,
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') {
+          throw new NotFoundException(`Producto con ID #${id} no encontrado.`);
+        }
+      }
+      throw error; // Re-lanza cualquier otro error
+    }
   }
 
   /**

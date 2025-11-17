@@ -18,6 +18,7 @@ export class DesignClothingService {
       include: {
         design: {
           select: {
+            reference: true, // Incluir la referencia del diseño
             clothing: {
               select: {
                 name: true,
@@ -45,6 +46,7 @@ export class DesignClothingService {
       include: {
         design: {
           select: {
+            reference: true, // Incluir la referencia del diseño
             clothing: {
               select: {
                 name: true,
@@ -70,9 +72,46 @@ export class DesignClothingService {
     return designClothing;
   }
 
-  update(id: number, updateDesignClothingDto: UpdateDesignClothingDto) {
-    // Este método no necesita cambios para este requerimiento
-    return `This action updates a #${id} designClothing`;
+  async update(id: number, updateDesignClothingDto: UpdateDesignClothingDto) {
+    await this.findOne(id); // Asegura que el registro exista antes de intentar actualizar
+
+    const { id_color, id_size, id_design, ...otherData } =
+      updateDesignClothingDto;
+
+    const dataToUpdate: any = { ...otherData };
+
+    if (id_color) {
+      dataToUpdate.color = { connect: { id: id_color } };
+    }
+    if (id_size) {
+      dataToUpdate.size = { connect: { id: id_size } };
+    }
+    if (id_design) {
+      dataToUpdate.design = { connect: { id: id_design } };
+    }
+
+    return this.prisma.designClothing.update({
+      where: { id },
+      data: dataToUpdate,
+      include: {
+        design: {
+          select: {
+            reference: true,
+            clothing: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        color: {
+          select: { name: true },
+        },
+        size: {
+          select: { name: true },
+        },
+      },
+    });
   }
 
   remove(id: number) {

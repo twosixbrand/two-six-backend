@@ -31,11 +31,6 @@ export class ProductionTypeController {
     return this.productionTypeService.findOne(id);
   }
 
-  @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateProductionTypeDto: UpdateProductionTypeDto) {
-    return this.productionTypeService.update(id, updateProductionTypeDto);
-  }
-
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.productionTypeService.remove(id);

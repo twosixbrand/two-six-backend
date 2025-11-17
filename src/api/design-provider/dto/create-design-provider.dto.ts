@@ -18,6 +18,7 @@ export class CreateDesignProviderDto {
   id_provider: string;
 
   @IsInt()
+  @IsNotEmpty()
   id_production_type: number;
 
   @IsNumber()

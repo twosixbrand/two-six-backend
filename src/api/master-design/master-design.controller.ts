@@ -6,7 +6,7 @@ import {
   Param,
   Delete,
   ParseIntPipe,
-  Put,
+  Patch,
 } from '@nestjs/common';
 import { MasterDesignService } from './master-design.service';
 import { CreateMasterDesignDto } from './dto/create-master-design.dto';
@@ -33,7 +33,7 @@ export class MasterDesignController {
     return this.masterDesignService.findOne(id);
   }
 
-  @Put(':id')
+  @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateMasterDesignDto: UpdateMasterDesignDto,

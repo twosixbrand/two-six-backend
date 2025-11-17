@@ -17,8 +17,13 @@ export class DesignProviderController {
   constructor(private readonly designProviderService: DesignProviderService) {}
 
   @Post()
-  create(@Body() createDesignProviderDto: CreateDesignProviderDto) {
-    return this.designProviderService.create(createDesignProviderDto);
+  create(@Body() createDesignProviderDto: CreateDesignProviderDto) { // El método del controlador se mantiene como 'create' para la ruta POST estándar
+    return this.designProviderService.createDesignProvider(createDesignProviderDto);
+  }
+
+  @Get('design/:id_design')
+  findByDesignId(@Param('id_design', ParseIntPipe) id_design: number) {
+    return this.designProviderService.findByDesignId(id_design);
   }
 
   @Get()

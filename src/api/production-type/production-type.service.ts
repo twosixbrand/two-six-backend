@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateProductionTypeDto } from './dto/create-production-type.dto';
-import { UpdateProductionTypeDto } from './dto/update-production-type.dto';
 
 @Injectable()
 export class ProductionTypeService {
@@ -19,13 +18,6 @@ export class ProductionTypeService {
 
   findOne(id: number) {
     return this.prisma.productionType.findUnique({ where: { id } });
-  }
-
-  update(id: number, updateProductionTypeDto: UpdateProductionTypeDto) {
-    return this.prisma.productionType.update({
-      where: { id },
-      data: updateProductionTypeDto,
-    });
   }
 
   remove(id: number) {
