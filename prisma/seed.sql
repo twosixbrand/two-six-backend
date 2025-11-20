@@ -97,21 +97,26 @@ INSERT INTO "size" (name, description) VALUES
 ('XL', 'Extra Grande'),
 ('U', 'Único');
 
-
 -- 3. Tabla "Clothing" (depende de TypeClothing y Category)
 --------------------------------------------------------------------
-INSERT INTO "clothing" (id_type_clothing, id_category, name, gender) VALUES
-('A', 1, 'Camisa de Vestir Slim Fit', 'MASCULINO'),
-('G', 2, 'Jean Clásico Azul', 'UNISEX'),
-('F', 1, 'Vestido de Noche Elegante', 'FEMENINO');
+INSERT INTO public.clothing ("name", created_at, id_category, id_type_clothing, updated_at, id, "gender") VALUES
+('Crop Top Estampada Frente', '2025-11-11 08:59:53.001', 1, 'A ', '2025-11-14 02:37:49.617', 2, 'FEMENINO'::public."Gender"),
+('Camiseta Estampada Espalda', '2025-11-14 02:38:59.920', 1, 'A ', '2025-11-14 02:38:59.920', 4, 'MASCULINO'::public."Gender"),
+('Camiseta Estampado Frente y Manga', '2025-11-14 02:39:37.683', 1, 'A ', '2025-11-14 02:39:37.683', 5, 'MASCULINO'::public."Gender"),
+('Camiseta Estampado Frente', '2025-11-14 02:40:24.851', 1, 'A ', '2025-11-14 02:40:24.851', 6, 'MASCULINO'::public."Gender"),
+('Camiseta Essentials Hombre', '2025-11-11 08:59:53.001', 1, 'A ', '2025-11-14 05:38:32.444', 1, 'MASCULINO'::public."Gender"),
+('Camiseta Essentials Mujer', '2025-11-11 08:59:53.001', 1, 'A ', '2025-11-14 05:38:43.034', 3, 'FEMENINO'::public."Gender");
+
 
 
 -- 4. Tabla "Design" (depende de Provider, Clothing, Collection, YearProduction)
 --------------------------------------------------------------------
-INSERT INTO "design" (id_clothing, id_collection, reference, manufactured_cost, description, quantity) VALUES
-(1, 1, 'CLB-001', 35000.0, 'Camisa de lino para hombre, manga larga, ideal para climas cálidos.', 100),
-(2, 1, 'JBR-002', 45000.0, 'Jean clásico de 5 bolsillos para hombre, corte recto.', 150),
-(3, 2, 'VLG-001', 80000.0, 'Vestido largo de gala para mujer, perfecto para eventos formales.', 50);
+INSERT INTO public.design (id, id_clothing, id_collection, reference, manufactured_cost, created_at, updated_at, quantity, description) VALUES
+(3, 3, 2, 'Q2A13', 80000.0, '2025-11-11 09:02:48.948', '2025-11-14 17:12:42.887', 50, 'Vestido largo de gala para mujer, perfecto para eventos formales.'),
+(2, 2, 1, 'Q1A12', 45000.0, '2025-11-11 09:02:48.948', '2025-11-14 17:12:48.126', 150, 'Jean clásico de 5 bolsillos para hombre, corte recto.'),
+(1, 1, 1, 'Q1A11', 35000.0, '2025-11-11 09:02:48.948', '2025-11-14 17:12:58.310', 100, 'Camisa de lino para hombre, manga larga, ideal para climas cálidos.'),
+(4, 5, 4, 'Q4A14', 35000.0, '2025-11-16 20:49:05.323', '2025-11-16 20:49:33.263', 48, 'Camiseta Estampado Frente y Manga Hombre, tela Qtar'),
+(5, 6, 4, 'Q4A15', 40000.0, '2025-11-16 20:51:33.053', '2025-11-16 20:51:33.060', 100, 'Camiseta estampado frente, con tela Qtar, solo negra con diseño de estampado de letras de la marca en rojo. el gorila se encuentra en la manga izquierda de la camisa');
 
 
 -- 5. Tabla "DesignClothing" (SKUs - depende de Design, Color, Size)
