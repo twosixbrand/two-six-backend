@@ -22,6 +22,8 @@ import { SeasonModule } from './api/season/season.module';
 import { OrderModule } from './api/order/order.module';
 import { ProductionTypeModule } from './api/production-type/production-type.module';
 import { DesignProviderModule } from './api/design-provider/design-provider.module';
+import { AuthModule } from './auth/auth.module';
+import { MailerModule } from '@nestjs-modules/mailer';
 
 @Module({
   imports: [
@@ -48,6 +50,21 @@ import { DesignProviderModule } from './api/design-provider/design-provider.modu
     OrderModule,
     ProductionTypeModule,
     DesignProviderModule,
+    AuthModule,
+    MailerModule.forRoot({
+      transport: {
+        host: process.env.EMAIL_SERVER_HOST,
+        port: Number(process.env.EMAIL_SERVER_PORT),
+        secure: true, // true para 465, false para otros puertos
+        auth: {
+          user: process.env.EMAIL_SERVER_USER,
+          pass: process.env.EMAIL_SERVER_PASSWORD,
+        },
+      },
+      defaults: {
+        from: `"No Responder" <${process.env.EMAIL_SERVER_USER}>`, // Dirección de origen por defecto
+      },
+    }),
   ],
   controllers: [AppController],
   providers: [AppService],
