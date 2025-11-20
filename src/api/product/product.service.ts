@@ -64,6 +64,7 @@ export class ProductService {
           },
         },
       },
+      include: this.getProductWithDetails(),
     });
   }
 
@@ -95,24 +96,7 @@ export class ProductService {
 
     return this.prisma.product.findMany({
       where,
-      include: {
-        designClothing: {
-          include: {
-            color: true, // Incluye detalles del color.
-            size: true, // Incluye detalles de la talla.
-            design: {
-              include: {
-                clothing: {
-                  include: {
-                    typeClothing: true, // Incluye el tipo de prenda.
-                    category: true, // Incluye la categoría.
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
+      include: this.getProductWithDetails(), // Incluir relaciones en la respuesta
     });
   }
 
