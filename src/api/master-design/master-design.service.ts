@@ -38,14 +38,12 @@ export class MasterDesignService {
   }
 
   async create(createMasterDesignDto: CreateMasterDesignDto) {
-    const { reference, ...designData } = createMasterDesignDto;
-
     // Usamos una transacción para asegurar la atomicidad de la operación.
     return this.prisma.$transaction(async (prisma) => {
       // 1. Crea el diseño con una referencia temporal para obtener su ID.
       const design = await prisma.design.create({
         data: {
-          ...designData,
+          ...createMasterDesignDto,
           reference: 'temp', // Valor temporal
         },
       });
@@ -111,28 +109,34 @@ export class MasterDesignService {
   async update(id: number, updateMasterDesignDto: UpdateMasterDesignDto) {
     await this.findOne(id);
 
-    const updatedData = await this.prisma.design.update({
+    const shouldRecalculateReference =
+      updateMasterDesignDto.id_collection ||
+      updateMasterDesignDto.id_clothing;
+
+    // Si no se necesita recalcular, simplemente actualizamos.
+    if (!shouldRecalculateReference) {
+      return this.prisma.design.update({
+        where: { id },
+        data: updateMasterDesignDto,
+      });
+    }
+
+    // Si se necesita recalcular, actualizamos los datos y luego la referencia.
+    const updatedDesign = await this.prisma.design.update({
       where: { id },
       data: updateMasterDesignDto,
     });
 
-    // Si se actualiza id_collection o id_clothing, se recalcula la referencia.
-    if (
-      updateMasterDesignDto.id_collection ||
-      updateMasterDesignDto.id_clothing
-    ) {
-      const newReference = await this.buildReference(
-        id,
-        updatedData.id_collection,
-        updatedData.id_clothing,
-      );
-      return this.prisma.design.update({
-        where: { id },
-        data: { reference: newReference },
-      });
-    }
+    const newReference = await this.buildReference(
+      id,
+      updatedDesign.id_collection,
+      updatedDesign.id_clothing,
+    );
 
-    return updatedData;
+    return this.prisma.design.update({
+      where: { id },
+      data: { reference: newReference },
+    });
   }
 
   async remove(id: number) {

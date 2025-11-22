@@ -13,11 +13,6 @@ export class CreateMasterDesignDto {
   id_clothing: number;
 
   @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  reference: string;
-
-  @ApiProperty()
   @IsNumber()
   @IsNotEmpty()
   manufactured_cost: number;
