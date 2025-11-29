@@ -14,10 +14,13 @@ export class ProductService {
         color: true,
         size: true,
         design: {
-          include: {
+          select: {
+            description: true,
             clothing: {
-              include: {
-                typeClothing: true,
+              select: {
+                name: true,
+                gender: true,
+                typeClothing: true, // Mantenemos las relaciones anidadas
                 category: true,
               },
             },
@@ -32,6 +35,39 @@ export class ProductService {
   }
 
   /**
+   * Genera un SKU único basado en las relaciones de una variante de diseño.
+   * @param designClothingId - El ID de la variante de diseño.
+   * @returns El SKU generado.
+   * @throws NotFoundException si alguna de las entidades relacionadas no existe.
+   */
+  private async _generateSku(designClothingId: number): Promise<string> {
+    const designClothing = await this.prisma.designClothing.findUnique({
+      where: { id: designClothingId },
+      include: {
+        design: true,
+        color: true,
+        size: true,
+      },
+    });
+
+    if (!designClothing?.design || !designClothing.color || !designClothing.size) {
+      throw new NotFoundException(
+        `No se pudieron encontrar los detalles completos (diseño, color, talla) para la variante con ID #${designClothingId}.`,
+      );
+    }
+
+    const { design, color, size } = designClothing;
+
+    const referencePart = design.reference;
+    const colorPart = color.name.substring(0, 3).toUpperCase();
+    const sizePart = size.name.toUpperCase();
+
+    const sku = `${referencePart}-${colorPart}-${sizePart}`;
+
+    return sku;
+  }
+
+  /**
    * Crea un nuevo producto en la base de datos.
    * @param createProductDto - DTO con los datos para crear el producto.
    * @returns El producto creado.
@@ -40,21 +76,15 @@ export class ProductService {
   async create(createProductDto: CreateProductDto): Promise<Product> {
     const { id_design_clothing, ...productData } = createProductDto;
 
-    // 1. Verificar si el designClothing asociado existe.
-    const designClothingExists = await this.prisma.designClothing.findUnique({
-      where: { id: id_design_clothing },
-    });
+    // 1. Generar el SKU a partir del id_design_clothing.
+    // La función _generateSku ya valida la existencia de la variante y sus relaciones.
+    const generatedSku = await this._generateSku(id_design_clothing);
 
-    if (!designClothingExists) {
-      throw new NotFoundException(
-        `La variante de diseño con ID #${id_design_clothing} no fue encontrada.`,
-      );
-    }
-
-    // 2. Crear el producto conectándolo con el designClothing.
+    // 2. Crear el producto con el SKU generado.
     return this.prisma.product.create({
       data: {
         ...productData,
+        sku: generatedSku,
         // Asignar valores por defecto si no vienen en el DTO.
         active: productData.active ?? true, // Mantenido
         is_outlet: productData.is_outlet ?? false, // Corregido de 'outlet' a 'is_outlet'
@@ -134,6 +164,7 @@ export class ProductService {
         ...restOfProduct,
         clothing_name: designClothing?.design?.clothing?.name ?? null,
         color_name: designClothing?.color?.name ?? null,
+        description: designClothing?.design?.description ?? null,
         size_name: designClothing?.size?.name ?? null,
         collection_name: designClothing?.design?.collection?.name ?? null,
         year_production:
@@ -212,19 +243,18 @@ export class ProductService {
     const { id_design_clothing, ...productData } = updateProductDto;
     const dataToUpdate: Prisma.ProductUpdateInput = { ...productData };
 
-    // Si se va a cambiar la variante de diseño, verificar que la nueva exista.
+    // Si se va a cambiar la variante de diseño, generar un nuevo SKU.
     if (id_design_clothing) {
-      try {
-        await this.prisma.designClothing.findUniqueOrThrow({
-          where: { id: id_design_clothing },
-        });
-        dataToUpdate.designClothing = { connect: { id: id_design_clothing } };
-      } catch (error) {
-        throw new NotFoundException(
-          `La nueva variante de diseño con ID #${id_design_clothing} no fue encontrada.`,
-        );
-      }
+      // La función _generateSku valida la existencia de la nueva variante.
+      const newSku = await this._generateSku(id_design_clothing);
+      dataToUpdate.sku = newSku;
+      dataToUpdate.designClothing = { connect: { id: id_design_clothing } };
     }
+
+    // Asegurarse de que el producto a actualizar existe.
+    await this.prisma.product.findUniqueOrThrow({
+      where: { id },
+    });
 
     // Actualizar el producto y manejar el caso de que no se encuentre.
     try {

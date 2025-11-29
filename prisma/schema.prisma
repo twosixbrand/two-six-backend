@@ -277,13 +277,10 @@ model Product {
   id                         Int            @id @default(autoincrement())
   designClothing             DesignClothing @relation(fields: [id_design_clothing], references: [id])
   id_design_clothing         Int            @unique @map("id_design_clothing")
-  name                       String
-  description                String
   sku                        String?
   price                      Float
   discount_price             Float?
   discount_percentage        Float?
-  consecutive_number         String?
   image_url                  String?
   active                     Boolean
   is_outlet                  Boolean        @map("is_outlet")

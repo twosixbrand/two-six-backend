@@ -8,14 +8,6 @@ import {
 } from 'class-validator';
 
 export class CreateProductDto {
-  @IsString()
-  @IsNotEmpty()
-  name: string;
-
-  @IsString()
-  @IsNotEmpty()
-  description: string;
-
   @IsNumber()
   @IsNotEmpty()
   price: number;
@@ -35,10 +27,6 @@ export class CreateProductDto {
   @IsString()
   @IsOptional()
   image_url?: string;
-
-  @IsString()
-  @IsOptional()
-  sku?: string;
 
   // Opcional: si quieres controlar estos desde el cliente
   @IsBoolean()
