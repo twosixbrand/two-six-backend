@@ -22,6 +22,7 @@ import { SeasonModule } from './api/season/season.module';
 import { OrderModule } from './api/order/order.module';
 import { ProductionTypeModule } from './api/production-type/production-type.module';
 import { DesignProviderModule } from './api/design-provider/design-provider.module';
+import { LocationModule } from './api/location/location.module';
 import { AuthModule } from './auth/auth.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 
@@ -50,6 +51,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
     OrderModule,
     ProductionTypeModule,
     DesignProviderModule,
+    LocationModule,
     AuthModule,
     MailerModule.forRoot({
       transport: {
@@ -69,4 +71,4 @@ import { MailerModule } from '@nestjs-modules/mailer';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
