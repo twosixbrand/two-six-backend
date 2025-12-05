@@ -14,7 +14,7 @@ async function bootstrap() {
   // Habilitar validaciones globales
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true, // Ignora propiedades que no están en el DTO
-
+    transform: true, // Transforma el payload a instancias de DTO
   }));
   await app.listen(process.env.PORT ?? 3050);
 }

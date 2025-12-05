@@ -10,6 +10,8 @@ export class OrderEntity implements OrderModel {
   total_payment: number;
   purchase_date: Date;
   is_paid: boolean;
+  payment_method: string | null;
+  transaction_id: string | null;
   shipping_address: string;
   createdAt: Date;
   updatedAt: Date | null;

@@ -6,7 +6,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 
 @Injectable()
 export class ProductService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   private readonly productWithDetails = {
     designClothing: {
@@ -99,12 +99,23 @@ export class ProductService {
   }
 
   /**
+   * Helper para mapear la estructura anidada a un objeto plano con nombre y descripción.
+   */
+  private _mapProduct(product: any) {
+    return {
+      ...product,
+      name: product.designClothing?.design?.clothing?.name || "Producto sin nombre",
+      description: product.designClothing?.design?.description || "",
+    };
+  }
+
+  /**
    * Encuentra todos los productos, con filtros opcionales por género y si es outlet.
    * Devuelve una vista enriquecida del producto con sus relaciones.
    * @param gender - Género para filtrar los productos (opcional).
    * @param is_outlet - Booleano para filtrar si el producto es outlet (opcional).
    */
-  findAll(gender?: Gender, is_outlet?: boolean) {
+  async findAll(gender?: Gender, is_outlet?: boolean) {
     const where: Prisma.ProductWhereInput = {
       active: true, // Por defecto, solo trae productos activos.
     };
@@ -124,10 +135,12 @@ export class ProductService {
       };
     }
 
-    return this.prisma.product.findMany({
+    const products = await this.prisma.product.findMany({
       where,
       include: this.getProductWithDetails(), // Incluir relaciones en la respuesta
     });
+
+    return products.map(p => this._mapProduct(p));
   }
 
   /**
@@ -162,6 +175,7 @@ export class ProductService {
       const { designClothing, ...restOfProduct } = product;
       return {
         ...restOfProduct,
+        name: designClothing?.design?.clothing?.name || "Producto sin nombre", // Added for consistency
         clothing_name: designClothing?.design?.clothing?.name ?? null,
         color_name: designClothing?.color?.name ?? null,
         description: designClothing?.design?.description ?? null,
@@ -199,7 +213,7 @@ export class ProductService {
         `No se encontraron productos para la referencia de diseño '${reference}'.`,
       );
     }
-    return products;
+    return products.map(p => this._mapProduct(p));
   }
 
   /**
@@ -229,7 +243,7 @@ export class ProductService {
     if (!product) {
       throw new NotFoundException(`Producto con ID #${id} no encontrado.`);
     }
-    return product;
+    return this._mapProduct(product);
   }
 
   /**

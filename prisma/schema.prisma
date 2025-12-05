@@ -353,6 +353,8 @@ model Order {
   total_payment    Float           @map("total_payment")
   purchase_date    DateTime        @map("purchase_date")
   is_paid          Boolean
+  payment_method   String?         @map("payment_method")
+  transaction_id   String?         @map("transaction_id")
   shipping_address String
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime?        @updatedAt @map("updated_at")
@@ -531,4 +533,31 @@ model TrackingHistory {
   updatedAt     DateTime? @updatedAt @map("updated_at")
 
   @@map("tracking_history")
+}
+
+// -----------------------------------------------------
+// Tablas de Ubicación (Departamentos y Municipios)
+// -----------------------------------------------------
+
+model Department {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  cities    City[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+
+  @@map("department")
+}
+
+model City {
+  id           Int        @id @default(autoincrement())
+  name         String
+  active       Boolean    @default(true)
+  shipping_cost Int       @default(0)
+  department   Department @relation(fields: [id_department], references: [id])
+  id_department Int       @map("id_department")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime?   @updatedAt @map("updated_at")
+
+  @@map("city")
 }
