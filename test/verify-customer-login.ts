@@ -75,6 +75,11 @@ async function verifyCustomerLogin() {
         console.log('Access Token:', result.accessToken);
         console.log('Customer:', result.customer);
 
+        if (!result.customer.current_phone_number || !result.customer.shipping_address) {
+            throw new Error('Customer profile data is missing in the response');
+        }
+        console.log('Profile data verification successful!');
+
     } catch (error) {
         console.error('Verification failed:', error);
         process.exit(1);

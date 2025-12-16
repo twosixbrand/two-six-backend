@@ -206,7 +206,13 @@ export class AuthService {
       customer: {
         id: customer.id,
         name: customer.name,
-        email: customer.email
+        email: customer.email,
+        current_phone_number: customer.current_phone_number,
+        shipping_address: customer.shipping_address,
+        city: customer.city,
+        state: customer.state,
+        postal_code: customer.postal_code,
+        country: customer.country,
       }
     };
   }
