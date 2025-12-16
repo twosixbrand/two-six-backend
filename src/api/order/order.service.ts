@@ -251,7 +251,6 @@ export class OrderService {
             is_paid: true,
           },
         });
-        console.log('Order updated to Pagado');
 
         // 4. Registrar el pago en la tabla Payments
         if (transaction.status === 'APPROVED') {
@@ -261,7 +260,6 @@ export class OrderService {
           });
 
           if (!existingPayment) {
-            console.log('Creating payment record...');
             // Buscar método de pago (Wompi) o crear uno genérico si no existe
             let paymentMethod = await this.prisma.paymentMethod.findFirst({
               where: { name: 'Wompi' }
@@ -284,9 +282,6 @@ export class OrderService {
                 amount: transaction.amount_in_cents / 100, // Convertir a pesos
               }
             });
-            console.log('Payment record created');
-          } else {
-            console.log('Payment record already exists for reference:', transaction.reference);
           }
         }
 
@@ -425,22 +420,19 @@ export class OrderService {
 
       // Tomar la última transacción (la más reciente)
       const latestTransaction = transactions[0];
-      console.log('Latest transaction for reference:', reference, latestTransaction);
+      const status = latestTransaction.status;
 
-      // Si está aprobada, devolvemos el estado y el ID para que el frontend finalice
-      if (latestTransaction.status === 'APPROVED') {
-        console.log('Transaction APPROVED, returning info for frontend...');
-        return {
-          status: 'APPROVED',
-          transactionId: latestTransaction.id,
-          reference: latestTransaction.reference,
-          message: 'Pago aprobado en Wompi'
-        };
+      // Si la transacción está aprobada, obtenemos el ID de la orden
+      if (status === 'APPROVED') {
+        const result = await this.verifyPayment(latestTransaction.id);
+        return result;
       }
 
       return {
-        status: latestTransaction.status,
-        message: `Estado actual: ${latestTransaction.status}`
+        status: status,
+        transactionId: latestTransaction.id,
+        reference: reference,
+        message: latestTransaction.status_message
       };
 
     } catch (error) {
