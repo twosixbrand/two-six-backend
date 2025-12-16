@@ -353,8 +353,6 @@ model Order {
   total_payment    Float           @map("total_payment")
   purchase_date    DateTime        @map("purchase_date")
   is_paid          Boolean
-  payment_method   String?         @map("payment_method")
-  transaction_id   String?         @map("transaction_id")
   shipping_address String
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime?        @updatedAt @map("updated_at")
