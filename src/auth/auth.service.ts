@@ -161,7 +161,10 @@ export class AuthService {
     email: string,
     providedOtp: string,
   ): Promise<{ accessToken: string; customer: any }> {
-    const customer = await this.prisma.customer.findUnique({ where: { email } });
+    const customer = await this.prisma.customer.findUnique({
+      where: { email },
+      include: { addresses: true }, // Include addresses
+    });
 
     if (!customer || !customer.otp || !customer.otpExpiresAt) {
       throw new UnauthorizedException('Código no solicitado o inválido.');
@@ -191,11 +194,10 @@ export class AuthService {
     });
 
     // Payload para el token del cliente
-    // Usamos un rol especial o un flag para distinguir de usuarios administrativos si es necesario
     const payload = {
       sub: customer.id,
       email: customer.email,
-      role: 'customer', // Distinguir rol
+      role: 'customer',
       name: customer.name
     };
 
@@ -213,6 +215,7 @@ export class AuthService {
         state: customer.state,
         postal_code: customer.postal_code,
         country: customer.country,
+        addresses: customer.addresses, // Return addresses
       }
     };
   }

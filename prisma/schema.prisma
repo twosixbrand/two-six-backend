@@ -315,8 +315,27 @@ model Customer {
   order                  Order[]
   returns                Returns[]
   payments               Payments[]
+  addresses              Address[]
 
   @@map("customer")
+}
+
+model Address {
+  id           Int      @id @default(autoincrement())
+  customer     Customer @relation(fields: [id_customer], references: [id])
+  id_customer  Int      @map("id_customer")
+  address      String
+  detail       String?
+  instructions String?
+  city         String
+  state        String
+  postal_code  String
+  country      String
+  is_default   Boolean  @default(false) @map("is_default")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime? @updatedAt @map("updated_at")
+
+  @@map("address")
 }
 
 model CustomerType {
