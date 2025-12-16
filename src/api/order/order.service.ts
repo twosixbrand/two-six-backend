@@ -178,9 +178,17 @@ export class OrderService {
    * Verifica una transacción de Wompi y actualiza la orden correspondiente.
    */
   async verifyPayment(transactionId: string) {
+    console.log('Verifying payment for transactionId:', transactionId);
+
+    if (!transactionId || transactionId === 'undefined' || transactionId === 'null') {
+      throw new Error('Transaction ID inválido o no proporcionado');
+    }
+
     try {
       // 1. Consultar la API de Wompi
       const wompiApiUrl = this.configService.get<string>('WOMPI_API_URL');
+      console.log('WOMPI_API_URL:', wompiApiUrl);
+
       const response = await fetch(`${wompiApiUrl}/transactions/${transactionId}`);
 
       if (!response.ok) {
@@ -222,6 +230,7 @@ export class OrderService {
       if (!order) {
         throw new Error(`Orden #${orderId} no encontrada`);
       }
+      console.log('Order found:', order.id);
 
       // 4. Verificar el estado
       // Estados de Wompi: APPROVED, DECLINED, VOIDED, ERROR
@@ -234,16 +243,52 @@ export class OrderService {
           console.warn(`Alerta: El monto pagado (${amountInCents}) es menor al total de la orden (${orderTotalInCents})`);
         }
 
-        // Actualizar la orden
+        // 3. Actualizar estado de la orden
         await this.prisma.order.update({
           where: { id: orderId },
           data: {
             status: 'Pagado',
             is_paid: true,
-            payment_method: transaction.payment_method_type,
-            transaction_id: transactionId
-          }
+          },
         });
+        console.log('Order updated to Pagado');
+
+        // 4. Registrar el pago en la tabla Payments
+        if (transaction.status === 'APPROVED') {
+          // Verificar si ya existe un pago con esta referencia
+          const existingPayment = await this.prisma.payments.findFirst({
+            where: { transaction_reference: transaction.reference }
+          });
+
+          if (!existingPayment) {
+            console.log('Creating payment record...');
+            // Buscar método de pago (Wompi) o crear uno genérico si no existe
+            let paymentMethod = await this.prisma.paymentMethod.findFirst({
+              where: { name: 'Wompi' }
+            });
+
+            if (!paymentMethod) {
+              paymentMethod = await this.prisma.paymentMethod.create({
+                data: { name: 'Wompi', enabled: true }
+              });
+            }
+
+            await this.prisma.payments.create({
+              data: {
+                id_order: orderId,
+                id_customer: order.id_customer,
+                id_payment_method: paymentMethod.id,
+                status: transaction.status,
+                transaction_date: new Date(transaction.created_at),
+                transaction_reference: transaction.reference,
+                amount: transaction.amount_in_cents / 100, // Convertir a pesos
+              }
+            });
+            console.log('Payment record created');
+          } else {
+            console.log('Payment record already exists for reference:', transaction.reference);
+          }
+        }
 
         // Enviar correo de confirmación SOLO si el pago es aprobado Y no se ha enviado antes
         if (!order.is_paid) {
@@ -308,7 +353,7 @@ export class OrderService {
                   </div>
 
                   <p style="margin-top: 30px; text-align: center;">
-                    <a href="http://localhost:3000/track-order" style="background-color: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Rastrear mi Pedido</a>
+                    <a href="${this.configService.get<string>('FRONTEND_URL')}/tracking" style="background-color: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Rastrear mi Pedido</a>
                   </p>
                 </div>
 
@@ -326,6 +371,7 @@ export class OrderService {
         return {
           status: 'APPROVED',
           orderId: order.id,
+          transactionId: transactionId,
           message: 'Pago aprobado exitosamente'
         };
       } else {
@@ -334,7 +380,6 @@ export class OrderService {
           where: { id: orderId },
           data: {
             status: 'Rechazado', // O el estado que prefieras
-            transaction_id: transactionId
           }
         });
 
@@ -347,7 +392,7 @@ export class OrderService {
 
     } catch (error) {
       console.error('Error verificando pago Wompi:', error);
-      throw new Error('Error al verificar el pago');
+      throw error;
     }
   }
 
@@ -380,10 +425,17 @@ export class OrderService {
 
       // Tomar la última transacción (la más reciente)
       const latestTransaction = transactions[0];
+      console.log('Latest transaction for reference:', reference, latestTransaction);
 
-      // Si está aprobada, verificamos y actualizamos
+      // Si está aprobada, devolvemos el estado y el ID para que el frontend finalice
       if (latestTransaction.status === 'APPROVED') {
-        return this.verifyPayment(latestTransaction.id);
+        console.log('Transaction APPROVED, returning info for frontend...');
+        return {
+          status: 'APPROVED',
+          transactionId: latestTransaction.id,
+          reference: latestTransaction.reference,
+          message: 'Pago aprobado en Wompi'
+        };
       }
 
       return {
@@ -437,6 +489,11 @@ export class OrderService {
     return this.prisma.order.findMany({
       include: {
         customer: true,
+        payments: {
+          include: {
+            paymentMethod: true
+          }
+        }
       },
       orderBy: {
         order_date: 'desc',
@@ -460,6 +517,11 @@ export class OrderService {
             trackingHistory: true,
           },
         },
+        payments: {
+          include: {
+            paymentMethod: true
+          }
+        }
       },
     });
   }
