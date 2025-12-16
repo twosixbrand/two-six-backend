@@ -47,6 +47,12 @@ export class OrderController {
     return this.orderService.findAll();
   }
 
+  @Get('customer/:email')
+  getOrdersByCustomer(@Param('email') email: string) {
+    return this.orderService.findByCustomerEmail(email);
+  }
+
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.orderService.findOne(id);

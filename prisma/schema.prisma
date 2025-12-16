@@ -308,6 +308,8 @@ model Customer {
   state                  String
   postal_code            String
   country                String
+  otp                    String?
+  otpExpiresAt           DateTime?          @map("otp_expires_at")
   createdAt              DateTime           @default(now()) @map("created_at")
   updatedAt              DateTime?           @updatedAt @map("updated_at")
   order                  Order[]
