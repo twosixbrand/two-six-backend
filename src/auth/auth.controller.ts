@@ -5,7 +5,7 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -17,5 +17,17 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
     return this.authService.verifyOtp(verifyOtpDto.email, verifyOtpDto.otp);
+  }
+
+  @Post('customer/login')
+  @HttpCode(HttpStatus.OK)
+  async loginCustomer(@Body() loginDto: LoginDto) {
+    return this.authService.loginCustomer(loginDto.email);
+  }
+
+  @Post('customer/verify-otp')
+  @HttpCode(HttpStatus.OK)
+  async verifyCustomerOtp(@Body() verifyOtpDto: VerifyOtpDto) {
+    return this.authService.verifyCustomerOtp(verifyOtpDto.email, verifyOtpDto.otp);
   }
 }

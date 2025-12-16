@@ -23,6 +23,8 @@ import { OrderModule } from './api/order/order.module';
 import { ProductionTypeModule } from './api/production-type/production-type.module';
 import { DesignProviderModule } from './api/design-provider/design-provider.module';
 import { LocationModule } from './api/location/location.module';
+import { CustomerModule } from './api/customer/customer.module';
+import { AddressModule } from './api/address/address.module';
 import { AuthModule } from './auth/auth.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 
@@ -52,6 +54,8 @@ import { MailerModule } from '@nestjs-modules/mailer';
     ProductionTypeModule,
     DesignProviderModule,
     LocationModule,
+    CustomerModule,
+    AddressModule,
     AuthModule,
     MailerModule.forRoot({
       transport: {

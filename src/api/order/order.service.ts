@@ -528,4 +528,34 @@ export class OrderService {
   remove(id: number) {
     return this.prisma.order.delete({ where: { id } });
   }
+
+  async findByCustomerEmail(email: string) {
+    return this.prisma.order.findMany({
+      where: {
+        customer: {
+          email: {
+            equals: email,
+            mode: 'insensitive',
+          },
+        },
+      },
+      include: {
+        orderItems: {
+          include: {
+            product: true,
+          },
+        },
+        shipments: {
+          include: {
+            shippingProvider: true,
+            trackingHistory: true,
+          },
+        },
+        payments: true,
+      },
+      orderBy: {
+        order_date: 'desc',
+      },
+    });
+  }
 }
