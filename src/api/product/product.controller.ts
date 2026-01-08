@@ -17,7 +17,7 @@ import { QueryProductDto } from './dto/query-product.dto';
 
 @Controller('products')
 export class ProductController {
-  constructor(private readonly productService: ProductService) {}
+  constructor(private readonly productService: ProductService) { }
 
   @Post()
   create(@Body() createProductDto: CreateProductDto) {
@@ -29,6 +29,15 @@ export class ProductController {
     return this.productService.findAll(query.gender, query.is_outlet);
   }
 
+  @Get('store/designs')
+  findDesignsForStore(
+    @Query('gender') gender?: any,
+    @Query('is_outlet') is_outlet?: boolean
+  ) {
+    // Cast gender string to Enum if present
+    return this.productService.findDesignsForStore(gender, is_outlet);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.productService.findOne(id);
@@ -37,7 +46,7 @@ export class ProductController {
   @Get('by-reference/:reference')
   findByDesignReference(
     @Param('reference') reference: string,
-  ): Promise<(Product & { designClothing: any })[]> {
+  ): Promise<(Product & { clothingSize: any })[]> {
     return this.productService.findByDesignReference(reference);
   }
 

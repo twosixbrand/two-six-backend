@@ -22,8 +22,5 @@ export class CreateMasterDesignDto {
   @IsOptional()
   description?: string;
 
-  @ApiProperty()
-  @IsInt()
-  @IsNotEmpty()
-  quantity: number;
+
 }

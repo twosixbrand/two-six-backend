@@ -17,7 +17,7 @@ import { CollectionModule } from './api/collection/collection.module';
 import { YearProductionModule } from './api/year-production/year-production.module';
 import { ColorModule } from './api/color/color.module';
 import { SizeModule } from './api/size/size.module';
-import { DesignClothingModule } from './api/design-clothing/design-clothing.module';
+import { ClothingColorModule } from './api/clothing-color/clothing-color.module';
 import { SeasonModule } from './api/season/season.module';
 import { OrderModule } from './api/order/order.module';
 import { ProductionTypeModule } from './api/production-type/production-type.module';
@@ -25,6 +25,7 @@ import { DesignProviderModule } from './api/design-provider/design-provider.modu
 import { LocationModule } from './api/location/location.module';
 import { CustomerModule } from './api/customer/customer.module';
 import { AddressModule } from './api/address/address.module';
+import { ClothingSizeModule } from './api/clothing-size/clothing-size.module';
 import { AuthModule } from './auth/auth.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 
@@ -48,7 +49,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
     YearProductionModule,
     ColorModule,
     SizeModule,
-    DesignClothingModule,
+    ClothingColorModule,
     SeasonModule,
     OrderModule,
     ProductionTypeModule,
@@ -56,6 +57,8 @@ import { MailerModule } from '@nestjs-modules/mailer';
     LocationModule,
     CustomerModule,
     AddressModule,
+    AddressModule,
+    ClothingSizeModule,
     AuthModule,
     MailerModule.forRoot({
       transport: {

@@ -5,6 +5,7 @@ import {
   Product as ProductModel,
   Size,
   TypeClothing,
+  ClothingColor as ClothingColorModel,
 } from '@prisma/client';
 
 interface DesignWithRelations {
@@ -15,28 +16,46 @@ interface DesignWithRelations {
   };
 }
 
-// Entidad para la variante de diseño, que incluye sus relaciones
-class DesignClothingEntity {
+// Entidad para Clothing Color (Design + Color)
+class ClothingColorEntity implements ClothingColorModel {
   id: number;
-  quantity_available: number;
-  color: Color;
-  size: Size;
+  id_design: number;
+  id_color: number;
+  image_url: string | null;
+  createdAt: Date;
+  updatedAt: Date | null;
   design: DesignWithRelations;
+  color: Color;
+}
+
+// Entidad para la variante de talla
+class ClothingSizeEntity {
+  id: number;
+  id_clothing_color: number;
+  id_size: number;
+  quantity_produced: number;
+  quantity_available: number;
+  quantity_sold: number;
+  quantity_on_consignment: number;
+  quantity_under_warranty: number;
+  created_at: Date;
+  updated_at: Date | null;
+  size: Size;
+  clothingColor: ClothingColorEntity;
 }
 
 export class Product implements ProductModel {
   id: number;
-  id_design_clothing: number;
+  id_clothing_size: number;
   sku: string | null;
   price: number;
   discount_price: number | null;
   discount_percentage: number | null;
-  image_url: string | null;
   active: boolean;
   is_outlet: boolean;
   createdAt: Date;
   updatedAt: Date | null;
 
   // Relaciones anidadas que se incluyen en las consultas
-  designClothing: DesignClothingEntity;
+  clothingSize: ClothingSizeEntity;
 }

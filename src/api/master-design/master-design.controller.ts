@@ -16,7 +16,7 @@ import { ApiTags } from '@nestjs/swagger';
 @ApiTags('Master Design')
 @Controller('master-design')
 export class MasterDesignController {
-  constructor(private readonly masterDesignService: MasterDesignService) {}
+  constructor(private readonly masterDesignService: MasterDesignService) { }
 
   @Post()
   create(@Body() createMasterDesignDto: CreateMasterDesignDto) {

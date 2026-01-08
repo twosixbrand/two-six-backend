@@ -72,6 +72,9 @@ export class OrderService {
           is_paid: false, // Payment integration would update this
           shipping_address: `${customer.address}, ${customer.city}, ${customer.department}`,
         },
+        include: {
+          customer: true
+        }
       });
 
       // 4. Create Order Items and Update Stock
@@ -91,39 +94,21 @@ export class OrderService {
         });
 
         // Update Stock (Decrement available quantity)
-        // First get the product to find the designClothing ID
+        // First get the product to find the clothingSize ID
         const product = await prisma.product.findUnique({
           where: { id: item.productId },
-          include: { designClothing: true },
+          include: { clothingSize: true },
         });
 
-        if (product && product.designClothing) {
-          await prisma.designClothing.update({
-            where: { id: product.designClothing.id },
+        if (product && product.clothingSize) {
+          // Update ClothingSize quantities directly
+          await prisma.clothingSize.update({
+            where: { id: product.clothingSize.id },
             data: {
-              quantity_available: {
-                decrement: item.quantity,
-              },
-              quantity_sold: {
-                increment: item.quantity,
-              },
-            },
+              quantity_available: { decrement: item.quantity },
+              quantity_sold: { increment: item.quantity }
+            }
           });
-
-          // Also update Stock table if it exists and is linked
-          const stock = await prisma.stock.findUnique({
-            where: { id_design_clothing: product.designClothing.id }
-          });
-
-          if (stock) {
-            await prisma.stock.update({
-              where: { id: stock.id },
-              data: {
-                available_quantity: { decrement: item.quantity },
-                sold_quantity: { increment: item.quantity }
-              }
-            })
-          }
         }
       }
 
@@ -221,7 +206,15 @@ export class OrderService {
           customer: true,
           orderItems: {
             include: {
-              product: true
+              product: {
+                include: {
+                  clothingSize: {
+                    include: {
+                      clothingColor: true
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -291,7 +284,7 @@ export class OrderService {
             const itemsHtml = order.orderItems.map(item => `
             <tr>
               <td style="padding: 12px; border-bottom: 1px solid #eee; width: 60px;">
-                <img src="${item.product.image_url || 'https://example.com/placeholder.png'}" alt="${item.product_name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
+                <img src="${item.product.clothingSize?.clothingColor?.image_url || 'https://example.com/placeholder.png'}" alt="${item.product_name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
               </td>
               <td style="padding: 12px; border-bottom: 1px solid #eee;">
                 <div style="font-weight: bold;">${item.product_name}</div>

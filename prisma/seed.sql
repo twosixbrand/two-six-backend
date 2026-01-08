@@ -5,7 +5,7 @@
 -- El orden de las inserciones es importante para respetar las claves foráneas.
 
 -- Limpieza de tablas en orden inverso para evitar conflictos de FK (opcional, usar con precaución)
-TRUNCATE TABLE "tracking_history", "shipment", "shipment_rate", "dian_e_invoicing", "payments", "payment_method", "return_item", "returns", "order_item", "order", "customer", "customer_type", "identification_type", "product", "stock", "design_clothing", "design", "color", "size", "clothing", "category", "type_clothing", "collection", "season", "year_production", "provider", "user_role", "role", "user_app", "log_error" RESTART IDENTITY CASCADE;
+TRUNCATE TABLE "tracking_history", "shipment", "shipment_rate", "dian_e_invoicing", "payments", "payment_method", "return_item", "returns", "order_item", "order", "customer", "customer_type", "identification_type", "product", "stock", "clothing_size", "clothing_color", "design_provider", "design", "color", "size", "clothing", "category", "type_clothing", "collection", "season", "year_production", "provider", "user_role", "role", "user_app", "log_error" RESTART IDENTITY CASCADE;
 
 
 -- 1. Tablas de Autenticación y Roles
@@ -114,70 +114,83 @@ SELECT setval('clothing_id_seq', (SELECT MAX(id) FROM "clothing"));
 
 -- 4. Tabla "Design" (depende de Provider, Clothing, Collection, YearProduction)
 --------------------------------------------------------------------
-INSERT INTO public.design (id, id_clothing, id_collection, reference, manufactured_cost, created_at, updated_at, quantity, description) VALUES
-(3, 3, 2, 'Q2A13', 80000.0, '2025-11-11 09:02:48.948', '2025-11-14 17:12:42.887', 50, 'Vestido largo de gala para mujer, perfecto para eventos formales.'),
-(2, 2, 1, 'Q1A12', 45000.0, '2025-11-11 09:02:48.948', '2025-11-14 17:12:48.126', 150, 'Jean clásico de 5 bolsillos para hombre, corte recto.'),
-(1, 1, 1, 'Q1A11', 35000.0, '2025-11-11 09:02:48.948', '2025-11-14 17:12:58.310', 100, 'Camisa de lino para hombre, manga larga, ideal para climas cálidos.'),
-(4, 5, 4, 'Q4A14', 35000.0, '2025-11-16 20:49:05.323', '2025-11-16 20:49:33.263', 48, 'Camiseta Estampado Frente y Manga Hombre, tela Qtar'),
-(5, 6, 4, 'Q4A15', 40000.0, '2025-11-16 20:51:33.053', '2025-11-16 20:51:33.060', 100, 'Camiseta estampado frente, con tela Qtar, solo negra con diseño de estampado de letras de la marca en rojo. el gorila se encuentra en la manga izquierda de la camisa');
+INSERT INTO public.design (id, id_clothing, id_collection, reference, manufactured_cost, created_at, updated_at, description) VALUES
+(3, 3, 2, 'Q2A13', 80000.0, '2025-11-11 09:02:48.948', '2025-11-14 17:12:42.887', 'Vestido largo de gala para mujer, perfecto para eventos formales.'),
+(2, 2, 1, 'Q1A12', 45000.0, '2025-11-11 09:02:48.948', '2025-11-14 17:12:48.126', 'Jean clásico de 5 bolsillos para hombre, corte recto.'),
+(1, 1, 1, 'Q1A11', 35000.0, '2025-11-11 09:02:48.948', '2025-11-14 17:12:58.310', 'Camisa de lino para hombre, manga larga, ideal para climas cálidos.'),
+(4, 5, 4, 'Q4A14', 35000.0, '2025-11-16 20:49:05.323', '2025-11-16 20:49:33.263', 'Camiseta Estampado Frente y Manga Hombre, tela Qtar'),
+(5, 6, 4, 'Q4A15', 40000.0, '2025-11-16 20:51:33.053', '2025-11-16 20:51:33.060', 'Camiseta estampado frente, con tela Qtar, solo negra con diseño de estampado de letras de la marca en rojo. el gorila se encuentra en la manga izquierda de la camisa');
 
 -- Update sequence for design
 SELECT setval('design_id_seq', (SELECT MAX(id) FROM "design"));
 
 
--- 5. Tabla "DesignClothing" (SKUs - depende de Design, Color, Size)
+-- 5. Tabla "ClothingColor" (Design + Color) y "ClothingSize" (Cantidades)
 --------------------------------------------------------------------
--- Camisa Lino Blanca (Diseño 1)
-INSERT INTO "design_clothing" (id_design, id_color, id_size, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment, quantity_under_warranty) VALUES
-(1, 1, 1, 50, 40, 10, 0, 0), -- Talla S, Blanca
-(1, 1, 2, 100, 80, 20, 0, 0), -- Talla M, Blanca
-(1, 1, 3, 50, 30, 20, 0, 0); -- Talla L, Blanca
+-- Camisa Lino (Design 1) - Blanca (Color 1)
+INSERT INTO "clothing_color" (id, id_design, id_color) VALUES
+(1, 1, 1);
 
--- Jean Bota Recta (Diseño 2)
-INSERT INTO "design_clothing" (id_design, id_color, id_size, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment, quantity_under_warranty) VALUES
-(2, 3, 1, 80, 70, 10, 0, 0), -- Talla S, Azul Oscuro
-(2, 3, 2, 120, 100, 20, 0, 0), -- Talla M, Azul Oscuro
-(2, 3, 3, 80, 60, 20, 0, 0); -- Talla L, Azul Oscuro
+INSERT INTO "clothing_size" (id, id_clothing_color, id_size, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment, quantity_under_warranty) VALUES
+(1, 1, 1, 50, 40, 10, 0, 0), -- Talla S
+(2, 1, 2, 100, 80, 20, 0, 0), -- Talla M
+(3, 1, 3, 50, 30, 20, 0, 0); -- Talla L
 
--- Vestido Largo de Gala (Diseño 3)
-INSERT INTO "design_clothing" (id_design, id_color, id_size, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment, quantity_under_warranty) VALUES
-(3, 2, 1, 30, 25, 5, 0, 0), -- Talla S, Negro
-(3, 4, 2, 30, 20, 10, 0, 0); -- Talla M, Rojo
+-- Jean Bota Recta (Design 2) - Azul Oscuro (Color 3)
+INSERT INTO "clothing_color" (id, id_design, id_color) VALUES
+(2, 2, 3);
+
+INSERT INTO "clothing_size" (id, id_clothing_color, id_size, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment, quantity_under_warranty) VALUES
+(4, 2, 1, 80, 70, 10, 0, 0), -- Talla S
+(5, 2, 2, 120, 100, 20, 0, 0), -- Talla M
+(6, 2, 3, 80, 60, 20, 0, 0); -- Talla L
+
+-- Vestido Gala (Design 3)
+-- Negro (Color 2)
+INSERT INTO "clothing_color" (id, id_design, id_color) VALUES
+(3, 3, 2);
+-- Rojo (Color 4)
+INSERT INTO "clothing_color" (id, id_design, id_color) VALUES
+(4, 3, 4);
+
+INSERT INTO "clothing_size" (id, id_clothing_color, id_size, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment, quantity_under_warranty) VALUES
+(7, 3, 1, 30, 25, 5, 0, 0), -- Negro S
+(8, 4, 2, 30, 20, 10, 0, 0); -- Rojo M
 
 
--- 6. Tablas "Stock" y "Product" (dependen de DesignClothing)
+-- 6. Tablas "Stock" y "Product" (dependen de ClothingSize)
 --------------------------------------------------------------------
 -- Stock y Productos para Camisa Lino Blanca
-INSERT INTO "stock" (id_design_clothing, current_quantity, available_quantity, sold_quantity, consignment_quantity) VALUES
+INSERT INTO "stock" (id_clothing_size, current_quantity, available_quantity, sold_quantity, consignment_quantity) VALUES
 (1, 40, 40, 10, 0),
 (2, 80, 80, 20, 0),
 (3, 30, 30, 20, 0);
 
-INSERT INTO "product" (id_design_clothing, sku, price, image_url, active, is_outlet) VALUES
-(1, 'CLB-S', 89900, 'https://example.com/img/clb-s.jpg', true, false),
-(2, 'CLB-M', 89900, 'https://example.com/img/clb-m.jpg', true, false),
-(3, 'CLB-L', 89900, 'https://example.com/img/clb-l.jpg', true, false);
+INSERT INTO "product" (id_clothing_size, sku, price, is_outlet, active) VALUES
+(1, 'CLB-S', 89900, false, true),
+(2, 'CLB-M', 89900, false, true),
+(3, 'CLB-L', 89900, false, true);
 
 
 -- Stock y Productos para Jean Bota Recta
-INSERT INTO "stock" (id_design_clothing, current_quantity, available_quantity, sold_quantity, consignment_quantity) VALUES
+INSERT INTO "stock" (id_clothing_size, current_quantity, available_quantity, sold_quantity, consignment_quantity) VALUES
 (4, 70, 70, 10, 0),
 (5, 100, 100, 20, 0),
 (6, 60, 60, 20, 0);
 
-INSERT INTO "product" (id_design_clothing, sku, price, image_url, active, is_outlet) VALUES
-(4, 'JBR-S', 120000, 'https://example.com/img/jbr-s.jpg', true, false),
-(5, 'JBR-M', 120000, 'https://example.com/img/jbr-m.jpg', true, false),
-(6, 'JBR-L', 120000, 'https://example.com/img/jbr-l.jpg', true, false);
+INSERT INTO "product" (id_clothing_size, sku, price, is_outlet, active) VALUES
+(4, 'JBR-S', 120000, false, true),
+(5, 'JBR-M', 120000, false, true),
+(6, 'JBR-L', 120000, false, true);
 
 -- Stock y Productos para Vestido de Gala
-INSERT INTO "stock" (id_design_clothing, current_quantity, available_quantity, sold_quantity, consignment_quantity) VALUES
+INSERT INTO "stock" (id_clothing_size, current_quantity, available_quantity, sold_quantity, consignment_quantity) VALUES
 (7, 25, 25, 5, 0),
 (8, 20, 20, 10, 0);
 
-INSERT INTO "product" (id_design_clothing, sku, price, image_url, active, is_outlet) VALUES
-(7, 'VLG-S', 250000, 'https://example.com/img/vlg-s.jpg', true, false),
-(8, 'VLG-M', 250000, 'https://example.com/img/vlg-m.jpg', true, true); -- Este producto está en outlet
+INSERT INTO "product" (id_clothing_size, sku, price, is_outlet, active) VALUES
+(7, 'VLG-S', 250000, false, true),
+(8, 'VLG-M', 250000, true, true); -- Outlet
 
 -- 7. Tablas de Clientes
 --------------------------------------------------------------------
@@ -229,64 +242,6 @@ INSERT INTO "tracking_history" (id_shipment, status, update_date, location, prov
 (1, 'En reparto', '2024-05-12 09:00:00', 'Bogotá, Colombia', 'BOG-REP'),
 (1, 'Entregado', '2024-05-12 15:00:00', 'Bogotá, Colombia', 'ENTREGADO-OK');
 
--- Fin del script, para ejecutar los insert desde la terminal:
--- psql -U jmanmrique -d twosixDB -a -f prisma/seed.sql
+-- Fin del script
 -- =================================================================
--- EJEMPLO: COLECCIÓN VERANO 2025 (NUEVOS DATOS)
--- =================================================================
-
--- 1. Nuevo Proveedor
-INSERT INTO "provider" (nit, company_name, email, phone, account_number, account_type, bank_name) VALUES
-('901234567-8', 'Confecciones del Valle', 'contacto@confeccionesvalle.com', '6025551122', '456-789012-3', 'Corriente', 'Banco de Bogotá');
-
--- 2. Nueva Colección (Usando Año 2025 'Q' y Temporada 1 '1er Ciclo' ya existentes)
-INSERT INTO "collection" (id_year_production, id_season, name, description) VALUES
-('Q', 1, 'Colección Verano 2025', 'Ropa ligera y vibrante para el verano');
-
--- 3. Nuevas Prendas (Clothing)
--- Asumimos Category ID 1 (Superior) y 2 (Inferior) ya existen.
--- Usaremos TypeClothing 'K' (Vestido) y crearemos uno nuevo si fuera necesario, pero usaremos 'A' (Camiseta) y 'J' (Pantalon Corto) como base o creamos nuevos tipos si el usuario quisiera.
--- Para este ejemplo, usaremos 'K' (Vestido) para una salida de baño y 'J' (Pantalon Corto) para un short de playa.
-
-INSERT INTO "clothing" (name, id_category, id_type_clothing, gender) VALUES
-('Salida de Baño Pareo', 1, 'K', 'FEMENINO'), -- ID será autoincremental (ej. 7)
-('Short Playero Estampado', 2, 'J', 'MASCULINO'); -- ID será autoincremental (ej. 8)
-
--- 4. Nuevos Diseños (Design)
--- Asumiendo que los IDs de clothing generados son 7 y 8 (basado en los inserts anteriores que terminaban en 6)
--- Y la colección nueva tiene ID 5 (las anteriores eran 1-4)
-
-INSERT INTO "design" (id_clothing, id_collection, reference, manufactured_cost, quantity, description) VALUES
-(7, 5, 'S25-001', 45000.0, 50, 'Salida de baño ligera con estampado floral'), -- ID Design autoincrement (ej. 6)
-(8, 5, 'S25-002', 38000.0, 80, 'Short de playa secado rápido'); -- ID Design autoincrement (ej. 7)
-
--- 5. DesignClothing (SKUs)
--- Diseño 6 (Salida de Baño): Talla Única (ID 6), Color Blanco (ID 1)
-INSERT INTO "design_clothing" (id_design, id_color, id_size, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment, quantity_under_warranty) VALUES
-(6, 1, 6, 50, 50, 0, 0, 0); -- ID DesignClothing autoincrement (ej. 9)
-
--- Diseño 7 (Short Playero): Tallas S, M, L (IDs 1, 2, 3), Color Azul Claro (ID 7)
-INSERT INTO "design_clothing" (id_design, id_color, id_size, quantity_produced, quantity_available, quantity_sold, quantity_on_consignment, quantity_under_warranty) VALUES
-(7, 7, 1, 20, 20, 0, 0, 0), -- Talla S (ID 10)
-(7, 7, 2, 40, 40, 0, 0, 0), -- Talla M (ID 11)
-(7, 7, 3, 20, 20, 0, 0, 0); -- Talla L (ID 12)
-
--- 6. Stock y Productos
--- Stock para Salida de Baño (ID 9)
-INSERT INTO "stock" (id_design_clothing, current_quantity, available_quantity, sold_quantity, consignment_quantity) VALUES
-(9, 50, 50, 0, 0);
-
-INSERT INTO "product" (id_design_clothing, sku, price, image_url, active, is_outlet) VALUES
-(9, 'SBF-U', 85000, 'https://example.com/img/sbf-u.jpg', true, false);
-
--- Stock para Short Playero (IDs 10, 11, 12)
-INSERT INTO "stock" (id_design_clothing, current_quantity, available_quantity, sold_quantity, consignment_quantity) VALUES
-(10, 20, 20, 0, 0),
-(11, 40, 40, 0, 0),
-(12, 20, 20, 0, 0);
-
-INSERT INTO "product" (id_design_clothing, sku, price, image_url, active, is_outlet) VALUES
-(10, 'SPA-S', 65000, 'https://example.com/img/spa-s.jpg', true, false),
-(11, 'SPA-M', 65000, 'https://example.com/img/spa-m.jpg', true, false),
-(12, 'SPA-L', 65000, 'https://example.com/img/spa-l.jpg', true, false);
 

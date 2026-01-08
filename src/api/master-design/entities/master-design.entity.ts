@@ -7,7 +7,8 @@ export class MasterDesign implements Design {
   reference: string;
   manufactured_cost: number;
   description: string | null;
-  quantity: number;
+  image_url: string | null;
+
   createdAt: Date;
   updatedAt: Date | null;
 }

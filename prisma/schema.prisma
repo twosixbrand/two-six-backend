@@ -169,10 +169,11 @@ model Color {
   hex            String
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime?         @updatedAt @map("updated_at")
-  designClothing DesignClothing[]
+  clothingColor ClothingColor[]
 
   @@map("color")
 }
+
 
 model Size {
   id             Int              @id @default(autoincrement())
@@ -180,7 +181,7 @@ model Size {
   description    String?
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime?         @updatedAt @map("updated_at")
-  designClothing DesignClothing[]
+  clothingSizes  ClothingSize[]
 
   @@map("size")
 }
@@ -194,10 +195,9 @@ model Design {
   reference          String
   manufactured_cost  Float
   description        String?
-  quantity           Int
   createdAt          DateTime         @default(now()) @map("created_at")
   updatedAt          DateTime?         @updatedAt @map("updated_at")
-  designClothing     DesignClothing[]
+  clothingColors     ClothingColor[]
   designProviders    DesignProvider[] // Nueva relación con DesignProvider
 
   @@map("design")
@@ -234,39 +234,37 @@ model DesignProvider {
   @@map("design_provider")
 }
 
-model DesignClothing {
+model ClothingColor {
   id                      Int      @id @default(autoincrement())
   color                   Color    @relation(fields: [id_color], references: [id])
   id_color                Int      @map("id_color")
-  size                    Size     @relation(fields: [id_size], references: [id])
-  id_size                 Int      @map("id_size")
   design                  Design   @relation(fields: [id_design], references: [id])
   id_design               Int      @map("id_design")
+  image_url               String?  @map("image_url")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime? @updatedAt @map("updated_at")
+  clothingSizes           ClothingSize[]
+
+  @@map("clothing_color")
+}
+
+model ClothingSize {
+  id                      Int      @id @default(autoincrement())
+  size                    Size     @relation(fields: [id_size], references: [id])
+  id_size                 Int      @map("id_size")
+  clothingColor           ClothingColor   @relation(fields: [id_clothing_color], references: [id])
+  id_clothing_color       Int      @map("id_clothing_color")
   quantity_produced       Int
   quantity_available      Int
   quantity_sold           Int
   quantity_on_consignment Int
   quantity_under_warranty Int      @default(0) @map("quantity_under_warranty")
+  quantity_minimum_alert  Int?     @map("quantity_minimum_alert")
   createdAt               DateTime @default(now()) @map("created_at")
   updatedAt               DateTime? @updatedAt @map("updated_at")
   product                 Product? // Relación 1-a-1 con Product
-  stock                   Stock? // Relación 1-a-1 con Stock
 
-  @@map("design_clothing")
-}
-
-model Stock {
-  id                   Int            @id @default(autoincrement())
-  designClothing       DesignClothing @relation(fields: [id_design_clothing], references: [id])
-  id_design_clothing   Int            @unique @map("id_design_clothing")
-  current_quantity     Int
-  available_quantity   Int
-  sold_quantity        Int
-  consignment_quantity Int
-  createdAt            DateTime       @default(now()) @map("created_at")
-  updatedAt            DateTime?       @updatedAt @map("updated_at")
-
-  @@map("stock")
+  @@map("clothing_size")
 }
 
 // -----------------------------------------------------
@@ -275,13 +273,12 @@ model Stock {
 
 model Product {
   id                         Int            @id @default(autoincrement())
-  designClothing             DesignClothing @relation(fields: [id_design_clothing], references: [id])
-  id_design_clothing         Int            @unique @map("id_design_clothing")
+  clothingSize               ClothingSize   @relation(fields: [id_clothing_size], references: [id])
+  id_clothing_size           Int            @unique @map("id_clothing_size")
   sku                        String?
   price                      Float
   discount_price             Float?
   discount_percentage        Float?
-  image_url                  String?
   active                     Boolean
   is_outlet                  Boolean        @map("is_outlet")
   createdAt                  DateTime       @default(now()) @map("created_at")

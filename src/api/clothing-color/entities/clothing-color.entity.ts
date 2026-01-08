@@ -1,6 +1,6 @@
-import { DesignClothing as DesignClothingModel } from '@prisma/client';
+import { ClothingColor as ClothingColorModel } from '@prisma/client';
 
-export class DesignClothingEntity implements DesignClothingModel {
+export class ClothingColorEntity implements ClothingColorModel {
   clothing_name?: string; // Campo añadido para el nombre de la prenda
   color_name?: string; // Campo añadido para el nombre del color
   size_name?: string; // Campo añadido para el nombre de la talla
@@ -14,6 +14,7 @@ export class DesignClothingEntity implements DesignClothingModel {
   quantity_sold: number;
   quantity_on_consignment: number;
   quantity_under_warranty: number;
+  image_url: string | null;
   createdAt: Date;
   updatedAt: Date | null;
 }

@@ -22,11 +22,7 @@ export class CreateProductDto {
 
   @IsNumber()
   @IsNotEmpty()
-  id_design_clothing: number; // Propiedad clave para la relación
-
-  @IsString()
-  @IsOptional()
-  image_url?: string;
+  id_clothing_size: number; // Propiedad clave para la relación
 
   // Opcional: si quieres controlar estos desde el cliente
   @IsBoolean()

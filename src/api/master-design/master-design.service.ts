@@ -1,11 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateMasterDesignDto } from './dto/create-master-design.dto';
 import { UpdateMasterDesignDto } from './dto/update-master-design.dto';
 
 @Injectable()
 export class MasterDesignService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Construye la referencia a partir de los IDs relacionados.
@@ -36,6 +36,8 @@ export class MasterDesignService {
 
     return referenceParts.join('').toUpperCase().replace(/\s/g, '');
   }
+
+
 
   async create(createMasterDesignDto: CreateMasterDesignDto) {
     // Usamos una transacción para asegurar la atomicidad de la operación.
@@ -113,18 +115,23 @@ export class MasterDesignService {
       updateMasterDesignDto.id_collection ||
       updateMasterDesignDto.id_clothing;
 
+
+    const dataToUpdate: any = {
+      ...updateMasterDesignDto,
+    };
+
     // Si no se necesita recalcular, simplemente actualizamos.
     if (!shouldRecalculateReference) {
       return this.prisma.design.update({
         where: { id },
-        data: updateMasterDesignDto,
+        data: dataToUpdate,
       });
     }
 
     // Si se necesita recalcular, actualizamos los datos y luego la referencia.
     const updatedDesign = await this.prisma.design.update({
       where: { id },
-      data: updateMasterDesignDto,
+      data: dataToUpdate,
     });
 
     const newReference = await this.buildReference(

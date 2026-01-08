@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Gender, Prisma, Product } from '@prisma/client';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -9,19 +9,23 @@ export class ProductService {
   constructor(private readonly prisma: PrismaService) { }
 
   private readonly productWithDetails = {
-    designClothing: {
+    clothingSize: {
       include: {
-        color: true,
         size: true,
-        design: {
-          select: {
-            description: true,
-            clothing: {
+        clothingColor: {
+          include: {
+            color: true,
+            design: {
               select: {
-                name: true,
-                gender: true,
-                typeClothing: true, // Mantenemos las relaciones anidadas
-                category: true,
+                description: true,
+                clothing: {
+                  select: {
+                    name: true,
+                    gender: true,
+                    typeClothing: true,
+                    category: true,
+                  },
+                },
               },
             },
           },
@@ -34,29 +38,27 @@ export class ProductService {
     return this.productWithDetails;
   }
 
-  /**
-   * Genera un SKU único basado en las relaciones de una variante de diseño.
-   * @param designClothingId - El ID de la variante de diseño.
-   * @returns El SKU generado.
-   * @throws NotFoundException si alguna de las entidades relacionadas no existe.
-   */
-  private async _generateSku(designClothingId: number): Promise<string> {
-    const designClothing = await this.prisma.designClothing.findUnique({
-      where: { id: designClothingId },
+  private async _generateSku(clothingSizeId: number): Promise<string> {
+    const clothingSize = await this.prisma.clothingSize.findUnique({
+      where: { id: clothingSizeId },
       include: {
-        design: true,
-        color: true,
         size: true,
+        clothingColor: {
+          include: {
+            design: true,
+            color: true,
+          }
+        }
       },
     });
 
-    if (!designClothing?.design || !designClothing.color || !designClothing.size) {
+    if (!clothingSize?.size || !clothingSize.clothingColor?.design || !clothingSize.clothingColor?.color) {
       throw new NotFoundException(
-        `No se pudieron encontrar los detalles completos (diseño, color, talla) para la variante con ID #${designClothingId}.`,
+        `No se pudieron encontrar los detalles completos (diseño, color, talla) para la variante de talla con ID #${clothingSizeId}.`,
       );
     }
 
-    const { design, color, size } = designClothing;
+    const { size, clothingColor: { design, color } } = clothingSize;
 
     const referencePart = design.reference;
     const colorPart = color.name.substring(0, 3).toUpperCase();
@@ -67,57 +69,154 @@ export class ProductService {
     return sku;
   }
 
-  /**
-   * Crea un nuevo producto en la base de datos.
-   * @param createProductDto - DTO con los datos para crear el producto.
-   * @returns El producto creado.
-   * @throws NotFoundException si el id_design_clothing no existe.
-   */
   async create(createProductDto: CreateProductDto): Promise<Product> {
-    const { id_design_clothing, ...productData } = createProductDto;
+    const { id_clothing_size, ...productData } = createProductDto;
 
-    // 1. Generar el SKU a partir del id_design_clothing.
-    // La función _generateSku ya valida la existencia de la variante y sus relaciones.
-    const generatedSku = await this._generateSku(id_design_clothing);
+    const generatedSku = await this._generateSku(id_clothing_size);
 
-    // 2. Crear el producto con el SKU generado.
-    return this.prisma.product.create({
-      data: {
-        ...productData,
-        sku: generatedSku,
-        // Asignar valores por defecto si no vienen en el DTO.
-        active: productData.active ?? true, // Mantenido
-        is_outlet: productData.is_outlet ?? false, // Corregido de 'outlet' a 'is_outlet'
-        designClothing: {
-          connect: {
-            id: id_design_clothing,
+    return this.prisma.$transaction(async (tx) => {
+      const product = await tx.product.create({
+        data: {
+          ...productData,
+          sku: generatedSku,
+          active: productData.active ?? true,
+          is_outlet: productData.is_outlet ?? false,
+          clothingSize: {
+            connect: {
+              id: id_clothing_size,
+            },
           },
         },
-      },
-      include: this.getProductWithDetails(),
+        include: this.getProductWithDetails(),
+      });
+
+      // Stock record creation removed (managed in clothing_size)
+
+
+      return product;
     });
   }
 
-  /**
-   * Helper para mapear la estructura anidada a un objeto plano con nombre y descripción.
-   */
   private _mapProduct(product: any) {
     return {
       ...product,
-      name: product.designClothing?.design?.clothing?.name || "Producto sin nombre",
-      description: product.designClothing?.design?.description || "",
+      name: product.clothingSize?.clothingColor?.design?.clothing?.name || "Producto sin nombre",
+      description: product.clothingSize?.clothingColor?.design?.description || "",
+      designClothing: undefined,
     };
   }
 
-  /**
-   * Encuentra todos los productos, con filtros opcionales por género y si es outlet.
-   * Devuelve una vista enriquecida del producto con sus relaciones.
-   * @param gender - Género para filtrar los productos (opcional).
-   * @param is_outlet - Booleano para filtrar si el producto es outlet (opcional).
-   */
+
+  async findDesignsForStore(gender?: Gender, is_outlet?: boolean) {
+    const where: Prisma.DesignWhereInput = {
+      clothingColors: {
+        some: {
+          clothingSizes: {
+            some: {
+              product: {
+                active: true,
+                ...(is_outlet !== undefined && { is_outlet: is_outlet })
+              },
+              quantity_available: {
+                gt: 0
+              }
+            }
+          }
+        }
+      },
+      ...(gender && {
+        clothing: {
+          gender: gender
+        }
+      })
+    };
+
+    const designs = await this.prisma.design.findMany({
+      where,
+      include: {
+        clothing: {
+          select: {
+            name: true,
+            gender: true,
+          }
+        },
+        clothingColors: {
+          include: {
+            clothingSizes: {
+              include: {
+                product: {
+                  where: {
+                    active: true,
+                    ...(is_outlet !== undefined && { is_outlet: is_outlet })
+                  },
+                  select: {
+                    id: true,
+                    price: true,
+                    is_outlet: true,
+                    active: true,
+                    clothingSize: {
+                      select: { quantity_available: true }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Map to a cleaner structure for the store
+    // We need to pick one "main" image and price to show on the card.
+    // Logic: Find the first product that is active and has stock.
+    return designs.map(design => {
+      // Flatten all products from all colors/sizes to find a representative one
+      let validProduct: any = null;
+      let validImage: string | null = null;
+
+      for (const cc of design.clothingColors) {
+        for (const cs of cc.clothingSizes) {
+          if (cs.product && cs.product.active && cs.product.clothingSize.quantity_available > 0) {
+            validProduct = cs.product;
+            validImage = cc.image_url;
+            break;
+          }
+        }
+        if (validProduct) break;
+      }
+
+      // Fallback: if no product with stock > 0 found (shouldn't happen due to query filter, but safety check)
+      if (!validProduct) {
+        // Fallback to just finding an active product regardless of stock if query slipped
+        for (const cc of design.clothingColors) {
+          for (const cs of cc.clothingSizes) {
+            if (cs.product && cs.product.active) {
+              validProduct = cs.product;
+              validImage = cc.image_url;
+              break;
+            }
+          }
+          if (validProduct) break;
+        }
+      }
+
+      return {
+        id_design: design.id,
+        name: design.clothing.name,
+        description: design.description,
+        // We return the ID of the product so the card can link to /product/:id
+        id_product: validProduct?.id,
+        price: validProduct?.price,
+        image_url: validImage,
+        is_outlet: validProduct?.is_outlet,
+        gender: design.clothing.gender
+      };
+    }).filter(d => d.id_product); // Ensure we only return items that resolved to a product
+  }
+
   async findAll(gender?: Gender, is_outlet?: boolean) {
     const where: Prisma.ProductWhereInput = {
-      active: true, // Por defecto, solo trae productos activos.
+      active: true,
     };
 
     if (is_outlet !== undefined) {
@@ -125,85 +224,81 @@ export class ProductService {
     }
 
     if (gender) {
-      // Filtro anidado a través de las relaciones para llegar al género.
-      where.designClothing = {
-        design: {
-          clothing: {
-            gender: gender,
+      where.clothingSize = {
+        clothingColor: {
+          design: {
+            clothing: {
+              gender: gender,
+            },
           },
-        },
+        }
       };
     }
 
     const products = await this.prisma.product.findMany({
       where,
-      include: this.getProductWithDetails(), // Incluir relaciones en la respuesta
+      include: this.getProductWithDetails(),
     });
 
     return products.map(p => this._mapProduct(p));
   }
 
-  /**
-   * Encuentra todos los productos sin filtros para administración desde el CMS.
-   * Devuelve una vista enriquecida con nombres de relaciones.
-   * @returns Una lista de todos los productos con detalles adicionales.
-   */
   async findAllForAdmin() {
     const products = await this.prisma.product.findMany({
       include: {
-        designClothing: {
+        clothingSize: {
           include: {
-            color: true,
             size: true,
-            design: {
+            clothingColor: {
               include: {
-                clothing: true,
-                collection: {
+                color: true,
+                design: {
                   include: {
-                    yearProduction: true,
-                  },
-                },
-              },
-            },
-          },
+                    clothing: true,
+                    collection: {
+                      include: {
+                        yearProduction: true,
+                      },
+                    },
+                  }
+                }
+              }
+            }
+          }
         },
       },
     });
 
-    // Mapea el resultado para aplanar la estructura y añadir los nombres.
     return products.map((product) => {
-      const { designClothing, ...restOfProduct } = product;
+      const { clothingSize, ...restOfProduct } = product;
+      const clothingColor = clothingSize?.clothingColor;
       return {
         ...restOfProduct,
-        name: designClothing?.design?.clothing?.name || "Producto sin nombre", // Added for consistency
-        clothing_name: designClothing?.design?.clothing?.name ?? null,
-        color_name: designClothing?.color?.name ?? null,
-        description: designClothing?.design?.description ?? null,
-        size_name: designClothing?.size?.name ?? null,
-        collection_name: designClothing?.design?.collection?.name ?? null,
-        year_production:
-          designClothing?.design?.collection?.yearProduction?.name ?? null,
+        name: clothingColor?.design?.clothing?.name || "Producto sin nombre",
+        clothing_name: clothingColor?.design?.clothing?.name ?? null,
+        color_name: clothingColor?.color?.name ?? null,
+        description: clothingColor?.design?.description ?? null,
+        size_name: clothingSize?.size?.name ?? null,
+        collection_name: clothingColor?.design?.collection?.name ?? null,
+        year_production: clothingColor?.design?.collection?.yearProduction?.name ?? null,
+        gender: clothingColor?.design?.clothing?.gender ?? null,
       };
     });
   }
 
-  /**
-   * Encuentra todos los productos activos asociados a una referencia de diseño específica.
-   * @param reference - La referencia del diseño a buscar.
-   * @returns Una lista de productos que coinciden con la referencia.
-   * @throws NotFoundException si no se encuentran productos para la referencia.
-   */
   async findByDesignReference(
     reference: string,
-  ): Promise<(Product & { designClothing: any })[]> {
+  ): Promise<(Product & { clothingSize: any })[]> {
     const products = await this.prisma.product.findMany({
       where: {
-        designClothing: {
-          design: {
-            reference: reference,
-          },
+        clothingSize: {
+          clothingColor: {
+            design: {
+              reference: reference
+            }
+          }
         },
-        active: true, // Solo traer variantes activas
+        active: true,
       },
       include: this.getProductWithDetails(),
     });
@@ -216,26 +311,24 @@ export class ProductService {
     return products.map(p => this._mapProduct(p));
   }
 
-  /**
-   * Encuentra un único producto por su ID.
-   * @param id - El ID del producto a buscar.
-   * @returns El producto encontrado con sus relaciones.
-   * @throws NotFoundException si el producto no existe.
-   */
   async findOne(id: number) {
     const product = await this.prisma.product.findUnique({
       where: { id },
       include: {
-        designClothing: {
+        clothingSize: {
           include: {
-            color: true,
             size: true,
-            design: {
+            clothingColor: {
               include: {
-                clothing: true,
-              },
-            },
-          },
+                color: true,
+                design: {
+                  include: {
+                    clothing: true
+                  }
+                }
+              }
+            }
+          }
         },
       },
     });
@@ -246,31 +339,20 @@ export class ProductService {
     return this._mapProduct(product);
   }
 
-  /**
-   * Actualiza un producto existente.
-   * @param id - El ID del producto a actualizar.
-   * @param updateProductDto - DTO con los datos a actualizar.
-   * @returns El producto actualizado.
-   * @throws NotFoundException si el producto o el nuevo id_design_clothing no existen.
-   */
   async update(id: number, updateProductDto: UpdateProductDto): Promise<Product> {
-    const { id_design_clothing, ...productData } = updateProductDto;
+    const { id_clothing_size, ...productData } = updateProductDto;
     const dataToUpdate: Prisma.ProductUpdateInput = { ...productData };
 
-    // Si se va a cambiar la variante de diseño, generar un nuevo SKU.
-    if (id_design_clothing) {
-      // La función _generateSku valida la existencia de la nueva variante.
-      const newSku = await this._generateSku(id_design_clothing);
+    if (id_clothing_size) {
+      const newSku = await this._generateSku(id_clothing_size);
       dataToUpdate.sku = newSku;
-      dataToUpdate.designClothing = { connect: { id: id_design_clothing } };
+      dataToUpdate.clothingSize = { connect: { id: id_clothing_size } };
     }
 
-    // Asegurarse de que el producto a actualizar existe.
     await this.prisma.product.findUniqueOrThrow({
       where: { id },
     });
 
-    // Actualizar el producto y manejar el caso de que no se encuentre.
     try {
       return await this.prisma.product.update({
         where: { id },
@@ -282,23 +364,35 @@ export class ProductService {
           throw new NotFoundException(`Producto con ID #${id} no encontrado.`);
         }
       }
-      throw error; // Re-lanza cualquier otro error
+      throw error;
     }
   }
 
-  /**
-   * Elimina un producto de la base de datos.
-   * @param id - El ID del producto a eliminar.
-   * @returns El producto que fue eliminado.
-   * @throws NotFoundException si el producto no existe.
-   */
   async remove(id: number): Promise<Product> {
-    // 1. Asegurarse de que el producto exista antes de eliminarlo.
     await this.findOne(id);
 
-    // 2. Eliminar el producto.
-    return this.prisma.product.delete({
-      where: { id },
-    });
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const productToDelete = await tx.product.findUnique({
+          where: { id },
+          select: { id_clothing_size: true }
+        });
+
+        // Stock deletion removed (managed in clothing_size)
+
+        return await tx.product.delete({
+          where: { id },
+        });
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2003') {
+          throw new BadRequestException(
+            `No se puede eliminar el producto porque tiene registros relacionados.`
+          );
+        }
+      }
+      throw error;
+    }
   }
 }
