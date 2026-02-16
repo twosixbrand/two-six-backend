@@ -6,13 +6,13 @@ import { Clothing } from '@prisma/client';
 
 @Injectable()
 export class ClothingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Crea una nueva prenda, verificando que las relaciones existan.
    */
   async create(createClothingDto: CreateClothingDto): Promise<Clothing> {
-    const { id_type_clothing, id_category } = createClothingDto;
+    const { id_type_clothing, id_category, id_gender, ...clothingData } = createClothingDto;
 
     // Verificar que el tipo de prenda y la categoría existan
     await this.prisma.typeClothing.findUniqueOrThrow({
@@ -21,9 +21,22 @@ export class ClothingService {
     await this.prisma.category.findUniqueOrThrow({
       where: { id: id_category },
     });
+    await this.prisma.gender.findUniqueOrThrow({
+      where: { id: id_gender },
+    });
 
     return this.prisma.clothing.create({
-      data: createClothingDto,
+      data: {
+        ...clothingData,
+        id_type_clothing,
+        id_category,
+        id_gender, // Asignación directa
+      },
+      include: {
+        typeClothing: true,
+        category: true,
+        gender: true, // Incluir la relación directa
+      }
     });
   }
 
@@ -35,6 +48,7 @@ export class ClothingService {
       include: {
         typeClothing: true,
         category: true,
+        gender: true,
       },
     });
   }
@@ -49,6 +63,7 @@ export class ClothingService {
       include: {
         typeClothing: true,
         category: true,
+        gender: true,
       },
     });
 
@@ -64,9 +79,20 @@ export class ClothingService {
    */
   async update(id: number, updateClothingDto: UpdateClothingDto): Promise<Clothing> {
     await this.findOne(id); // Asegura que la prenda exista
+
+    const { id_gender, ...data } = updateClothingDto;
+
     return this.prisma.clothing.update({
       where: { id },
-      data: updateClothingDto,
+      data: {
+        ...data,
+        ...(id_gender && { id_gender }),
+      },
+      include: {
+        typeClothing: true,
+        category: true,
+        gender: true
+      }
     });
   }
 

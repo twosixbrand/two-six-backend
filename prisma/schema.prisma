@@ -142,22 +142,33 @@ model Category {
   @@map("category")
 }
 
-enum Gender {
+enum GenderEnum {
   MASCULINO
   FEMENINO
   UNISEX
 }
 
+model Gender {
+  id              Int              @id @default(autoincrement())
+  name            String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime?        @updatedAt
+  clothing        Clothing[]
+
+  @@map("gender")
+}
+
 model Clothing {
-  id               Int          @id @default(autoincrement())
-  typeClothing     TypeClothing @relation(fields: [id_type_clothing], references: [id])
-  id_type_clothing String       @map("id_type_clothing") @db.Char(2)
-  category         Category     @relation(fields: [id_category], references: [id])
-  id_category      Int          @map("id_category")
+  id               Int              @id @default(autoincrement())
+  typeClothing     TypeClothing     @relation(fields: [id_type_clothing], references: [id])
+  id_type_clothing String           @map("id_type_clothing") @db.Char(2)
+  category         Category         @relation(fields: [id_category], references: [id])
+  id_category      Int              @map("id_category")
+  gender           Gender?          @relation(fields: [id_gender], references: [id])
+  id_gender        Int?             @map("id_gender")
   name             String
-  gender           Gender
-  createdAt        DateTime     @default(now()) @map("created_at")
-  updatedAt        DateTime?     @updatedAt @map("updated_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime?        @updatedAt @map("updated_at")
   designs          Design[]
 
   @@map("clothing")
@@ -195,6 +206,7 @@ model Design {
   reference          String
   manufactured_cost  Float
   description        String?
+  image_url          String?  @map("image_url")
   createdAt          DateTime         @default(now()) @map("created_at")
   updatedAt          DateTime?         @updatedAt @map("updated_at")
   clothingColors     ClothingColor[]
@@ -234,18 +246,32 @@ model DesignProvider {
   @@map("design_provider")
 }
 
+
+
 model ClothingColor {
   id                      Int      @id @default(autoincrement())
   color                   Color    @relation(fields: [id_color], references: [id])
   id_color                Int      @map("id_color")
   design                  Design   @relation(fields: [id_design], references: [id])
   id_design               Int      @map("id_design")
-  image_url               String?  @map("image_url")
   createdAt               DateTime @default(now()) @map("created_at")
   updatedAt               DateTime? @updatedAt @map("updated_at")
   clothingSizes           ClothingSize[]
+  imageClothing           ImageClothing[]
 
   @@map("clothing_color")
+}
+
+model ImageClothing {
+  id_image_clothing Int           @id @default(autoincrement())
+  clothingColor     ClothingColor @relation(fields: [id_clothing_color], references: [id])
+  id_clothing_color Int           @map("id_clothing_color")
+  image_url         String?       @map("image_url")
+  position          Int
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime?     @updatedAt @map("updated_at")
+
+  @@map("image_clothing")
 }
 
 model ClothingSize {

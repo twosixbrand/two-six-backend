@@ -10,7 +10,7 @@ import {
 
 interface DesignWithRelations {
   description: string | null;
-  clothing: Pick<Clothing, 'name' | 'gender'> & {
+  clothing: Pick<Clothing, 'name'> & {
     typeClothing: TypeClothing;
     category: Category;
   };
@@ -21,7 +21,7 @@ class ClothingColorEntity implements ClothingColorModel {
   id: number;
   id_design: number;
   id_color: number;
-  image_url: string | null;
+  id_gender: number;
   createdAt: Date;
   updatedAt: Date | null;
   design: DesignWithRelations;

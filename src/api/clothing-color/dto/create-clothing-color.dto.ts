@@ -8,8 +8,4 @@ export class CreateClothingColorDto {
   @IsNumber()
   @IsNotEmpty()
   id_design: number;
-
-  @IsOptional()
-  @IsString()
-  image_url?: string;
 }

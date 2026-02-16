@@ -1,11 +1,11 @@
-import { IsBoolean, IsEnum, IsOptional } from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { Gender } from '@prisma/client';
 
 export class QueryProductDto {
-  @IsEnum(Gender)
+  @IsString()
   @IsOptional()
-  gender?: Gender;
+  gender?: string;
 
   @IsBoolean()
   @IsOptional()

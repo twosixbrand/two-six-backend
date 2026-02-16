@@ -210,7 +210,11 @@ export class OrderService {
                 include: {
                   clothingSize: {
                     include: {
-                      clothingColor: true
+                      clothingColor: {
+                        include: {
+                          imageClothing: true
+                        }
+                      }
                     }
                   }
                 }
@@ -284,7 +288,7 @@ export class OrderService {
             const itemsHtml = order.orderItems.map(item => `
             <tr>
               <td style="padding: 12px; border-bottom: 1px solid #eee; width: 60px;">
-                <img src="${item.product.clothingSize?.clothingColor?.image_url || 'https://example.com/placeholder.png'}" alt="${item.product_name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
+                <img src="${item.product.clothingSize?.clothingColor?.imageClothing?.[0]?.image_url || 'https://example.com/placeholder.png'}" alt="${item.product_name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
               </td>
               <td style="padding: 12px; border-bottom: 1px solid #eee;">
                 <div style="font-weight: bold;">${item.product_name}</div>

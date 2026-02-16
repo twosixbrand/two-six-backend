@@ -26,6 +26,9 @@ import { LocationModule } from './api/location/location.module';
 import { CustomerModule } from './api/customer/customer.module';
 import { AddressModule } from './api/address/address.module';
 import { ClothingSizeModule } from './api/clothing-size/clothing-size.module';
+import { GenderModule } from './api/gender/gender.module';
+import { ImageClothingModule } from './api/image-clothing/image-clothing.module';
+import { ReportModule } from './api/report/report.module';
 import { AuthModule } from './auth/auth.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 
@@ -59,6 +62,9 @@ import { MailerModule } from '@nestjs-modules/mailer';
     AddressModule,
     AddressModule,
     ClothingSizeModule,
+    GenderModule,
+    ImageClothingModule,
+    ReportModule,
     AuthModule,
     MailerModule.forRoot({
       transport: {

@@ -9,6 +9,7 @@ export class ClothingEntity implements ClothingModel {
   id: number;
   id_type_clothing: string;
   id_category: number;
+  id_gender: number;
   name: string;
   gender: Gender;
   createdAt: Date;

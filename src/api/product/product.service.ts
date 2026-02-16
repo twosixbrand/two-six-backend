@@ -16,22 +16,19 @@ export class ProductService {
           include: {
             color: true,
             design: {
-              select: {
-                description: true,
+              include: {
                 clothing: {
-                  select: {
-                    name: true,
+                  include: {
                     gender: true,
-                    typeClothing: true,
-                    category: true,
-                  },
-                },
-              },
+                  }
+                }
+              }
             },
-          },
-        },
-      },
-    },
+            imageClothing: true,
+          }
+        }
+      }
+    }
   };
 
   private getProductWithDetails() {
@@ -90,24 +87,30 @@ export class ProductService {
         include: this.getProductWithDetails(),
       });
 
-      // Stock record creation removed (managed in clothing_size)
-
-
       return product;
     });
   }
 
   private _mapProduct(product: any) {
+    const clothing = product.clothingSize?.clothingColor?.design?.clothing;
+
+    // Direct gender access
+    // if (clothing && !clothing.gender && clothing.genderClothing && clothing.genderClothing.length > 0) {
+    //   clothing.gender = clothing.genderClothing[0].gender.name;
+    // }
+
     return {
       ...product,
-      name: product.clothingSize?.clothingColor?.design?.clothing?.name || "Producto sin nombre",
+      name: clothing?.name || "Producto sin nombre",
       description: product.clothingSize?.clothingColor?.design?.description || "",
+      image_url: product.clothingSize?.clothingColor?.imageClothing?.[0]?.image_url || product.clothingSize?.clothingColor?.design?.image_url || "",
       designClothing: undefined,
+      gender: clothing?.gender?.name || "Unisex"
     };
   }
 
 
-  async findDesignsForStore(gender?: Gender, is_outlet?: boolean) {
+  async findDesignsForStore(gender?: string, is_outlet?: boolean) {
     const where: Prisma.DesignWhereInput = {
       clothingColors: {
         some: {
@@ -126,7 +129,9 @@ export class ProductService {
       },
       ...(gender && {
         clothing: {
-          gender: gender
+          gender: {
+            name: gender
+          }
         }
       })
     };
@@ -142,6 +147,7 @@ export class ProductService {
         },
         clothingColors: {
           include: {
+            imageClothing: true,
             clothingSizes: {
               include: {
                 product: {
@@ -178,7 +184,9 @@ export class ProductService {
         for (const cs of cc.clothingSizes) {
           if (cs.product && cs.product.active && cs.product.clothingSize.quantity_available > 0) {
             validProduct = cs.product;
-            validImage = cc.image_url;
+            // Sort by position asc, take first
+            const images = [...(cc.imageClothing || [])].sort((a, b) => (a.position || 0) - (b.position || 0));
+            validImage = images.length > 0 ? images[0].image_url : null;
             break;
           }
         }
@@ -192,13 +200,15 @@ export class ProductService {
           for (const cs of cc.clothingSizes) {
             if (cs.product && cs.product.active) {
               validProduct = cs.product;
-              validImage = cc.image_url;
+              const images = [...(cc.imageClothing || [])].sort((a, b) => (a.position || 0) - (b.position || 0));
+              validImage = images.length > 0 ? images[0].image_url : null;
               break;
             }
           }
           if (validProduct) break;
         }
       }
+
 
       return {
         id_design: design.id,
@@ -207,14 +217,14 @@ export class ProductService {
         // We return the ID of the product so the card can link to /product/:id
         id_product: validProduct?.id,
         price: validProduct?.price,
-        image_url: validImage,
+        image_url: design.image_url || validImage,
         is_outlet: validProduct?.is_outlet,
-        gender: design.clothing.gender
+        gender: design.clothing.gender?.name || 'Unisex' // Single gender now
       };
     }).filter(d => d.id_product); // Ensure we only return items that resolved to a product
   }
 
-  async findAll(gender?: Gender, is_outlet?: boolean) {
+  async findAll(gender?: string, is_outlet?: boolean) {
     const where: Prisma.ProductWhereInput = {
       active: true,
     };
@@ -228,7 +238,9 @@ export class ProductService {
         clothingColor: {
           design: {
             clothing: {
-              gender: gender,
+              gender: {
+                name: gender
+              }
             },
           },
         }
@@ -254,7 +266,11 @@ export class ProductService {
                 color: true,
                 design: {
                   include: {
-                    clothing: true,
+                    clothing: {
+                      include: {
+                        gender: true
+                      }
+                    },
                     collection: {
                       include: {
                         yearProduction: true,
@@ -281,7 +297,7 @@ export class ProductService {
         size_name: clothingSize?.size?.name ?? null,
         collection_name: clothingColor?.design?.collection?.name ?? null,
         year_production: clothingColor?.design?.collection?.yearProduction?.name ?? null,
-        gender: clothingColor?.design?.clothing?.gender ?? null,
+        gender: clothingColor?.design?.clothing?.gender?.name ?? null,
       };
     });
   }
@@ -314,23 +330,7 @@ export class ProductService {
   async findOne(id: number) {
     const product = await this.prisma.product.findUnique({
       where: { id },
-      include: {
-        clothingSize: {
-          include: {
-            size: true,
-            clothingColor: {
-              include: {
-                color: true,
-                design: {
-                  include: {
-                    clothing: true
-                  }
-                }
-              }
-            }
-          }
-        },
-      },
+      include: this.getProductWithDetails(),
     });
 
     if (!product) {
@@ -377,8 +377,6 @@ export class ProductService {
           where: { id },
           select: { id_clothing_size: true }
         });
-
-        // Stock deletion removed (managed in clothing_size)
 
         return await tx.product.delete({
           where: { id },

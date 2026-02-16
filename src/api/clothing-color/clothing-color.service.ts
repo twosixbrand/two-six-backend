@@ -3,30 +3,9 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { CreateClothingColorDto } from './dto/create-clothing-color.dto';
 import { UpdateClothingColorDto } from './dto/update-clothing-color.dto';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import * as path from 'path';
-
 @Injectable()
 export class ClothingColorService {
-  private s3Client: S3Client;
-  private readonly bucketName: string;
-  private readonly s3Endpoint: string;
-
-  constructor(private readonly prisma: PrismaService) {
-    this.bucketName = process.env.DO_SPACES_BUCKET || 'two-six';
-    const rawEndpoint = process.env.DO_SPACES_ENDPOINT || 'https://nyc3.digitaloceanspaces.com';
-    this.s3Endpoint = rawEndpoint.replace(`${this.bucketName}.`, '');
-
-    this.s3Client = new S3Client({
-      endpoint: this.s3Endpoint,
-      region: process.env.DO_SPACES_REGION,
-      credentials: {
-        accessKeyId: process.env.DO_SPACES_KEY || '',
-        secretAccessKey: process.env.DO_SPACES_SECRET || '',
-      },
-      forcePathStyle: false,
-    });
-  }
+  constructor(private readonly prisma: PrismaService) { }
 
   create(createClothingColorDto: CreateClothingColorDto) {
     return this.prisma.clothingColor.create({
@@ -35,27 +14,16 @@ export class ClothingColorService {
   }
 
   async createContextual(
-    file: Express.Multer.File,
     id_design: number,
     id_color: number,
     sizes: { id_size: number; quantity_produced: number; quantity_available: number }[]
   ) {
     try {
-      if (!file) {
-        throw new BadRequestException('Image file is required');
-      }
-
       console.log('createContextual called with:', {
-        filename: file.originalname,
         id_design,
         id_color,
         sizesCount: sizes?.length
       });
-
-      if (!process.env.DO_SPACES_KEY || !process.env.DO_SPACES_SECRET) {
-        console.error('Missing DO_SPACES credentials');
-        throw new BadRequestException('Server misconfiguration: Missing Storage Credentials');
-      }
 
       // 1. Get Metadata
       const design = await this.prisma.design.findUnique({
@@ -70,54 +38,17 @@ export class ClothingColorService {
 
       if (!design) throw new NotFoundException('Design not found');
       if (!design.clothing) throw new BadRequestException('Design has no associated clothing');
-      if (!design.clothing.category) throw new BadRequestException('Clothing has no category');
-      if (!design.collection) throw new BadRequestException('Design has no collection');
 
       const color = await this.prisma.color.findUnique({ where: { id: id_color } });
       if (!color) throw new NotFoundException('Color not found');
 
-      // 2. Generate Path
-      const sanitize = (text: string) =>
-        text.toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-').replace(/[^\w\-]+/g, '').replace(/\-\-+/g, '-').replace(/^-+/, '').replace(/-+$/, '');
-
-      const categorySlug = sanitize(design.clothing.category.name);
-      const collectionSlug = sanitize(design.collection.name);
-      const productSlug = sanitize(design.reference);
-      const colorSlug = sanitize(color.name);
-
-      const fileSlug = `${productSlug}-${colorSlug}`;
-      const extension = path.parse(file.originalname).ext;
-      const envName = process.env.ENVIRONMENT_NAME || 'DLLO';
-      const key = `${envName}/${categorySlug}/${collectionSlug}/${productSlug}/${colorSlug}/${fileSlug}${extension}`;
-      const bucket = this.bucketName;
-
-      // 3. Upload
-      try {
-        await this.s3Client.send(
-          new PutObjectCommand({
-            Bucket: bucket,
-            Key: key,
-            Body: file.buffer,
-            ACL: 'public-read',
-            ContentType: file.mimetype,
-          }),
-        );
-      } catch (s3Error) {
-        console.error('S3 Upload Error:', s3Error);
-        throw new BadRequestException(`Failed to upload image to ${bucket}: ${s3Error.message}`);
-      }
-
-      const endpointHost = this.s3Endpoint.replace(/^https?:\/\//, '');
-      const imageUrl = `https://${bucket}.${endpointHost}/${key}`;
-
-      // 4. Create Database Records (Parent + Children)
+      // 2. Create Database Records (Parent + Children)
       const result = await this.prisma.$transaction(async (tx) => {
         // Create Parent (ClothingColor)
         const clothingColor = await tx.clothingColor.create({
           data: {
             id_design,
             id_color,
-            image_url: imageUrl,
           },
         });
 
