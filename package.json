@@ -1,11 +1,12 @@
 {
   "name": "two-six-backend",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "postinstall": "npm run build",
     "prisma:generate": "prisma generate",
     "build": "NODE_OPTIONS=--max-old-space-size=4096 nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
