@@ -16,6 +16,9 @@ async function bootstrap() {
     whitelist: true, // Ignora propiedades que no están en el DTO
     transform: true, // Transforma el payload a instancias de DTO
   }));
-  await app.listen(process.env.PORT ?? 3050);
+  const port = process.env.PORT ?? 3050;
+  await app.listen(port);
+  console.log(`Application is running on: ${await app.getUrl()}`);
+  console.log(`Port configured: ${port}`);
 }
 bootstrap();
