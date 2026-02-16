@@ -1,6 +1,6 @@
 {
   "name": "two-six-backend",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "",
   "author": "",
   "private": true,
@@ -9,7 +9,7 @@
     "prisma:generate": "prisma generate",
     "build": "npx prisma generate && NODE_OPTIONS=--max-old-space-size=4096 nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "echo 'CURRENT DIRECTORY:' && pwd && echo 'CONTENTS:' && ls -la && echo 'DIST CONTENTS:' && (ls -R dist || echo 'DIST NOT FOUND') && npx prisma generate && node dist/main",
+    "start": "npx prisma generate && node dist/src/main",
     "start:dev": "lsof -ti:3050 | xargs kill -9; nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
