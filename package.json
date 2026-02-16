@@ -1,6 +1,6 @@
 {
   "name": "two-six-backend",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "",
   "author": "",
   "private": true,
@@ -9,7 +9,7 @@
     "prisma:generate": "prisma generate",
     "build": "npx prisma generate && NODE_OPTIONS=--max-old-space-size=4096 nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "node dist/main",
+    "start": "npx prisma generate && NODE_OPTIONS=--max-old-space-size=4096 npx ts-node --transpileOnly -r tsconfig-paths/register src/main.ts",
     "start:dev": "lsof -ti:3050 | xargs kill -9; nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
