@@ -9,7 +9,7 @@
     "prisma:generate": "prisma generate",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "node dist/main",
+    "start": "npm run build && node dist/main",
     "start:dev": "lsof -ti:3050 | xargs kill -9; nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
