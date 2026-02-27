@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UserAppService } from './user-app.service';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserAppDto } from './dto/create-user-app.dto';
 import { NotFoundException } from '@nestjs/common';
 import { UserApp } from '@prisma/client';
@@ -12,6 +12,9 @@ const mockUser: UserApp = {
   name: 'Test User',
   email: 'test@example.com',
   phone: '1234567890',
+  password: null,
+  otp: null,
+  otpExpiresAt: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -57,6 +60,7 @@ describe('UserAppService', () => {
         name: 'Test User',
         email: 'test@example.com',
         phone: '1234567890',
+        otp: '',
       };
 
       const result = await service.create(dto);

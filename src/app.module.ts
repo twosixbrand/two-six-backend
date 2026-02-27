@@ -31,9 +31,17 @@ import { ImageClothingModule } from './api/image-clothing/image-clothing.module'
 import { ReportModule } from './api/report/report.module';
 import { AuthModule } from './auth/auth.module';
 import { MailerModule } from '@nestjs-modules/mailer';
+import { LoggerModule } from 'nestjs-pino';
 
 @Module({
   imports: [
+    LoggerModule.forRoot({
+      pinoHttp: {
+        transport: process.env.NODE_ENV !== 'production'
+          ? { target: 'pino-pretty' }
+          : undefined,
+      },
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
     }),

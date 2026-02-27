@@ -300,8 +300,12 @@ export class OrderService {
             </tr>
           `).join('');
 
+            const storeEmail = this.configService.get<string>('EMAIL_TO');
+            console.log(`Enviando correo de confirmación a: ${order.customer.email} (copia a: ${storeEmail || 'NO CONFIGURADO'})`);
+
             await this.mailerService.sendMail({
               to: order.customer.email,
+              ...(storeEmail ? { bcc: storeEmail } : {}),
               subject: `Confirmación de Pedido #${order.id} - Two Six`,
               html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">

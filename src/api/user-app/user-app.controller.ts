@@ -9,15 +9,16 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { UserAppService } from './user-app.service';
-import { CreateUserAppDto } from './dto/create-user-app.dto';
+import { CreateUserAppDto, createUserAppSchema } from './dto/create-user-app.schema';
 import { UpdateUserAppDto } from './dto/update-user-app.dto';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 
 @Controller('user-app')
 export class UserAppController {
   constructor(private readonly userAppService: UserAppService) {}
 
   @Post()
-  create(@Body() createUserAppDto: CreateUserAppDto) {
+  create(@Body(new ZodValidationPipe(createUserAppSchema)) createUserAppDto: CreateUserAppDto) {
     return this.userAppService.create(createUserAppDto);
   }
 
