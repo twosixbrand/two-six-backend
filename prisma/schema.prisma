@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,87 +7,79 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// -----------------------------------------------------
-// Tablas de Autenticación y Logs
-// -----------------------------------------------------
-
 model ErrorLog {
-  id             Int      @id @default(autoincrement())
+  id             Int       @id @default(autoincrement())
   message        String
   stack          String?
-  componentStack String?  @map("component_stack")
-  app            String?  @db.VarChar(4)
-  page           String?  @db.VarChar(50)
-  createdAt      DateTime @default(now()) @map("created_at")
+  componentStack String?   @map("component_stack")
+  app            String?   @db.VarChar(4)
+  page           String?   @db.VarChar(50)
+  createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime? @updatedAt @map("updated_at")
 
   @@map("log_error")
 }
 
 model UserApp {
-  id           Int        @id @default(autoincrement()) @map("id_user_app")
-  name         String
   login        String     @unique
+  name         String
+  createdAt    DateTime   @default(now()) @map("created_at")
   email        String     @unique
+  id           Int        @id @default(autoincrement()) @map("id_user_app")
+  updatedAt    DateTime?  @updatedAt @map("updated_at")
   phone        String
   password     String?
   otp          String?
   otpExpiresAt DateTime?  @map("otp_expires_at")
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime?   @updatedAt @map("updated_at")
   userRoles    UserRole[]
 
   @@map("user_app")
 }
 
 model Role {
-  id          Int        @id @default(autoincrement()) @map("id_role")
   name        String     @unique
-  description String?
   createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime?   @updatedAt @map("updated_at")
+  description String?
+  id          Int        @id @default(autoincrement()) @map("id_role")
+  updatedAt   DateTime?  @updatedAt @map("updated_at")
   userRoles   UserRole[]
 
   @@map("role")
 }
 
 model UserRole {
-  id          Int      @id @default(autoincrement())
-  user        UserApp  @relation(fields: [id_user_app], references: [id])
-  id_user_app Int      @map("id_user_app")
-  role        Role     @relation(fields: [id_role], references: [id])
-  id_role     Int      @map("id_role")
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  id          Int       @id @default(autoincrement())
+  id_role     Int       @map("id_role")
+  id_user_app Int       @map("id_user_app")
   updatedAt   DateTime? @updatedAt @map("updated_at")
+  role        Role      @relation(fields: [id_role], references: [id])
+  user        UserApp   @relation(fields: [id_user_app], references: [id])
 
   @@map("user_role")
 }
 
-// -----------------------------------------------------
-// Tablas de Inventario y Diseño
-// -----------------------------------------------------
-
 model Provider {
-  id             String   @id @map("nit")
-  company_name   String   @map("company_name")
-  email          String   @unique
-  phone          String
-  account_number String   @map("account_number")
-  account_type   String   @map("account_type")
-  bank_name      String   @map("bank_name")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime? @updatedAt @map("updated_at")
-  designProviders DesignProvider[] // Nueva relación con DesignProvider
+  id              String           @id @map("nit")
+  email           String           @unique
+  account_number  String           @map("account_number")
+  account_type    String           @map("account_type")
+  bank_name       String           @map("bank_name")
+  company_name    String           @map("company_name")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  phone           String
+  updatedAt       DateTime?        @updatedAt @map("updated_at")
+  designProviders DesignProvider[]
 
   @@map("provider")
 }
 
 model YearProduction {
-  id          String   @id @db.Char(2)
-  name        String
+  createdAt   DateTime     @default(now()) @map("created_at")
   description String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime? @updatedAt @map("updated_at")
+  id          String       @id @db.Char(2)
+  name        String
+  updatedAt   DateTime?    @updatedAt @map("updated_at")
   collections Collection[]
 
   @@map("year_production")
@@ -108,16 +97,16 @@ model Season {
 }
 
 model Collection {
-  id          Int      @id @default(autoincrement())
-  name        String
-  season      Season   @relation(fields: [id_season], references: [id])
-  id_season   Int      @map("id_season")
+  description        String?
+  createdAt          DateTime       @default(now()) @map("created_at")
+  id                 Int            @id @default(autoincrement())
+  updatedAt          DateTime?      @updatedAt @map("updated_at")
+  id_season          Int            @map("id_season")
+  id_year_production String         @map("id_year_production") @db.Char(2)
+  name               String
+  season             Season         @relation(fields: [id_season], references: [id])
   yearProduction     YearProduction @relation(fields: [id_year_production], references: [id])
-  id_year_production  String         @map("id_year_production") @db.Char(2)
-  description String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime? @updatedAt @map("updated_at")
-  designs     Design[]
+  designs            Design[]
 
   @@map("collection")
 }
@@ -126,201 +115,182 @@ model TypeClothing {
   id        String     @id @db.Char(2)
   name      String
   createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime?   @updatedAt @map("updated_at")
+  updatedAt DateTime?  @updatedAt @map("updated_at")
   clothing  Clothing[]
 
   @@map("type_clothing")
 }
 
 model Category {
-  id        Int        @id @default(autoincrement())
   name      String
   createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime?   @updatedAt @map("updated_at")
+  id        Int        @id @default(autoincrement())
+  updatedAt DateTime?  @updatedAt @map("updated_at")
   clothing  Clothing[]
 
   @@map("category")
 }
 
-enum GenderEnum {
-  MASCULINO
-  FEMENINO
-  UNISEX
-}
-
 model Gender {
-  id              Int              @id @default(autoincrement())
-  name            String
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime?        @updatedAt
-  clothing        Clothing[]
+  id        Int        @id @default(autoincrement())
+  name      String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime?  @updatedAt
+  clothing  Clothing[]
 
   @@map("gender")
 }
 
 model Clothing {
-  id               Int              @id @default(autoincrement())
-  typeClothing     TypeClothing     @relation(fields: [id_type_clothing], references: [id])
-  id_type_clothing String           @map("id_type_clothing") @db.Char(2)
-  category         Category         @relation(fields: [id_category], references: [id])
-  id_category      Int              @map("id_category")
-  gender           Gender?          @relation(fields: [id_gender], references: [id])
-  id_gender        Int?             @map("id_gender")
   name             String
-  createdAt        DateTime         @default(now()) @map("created_at")
-  updatedAt        DateTime?        @updatedAt @map("updated_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  id_category      Int          @map("id_category")
+  id_type_clothing String       @map("id_type_clothing") @db.Char(2)
+  updatedAt        DateTime?    @updatedAt @map("updated_at")
+  id               Int          @id @default(autoincrement())
+  id_gender        Int?         @map("id_gender")
+  category         Category     @relation(fields: [id_category], references: [id])
+  gender           Gender?      @relation(fields: [id_gender], references: [id])
+  typeClothing     TypeClothing @relation(fields: [id_type_clothing], references: [id])
   designs          Design[]
 
   @@map("clothing")
 }
 
 model Color {
-  id             Int              @id @default(autoincrement())
-  name           String
-  hex            String
-  createdAt      DateTime         @default(now()) @map("created_at")
-  updatedAt      DateTime?         @updatedAt @map("updated_at")
+  id            Int             @id @default(autoincrement())
+  name          String
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime?       @updatedAt @map("updated_at")
+  hex           String
   clothingColor ClothingColor[]
 
   @@map("color")
 }
 
-
 model Size {
-  id             Int              @id @default(autoincrement())
-  name           String
-  description    String?
-  createdAt      DateTime         @default(now()) @map("created_at")
-  updatedAt      DateTime?         @updatedAt @map("updated_at")
-  clothingSizes  ClothingSize[]
+  id            Int            @id @default(autoincrement())
+  name          String
+  description   String?
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime?      @updatedAt @map("updated_at")
+  clothingSizes ClothingSize[]
 
   @@map("size")
 }
 
 model Design {
-  id                 Int              @id @default(autoincrement())
-  id_collection      Int              @map("id_collection")
-  collection         Collection       @relation(fields: [id_collection], references: [id])
-  id_clothing        Int              @map("id_clothing")
-  clothing           Clothing         @relation(fields: [id_clothing], references: [id])
-  reference          String
-  manufactured_cost  Float
-  description        String?
-  image_url          String?  @map("image_url")
-  createdAt          DateTime         @default(now()) @map("created_at")
-  updatedAt          DateTime?         @updatedAt @map("updated_at")
-  clothingColors     ClothingColor[]
-  designProviders    DesignProvider[] // Nueva relación con DesignProvider
+  id                Int              @id @default(autoincrement())
+  id_clothing       Int              @map("id_clothing")
+  id_collection     Int              @map("id_collection")
+  reference         String
+  manufactured_cost Float
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime?        @updatedAt @map("updated_at")
+  description       String?
+  image_url         String?          @map("image_url")
+  clothingColors    ClothingColor[]
+  clothing          Clothing         @relation(fields: [id_clothing], references: [id])
+  collection        Collection       @relation(fields: [id_collection], references: [id])
+  designProviders   DesignProvider[]
 
   @@map("design")
 }
 
-// Nueva tabla para el tipo de producción
 model ProductionType {
-  id                 Int      @id @default(autoincrement()) @map("id_production_type")
-  name               String
-  creationDate       DateTime @default(now()) @map("created_at")
-  updateDate         DateTime @updatedAt @map("updated_at")
-  designProviders    DesignProvider[]
+  id              Int              @id @default(autoincrement()) @map("id_production_type")
+  name            String
+  creationDate    DateTime         @default(now()) @map("created_at")
+  updateDate      DateTime         @updatedAt @map("updated_at")
+  designProviders DesignProvider[]
 
   @@map("production_type")
 }
 
-// Nueva tabla intermedia para la relación entre Design y Provider
 model DesignProvider {
-  id                 Int              @id @default(autoincrement())
-  design             Design           @relation(fields: [id_design], references: [id])
-  id_design          Int              @map("id_design")
-  provider           Provider         @relation(fields: [id_provider], references: [id])
-  id_provider        String           @map("id_provider")
-  productionType     ProductionType   @relation(fields: [id_production_type], references: [id])
-  id_production_type Int              @map("id_production_type")
+  id                 Int            @id @default(autoincrement())
+  id_design          Int            @map("id_design")
+  id_provider        String         @map("id_provider")
+  id_production_type Int            @map("id_production_type")
   start_date         DateTime?
   end_date           DateTime?
   price              Decimal
   rating             Int?
   comment            String?
-  creationDate       DateTime @default(now()) @map("created_at")
-  updateDate         DateTime? @updatedAt @map("updated_at")
+  creationDate       DateTime       @default(now()) @map("created_at")
+  updateDate         DateTime?      @updatedAt @map("updated_at")
+  design             Design         @relation(fields: [id_design], references: [id])
+  productionType     ProductionType @relation(fields: [id_production_type], references: [id])
+  provider           Provider       @relation(fields: [id_provider], references: [id])
 
   @@map("design_provider")
 }
 
-
-
 model ClothingColor {
-  id                      Int      @id @default(autoincrement())
-  color                   Color    @relation(fields: [id_color], references: [id])
-  id_color                Int      @map("id_color")
-  design                  Design   @relation(fields: [id_design], references: [id])
-  id_design               Int      @map("id_design")
-  createdAt               DateTime @default(now()) @map("created_at")
-  updatedAt               DateTime? @updatedAt @map("updated_at")
-  clothingSizes           ClothingSize[]
-  imageClothing           ImageClothing[]
+  id            Int             @id @default(autoincrement())
+  id_color      Int             @map("id_color")
+  id_design     Int             @map("id_design")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime?       @updatedAt @map("updated_at")
+  color         Color           @relation(fields: [id_color], references: [id])
+  design        Design          @relation(fields: [id_design], references: [id])
+  clothingSizes ClothingSize[]
+  imageClothing ImageClothing[]
 
   @@map("clothing_color")
 }
 
 model ImageClothing {
   id_image_clothing Int           @id @default(autoincrement())
-  clothingColor     ClothingColor @relation(fields: [id_clothing_color], references: [id])
   id_clothing_color Int           @map("id_clothing_color")
   image_url         String?       @map("image_url")
   position          Int
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime?     @updatedAt @map("updated_at")
+  clothingColor     ClothingColor @relation(fields: [id_clothing_color], references: [id])
 
   @@map("image_clothing")
 }
 
 model ClothingSize {
-  id                      Int      @id @default(autoincrement())
-  size                    Size     @relation(fields: [id_size], references: [id])
-  id_size                 Int      @map("id_size")
-  clothingColor           ClothingColor   @relation(fields: [id_clothing_color], references: [id])
-  id_clothing_color       Int      @map("id_clothing_color")
+  id                      Int           @id @default(autoincrement())
+  id_size                 Int           @map("id_size")
+  id_clothing_color       Int           @map("id_clothing_color")
   quantity_produced       Int
   quantity_available      Int
   quantity_sold           Int
   quantity_on_consignment Int
-  quantity_under_warranty Int      @default(0) @map("quantity_under_warranty")
-  quantity_minimum_alert  Int?     @map("quantity_minimum_alert")
-  createdAt               DateTime @default(now()) @map("created_at")
-  updatedAt               DateTime? @updatedAt @map("updated_at")
-  product                 Product? // Relación 1-a-1 con Product
+  quantity_under_warranty Int           @default(0) @map("quantity_under_warranty")
+  createdAt               DateTime      @default(now()) @map("created_at")
+  updatedAt               DateTime?     @updatedAt @map("updated_at")
+  quantity_minimum_alert  Int?          @map("quantity_minimum_alert")
+  clothingColor           ClothingColor @relation(fields: [id_clothing_color], references: [id])
+  size                    Size          @relation(fields: [id_size], references: [id])
+  product                 Product?
 
   @@map("clothing_size")
 }
 
-// -----------------------------------------------------
-// Tablas de Producto (Tienda) y Clientes
-// -----------------------------------------------------
-
 model Product {
-  id                         Int            @id @default(autoincrement())
-  clothingSize               ClothingSize   @relation(fields: [id_clothing_size], references: [id])
-  id_clothing_size           Int            @unique @map("id_clothing_size")
-  sku                        String?
-  price                      Float
-  discount_price             Float?
-  discount_percentage        Float?
-  active                     Boolean
-  is_outlet                  Boolean        @map("is_outlet")
-  createdAt                  DateTime       @default(now()) @map("created_at")
-  updatedAt                  DateTime?       @updatedAt @map("updated_at")
-  orderItems                 OrderItem[]
-  returnItems                ReturnItem[]
- 
+  id                  Int          @id @default(autoincrement())
+  price               Float
+  active              Boolean
+  updatedAt           DateTime?    @updatedAt @map("updated_at")
+  createdAt           DateTime     @default(now()) @map("created_at")
+  is_outlet           Boolean      @map("is_outlet")
+  sku                 String?
+  discount_percentage Float?
+  discount_price      Float?
+  id_clothing_size    Int          @unique @map("id_clothing_size")
+  orderItems          OrderItem[]
+  clothingSize        ClothingSize @relation(fields: [id_clothing_size], references: [id])
+  returnItems         ReturnItem[]
 
   @@map("product")
 }
 
 model Customer {
-  id                     Int                @id @default(autoincrement())
-  customerType           CustomerType       @relation(fields: [id_customer_type], references: [id])
   id_customer_type       Int                @map("id_customer_type")
-  identificationType     IdentificationType @relation(fields: [id_identification_type], references: [id])
   id_identification_type Int                @map("id_identification_type")
   name                   String
   email                  String             @unique
@@ -331,22 +301,24 @@ model Customer {
   state                  String
   postal_code            String
   country                String
+  createdAt              DateTime           @default(now()) @map("created_at")
+  updatedAt              DateTime?          @updatedAt @map("updated_at")
+  id                     Int                @id @default(autoincrement())
   otp                    String?
   otpExpiresAt           DateTime?          @map("otp_expires_at")
-  createdAt              DateTime           @default(now()) @map("created_at")
-  updatedAt              DateTime?           @updatedAt @map("updated_at")
-  order                  Order[]
-  returns                Returns[]
-  payments               Payments[]
   addresses              Address[]
+  customerType           CustomerType       @relation(fields: [id_customer_type], references: [id])
+  identificationType     IdentificationType @relation(fields: [id_identification_type], references: [id])
+  order                  Order[]
+  payments               Payments[]
+  returns                Returns[]
 
   @@map("customer")
 }
 
 model Address {
-  id           Int      @id @default(autoincrement())
-  customer     Customer @relation(fields: [id_customer], references: [id])
-  id_customer  Int      @map("id_customer")
+  id           Int       @id @default(autoincrement())
+  id_customer  Int       @map("id_customer")
   address      String
   detail       String?
   instructions String?
@@ -354,9 +326,10 @@ model Address {
   state        String
   postal_code  String
   country      String
-  is_default   Boolean  @default(false) @map("is_default")
-  createdAt    DateTime @default(now()) @map("created_at")
+  is_default   Boolean   @default(false) @map("is_default")
+  createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime? @updatedAt @map("updated_at")
+  customer     Customer  @relation(fields: [id_customer], references: [id])
 
   @@map("address")
 }
@@ -365,7 +338,7 @@ model CustomerType {
   id        Int        @id @default(autoincrement())
   name      String
   createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime?   @updatedAt @map("updated_at")
+  updatedAt DateTime?  @updatedAt @map("updated_at")
   customers Customer[]
 
   @@map("customer_type")
@@ -374,66 +347,60 @@ model CustomerType {
 model IdentificationType {
   id        Int        @id @default(autoincrement())
   name      String
-  code      String
   createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime?   @updatedAt @map("updated_at")
+  updatedAt DateTime?  @updatedAt @map("updated_at")
+  code      String
   customers Customer[]
 
   @@map("identification_type")
 }
 
-// -----------------------------------------------------
-// Tablas de Órdenes y Pagos
-// -----------------------------------------------------
-
 model Order {
   id               Int             @id @default(autoincrement()) @map("id_order")
-  customer         Customer        @relation(fields: [id_customer], references: [id])
   id_customer      Int             @map("id_customer")
   order_date       DateTime
   status           String
-  iva              Float
-  shipping_cost    Float           @map("shipping_cost")
-  total_payment    Float           @map("total_payment")
-  purchase_date    DateTime        @map("purchase_date")
   is_paid          Boolean
   shipping_address String
   createdAt        DateTime        @default(now()) @map("created_at")
-  updatedAt        DateTime?        @updatedAt @map("updated_at")
+  updatedAt        DateTime?       @updatedAt @map("updated_at")
+  iva              Float
+  purchase_date    DateTime        @map("purchase_date")
+  shipping_cost    Float           @map("shipping_cost")
+  total_payment    Float           @map("total_payment")
+  dianEInvoicing   DianEInvoicing?
+  customer         Customer        @relation(fields: [id_customer], references: [id])
   orderItems       OrderItem[]
+  payments         Payments[]
   returns          Returns[]
   shipments        Shipment[]
-  dianEInvoicing   DianEInvoicing?
-  payments         Payments[] // Relación añadida (no estaba explícita en el ERD pero es necesaria)
 
   @@map("order")
 }
 
 model OrderItem {
-  id           Int           @id @default(autoincrement())
-  order        Order         @relation(fields: [id_order], references: [id])
-  id_order     Int           @map("id_order")
-  product      Product       @relation(fields: [id_product], references: [id])
-  id_product   Int           @map("id_product")
+  id           Int          @id @default(autoincrement())
+  id_order     Int          @map("id_order")
+  id_product   Int          @map("id_product")
   product_name String
   size         String
   color        String
   quantity     Int
   unit_price   Float
-  iva_item     Float    @map("iva_item")
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime?      @updatedAt @map("updated_at")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime?    @updatedAt @map("updated_at")
+  iva_item     Float        @map("iva_item")
+  order        Order        @relation(fields: [id_order], references: [id])
+  product      Product      @relation(fields: [id_product], references: [id])
   returnItems  ReturnItem[]
 
   @@map("order_item")
 }
 
 model Returns {
-  id              Int           @id @default(autoincrement())
-  order           Order         @relation(fields: [id_order], references: [id])
-  id_order        Int           @map("id_order")
-  customer        Customer      @relation(fields: [id_customer], references: [id])
-  id_customer     Int           @map("id_customer")
+  id              Int          @id @default(autoincrement())
+  id_order        Int          @map("id_order")
+  id_customer     Int          @map("id_customer")
   type            String
   reason          String
   status          String
@@ -441,26 +408,28 @@ model Returns {
   refund_amount   Float
   shipping_method String
   tracking        String?
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime?      @updatedAt @map("updated_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime?    @updatedAt @map("updated_at")
   returnItems     ReturnItem[]
+  customer        Customer     @relation(fields: [id_customer], references: [id])
+  order           Order        @relation(fields: [id_order], references: [id])
 
   @@map("returns")
 }
 
 model ReturnItem {
-  id            Int        @id @default(autoincrement())
-  return        Returns    @relation(fields: [id_return], references: [id])
-  id_return     Int        @map("id_return") 
-  orderItem     OrderItem @relation(fields: [id_order_item], references: [id])
-  id_order_item Int        @map("id_order_item")
-  product       Product    @relation(fields: [id_product], references: [id])
-  id_product    Int        @map("id_product")
+  id            Int       @id @default(autoincrement())
+  id_return     Int       @map("id_return")
+  id_order_item Int       @map("id_order_item")
+  id_product    Int       @map("id_product")
   quantity      Int
   reason_return String
   condition     String
-  createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime?   @updatedAt @map("updated_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime? @updatedAt @map("updated_at")
+  orderItem     OrderItem @relation(fields: [id_order_item], references: [id])
+  product       Product   @relation(fields: [id_product], references: [id])
+  return        Returns   @relation(fields: [id_return], references: [id])
 
   @@map("return_item")
 }
@@ -470,7 +439,7 @@ model PaymentMethod {
   name      String
   enabled   Boolean
   createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime?   @updatedAt @map("updated_at")
+  updatedAt DateTime?  @updatedAt @map("updated_at")
   payments  Payments[]
 
   @@map("payment_method")
@@ -478,26 +447,25 @@ model PaymentMethod {
 
 model Payments {
   id                    Int           @id @default(autoincrement())
-  order                 Order         @relation(fields: [id_order], references: [id])
   id_order              Int           @map("id_order")
-  customer              Customer      @relation(fields: [id_customer], references: [id])
   id_customer           Int           @map("id_customer")
-  paymentMethod         PaymentMethod @relation(fields: [id_payment_method], references: [id])
   id_payment_method     Int           @map("id_payment_method")
   status                String
   transaction_date      DateTime
   transaction_reference String
   amount                Float
   createdAt             DateTime      @default(now()) @map("created_at")
-  updatedAt             DateTime?      @updatedAt @map("updated_at")
+  updatedAt             DateTime?     @updatedAt @map("updated_at")
+  customer              Customer      @relation(fields: [id_customer], references: [id])
+  order                 Order         @relation(fields: [id_order], references: [id])
+  paymentMethod         PaymentMethod @relation(fields: [id_payment_method], references: [id])
 
   @@map("payments")
 }
 
 model DianEInvoicing {
-  id              Int      @id @default(autoincrement())
-  order           Order    @relation(fields: [id_order], references: [id])
-  id_order        Int      @unique @map("id_order")
+  id              Int       @id @default(autoincrement())
+  id_order        Int       @unique @map("id_order")
   cufe_code       String
   qr_code         String
   document_number String
@@ -506,15 +474,12 @@ model DianEInvoicing {
   status          String
   url_pdf         String
   url_xml         String
-  createdAt       DateTime @default(now()) @map("created_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime? @updatedAt @map("updated_at")
+  order           Order     @relation(fields: [id_order], references: [id])
 
   @@map("dian_e_invoicing")
 }
-
-// -----------------------------------------------------
-// Tablas de Envíos
-// -----------------------------------------------------
 
 model ShippingProvider {
   id                Int            @id @default(autoincrement())
@@ -522,7 +487,7 @@ model ShippingProvider {
   set_tracking_base String
   active            Boolean
   createdAt         DateTime       @default(now()) @map("created_at")
-  updatedAt         DateTime?       @updatedAt @map("updated_at")
+  updatedAt         DateTime?      @updatedAt @map("updated_at")
   shipments         Shipment[]
   shipmentRates     ShipmentRate[]
 
@@ -531,7 +496,6 @@ model ShippingProvider {
 
 model ShipmentRate {
   id                       Int              @id @default(autoincrement())
-  shippingProvider         ShippingProvider @relation(fields: [id_shipping_provider], references: [id])
   id_shipping_provider     Int              @map("id_shipping_provider")
   destination_zone         String
   weight_unit              String
@@ -540,16 +504,15 @@ model ShipmentRate {
   estimated_delivery_time  String
   shipping_code            String
   createdAt                DateTime         @default(now()) @map("created_at")
-  updatedAt                DateTime?         @updatedAt @map("updated_at")
+  updatedAt                DateTime?        @updatedAt @map("updated_at")
+  shippingProvider         ShippingProvider @relation(fields: [id_shipping_provider], references: [id])
 
   @@map("shipment_rate")
 }
 
 model Shipment {
   id                      Int               @id @default(autoincrement())
-  order                   Order             @relation(fields: [id_order], references: [id])
   id_order                Int               @map("id_order")
-  shippingProvider        ShippingProvider  @relation(fields: [id_shipping_provider], references: [id])
   id_shipping_provider    Int               @map("id_shipping_provider")
   guide_number            String
   status                  String
@@ -557,49 +520,53 @@ model Shipment {
   delivery_date           DateTime?
   id_tracking             String?
   createdAt               DateTime          @default(now()) @map("created_at")
-  updatedAt               DateTime?          @updatedAt @map("updated_at")
+  updatedAt               DateTime?         @updatedAt @map("updated_at")
+  order                   Order             @relation(fields: [id_order], references: [id])
+  shippingProvider        ShippingProvider  @relation(fields: [id_shipping_provider], references: [id])
   trackingHistory         TrackingHistory[]
 
   @@map("shipment")
 }
 
 model TrackingHistory {
-  id            Int      @id @default(autoincrement())
-  shipment      Shipment @relation(fields: [id_shipment], references: [id])
-  id_shipment   Int      @map("id_shipment")
+  id            Int       @id @default(autoincrement())
+  id_shipment   Int       @map("id_shipment")
   status        String
   update_date   DateTime
   location      String
   provider_code String
-  createdAt     DateTime @default(now()) @map("created_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime? @updatedAt @map("updated_at")
+  shipment      Shipment  @relation(fields: [id_shipment], references: [id])
 
   @@map("tracking_history")
 }
 
-// -----------------------------------------------------
-// Tablas de Ubicación (Departamentos y Municipios)
-// -----------------------------------------------------
-
 model Department {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  cities    City[]
-  createdAt DateTime @default(now()) @map("created_at")
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime? @updatedAt @map("updated_at")
+  cities    City[]
 
   @@map("department")
 }
 
 model City {
-  id           Int        @id @default(autoincrement())
-  name         String
-  active       Boolean    @default(true)
-  shipping_cost Int       @default(0)
-  department   Department @relation(fields: [id_department], references: [id])
-  id_department Int       @map("id_department")
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime?   @updatedAt @map("updated_at")
+  id            Int        @id @default(autoincrement())
+  name          String
+  active        Boolean    @default(true)
+  shipping_cost Int        @default(0)
+  id_department Int        @map("id_department")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime?  @updatedAt @map("updated_at")
+  department    Department @relation(fields: [id_department], references: [id])
 
   @@map("city")
+}
+
+enum GenderEnum {
+  MASCULINO
+  FEMENINO
+  UNISEX
 }
