@@ -106,6 +106,9 @@ export class ClothingColorService {
           include: {
             size: true
           }
+        },
+        _count: {
+          select: { imageClothing: true }
         }
       },
     });
