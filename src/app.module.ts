@@ -32,6 +32,7 @@ import { ReportModule } from './api/report/report.module';
 import { AuthModule } from './auth/auth.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { LoggerModule } from 'nestjs-pino';
+import { NewsletterModule } from './api/newsletter/newsletter.module';
 
 @Module({
   imports: [
@@ -88,6 +89,7 @@ import { LoggerModule } from 'nestjs-pino';
         from: `"No Responder" <${process.env.EMAIL_SERVER_USER}>`, // Dirección de origen por defecto
       },
     }),
+    NewsletterModule,
   ],
   controllers: [AppController],
   providers: [AppService],

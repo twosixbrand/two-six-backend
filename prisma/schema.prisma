@@ -570,3 +570,13 @@ enum GenderEnum {
   FEMENINO
   UNISEX
 }
+
+model Subscriber {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  registeredAt DateTime @default(now()) @map("registered_at")
+  status       Boolean  @default(true)
+  unsubscribed Boolean  @default(false)
+
+  @@map("subscriber")
+}

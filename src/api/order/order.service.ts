@@ -501,7 +501,19 @@ export class OrderService {
         customer: true,
         orderItems: {
           include: {
-            product: true,
+            product: {
+              include: {
+                clothingSize: {
+                  include: {
+                    clothingColor: {
+                      include: {
+                        imageClothing: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
         },
         shipments: {
