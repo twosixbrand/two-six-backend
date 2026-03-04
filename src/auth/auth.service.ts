@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { MailerService } from '@nestjs-modules/mailer';
+import { RegisterCustomerDto } from './dto/register-customer.dto';
 
 @Injectable()
 export class AuthService {
@@ -168,6 +169,64 @@ export class AuthService {
   }
 
   /**
+   * Crea un nuevo CLIENTE (Customer) desde el registro web, generando y enviando un OTP.
+   */
+  async registerCustomer(dto: RegisterCustomerDto): Promise<{ message: string }> {
+    const existingCustomer = await this.prisma.customer.findUnique({ where: { email: dto.email } });
+
+    if (existingCustomer) {
+      // Si ya existe, simplemente disparamos el login normal para enviarle el código en lugar de fallar
+      return this.loginCustomer(dto.email);
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const hashedOtp = await bcrypt.hash(otp, 10);
+
+    const customer = await this.prisma.customer.create({
+      data: {
+        name: dto.name,
+        email: dto.email,
+        current_phone_number: dto.phone,
+        shipping_address: dto.address,
+        city: dto.city,
+        state: dto.department,
+        postal_code: '000000', // Default
+        country: 'Colombia', // Default
+        responsable_for_vat: false,
+        id_customer_type: 1, // Natural
+        id_identification_type: 1, // CC
+        is_registered: false, // Se pondrá en true tras verificar el OTP
+        otp: hashedOtp,
+        otpExpiresAt,
+      },
+    });
+
+    // Envía el correo con el OTP generado
+    await this.mailerService.sendMail({
+      to: customer.email,
+      subject: 'Tu Código de Acceso - Two Six',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+          <div style="text-align: center; padding: 20px; background-color: #f8f9fa;">
+            <h1 style="color: #000; margin: 0;">TWO SIX</h1>
+          </div>
+          <div style="padding: 20px;">
+            <p>Hola ${customer.name},</p>
+            <p>Bienvenido. Usa el siguiente código para confirmar tu cuenta y acceder a tu perfil. Este código es válido por 10 minutos.</p>
+            <h2 style="text-align:center; color:#000; letter-spacing: 4px; font-size: 32px; margin: 30px 0;">${otp}</h2>
+            <p>Si no solicitaste este código, puedes ignorar este mensaje.</p>
+          </div>
+        </div>
+      `,
+    });
+
+    return {
+      message: 'Se ha enviado un código de acceso a tu correo electrónico nuevo.',
+    };
+  }
+
+  /**
    * Verifica el OTP del CLIENTE y devuelve un JWT.
    */
   async verifyCustomerOtp(
@@ -197,12 +256,13 @@ export class AuthService {
       throw new UnauthorizedException('El código es incorrecto.');
     }
 
-    // Limpiar el OTP después de un uso exitoso
+    // Limpiar el OTP después de un uso exitoso y marcar como registrado
     await this.prisma.customer.update({
       where: { email },
       data: {
         otp: null,
         otpExpiresAt: null,
+        is_registered: true,
       },
     });
 
@@ -228,6 +288,7 @@ export class AuthService {
         state: customer.state,
         postal_code: customer.postal_code,
         country: customer.country,
+        is_registered: true,
         addresses: customer.addresses, // Return addresses
       }
     };

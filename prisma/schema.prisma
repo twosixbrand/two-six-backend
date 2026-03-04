@@ -306,6 +306,7 @@ model Customer {
   id                     Int                @id @default(autoincrement())
   otp                    String?
   otpExpiresAt           DateTime?          @map("otp_expires_at")
+  is_registered          Boolean            @default(false) @map("is_registered")
   addresses              Address[]
   customerType           CustomerType       @relation(fields: [id_customer_type], references: [id])
   identificationType     IdentificationType @relation(fields: [id_identification_type], references: [id])
