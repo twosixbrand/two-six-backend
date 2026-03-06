@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
@@ -481,11 +481,11 @@ export class OrderService {
     });
 
     if (!order) {
-      throw new Error('Orden no encontrada');
+      throw new NotFoundException('Orden no encontrada');
     }
 
     if (order.customer.email.toLowerCase() !== dto.email.toLowerCase()) {
-      throw new Error('El correo electrónico no coincide con la orden');
+      throw new BadRequestException('El correo electrónico no coincide con la orden');
     }
 
     return order;
