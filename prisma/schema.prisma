@@ -581,3 +581,20 @@ model Subscriber {
 
   @@map("subscriber")
 }
+
+model Pqr {
+  id             Int       @id @default(autoincrement())
+  radicado       String    @unique
+  customer_name  String
+  customer_id    String    // Cédula o NIT
+  customer_email String
+  order_number   String?
+  type           String    // Petición, Queja, Reclamo, Sugerencia
+  description    String    @db.Text
+  status         String    @default("Abierto") // Abierto, En Revisión, Resuelto, Cerrado
+  slaRiskAlertSent Boolean @default(false)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime? @updatedAt @map("updated_at")
+
+  @@map("pqr")
+}

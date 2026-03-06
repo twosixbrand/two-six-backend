@@ -33,9 +33,13 @@ import { AuthModule } from './auth/auth.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { LoggerModule } from 'nestjs-pino';
 import { NewsletterModule } from './api/newsletter/newsletter.module';
+import { PqrModule } from './api/pqr/pqr.module';
+
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     LoggerModule.forRoot({
       pinoHttp: {
         transport: process.env.NODE_ENV !== 'production'
@@ -90,6 +94,7 @@ import { NewsletterModule } from './api/newsletter/newsletter.module';
       },
     }),
     NewsletterModule,
+    PqrModule,
   ],
   controllers: [AppController],
   providers: [AppService],
