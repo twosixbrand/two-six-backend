@@ -591,10 +591,22 @@ model Pqr {
   order_number   String?
   type           String    // Petición, Queja, Reclamo, Sugerencia
   description    String    @db.Text
+  observation    String?   @db.Text
   status         String    @default("Abierto") // Abierto, En Revisión, Resuelto, Cerrado
   slaRiskAlertSent Boolean @default(false)
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime? @updatedAt @map("updated_at")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime?  @updatedAt @map("updated_at")
+  images         PqrImage[]
 
   @@map("pqr")
+}
+
+model PqrImage {
+  id        Int       @id @default(autoincrement())
+  id_pqr    Int       @map("id_pqr")
+  image_url String    @map("image_url")
+  createdAt DateTime  @default(now()) @map("created_at")
+  pqr       Pqr       @relation(fields: [id_pqr], references: [id], onDelete: Cascade)
+
+  @@map("pqr_image")
 }

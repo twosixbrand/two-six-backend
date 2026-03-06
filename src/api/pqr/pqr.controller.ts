@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, Param, Put, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, UsePipes, ValidationPipe, ParseIntPipe, UseInterceptors, UploadedFiles, Patch, BadRequestException } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { PqrService } from './pqr.service';
 import { CreatePqrDto } from './dto/create-pqr.dto';
 import { UpdatePqrStatusDto } from './dto/update-pqr-status.dto';
@@ -8,8 +9,12 @@ export class PqrController {
     constructor(private readonly pqrService: PqrService) { }
 
     @Post()
-    create(@Body() createPqrDto: CreatePqrDto) {
-        return this.pqrService.create(createPqrDto);
+    @UseInterceptors(FilesInterceptor('images'))
+    create(
+        @Body() createPqrDto: CreatePqrDto,
+        @UploadedFiles() images: Express.Multer.File[]
+    ) {
+        return this.pqrService.create(createPqrDto, images);
     }
 
     @Get()
@@ -22,11 +27,15 @@ export class PqrController {
         return this.pqrService.findOne(id);
     }
 
-    @Put(':id/status')
+    @Patch(':id/status')
     updateStatus(
-        @Param('id', ParseIntPipe) id: number,
-        @Body() updatePqrStatusDto: UpdatePqrStatusDto
+        @Param('id') id: string,
+        @Body('status') status: string,
+        @Body('observation') observation?: string,
     ) {
-        return this.pqrService.updateStatus(id, updatePqrStatusDto.status);
+        if (!status) {
+            throw new BadRequestException('Status is required');
+        }
+        return this.pqrService.updateStatus(+id, status, observation);
     }
 }
