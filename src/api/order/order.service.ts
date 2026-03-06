@@ -455,7 +455,19 @@ export class OrderService {
         customer: true,
         orderItems: {
           include: {
-            product: true,
+            product: {
+              include: {
+                clothingSize: {
+                  include: {
+                    clothingColor: {
+                      include: {
+                        imageClothing: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
         },
         shipments: {
@@ -464,6 +476,7 @@ export class OrderService {
             trackingHistory: true,
           },
         },
+        payments: true, // Added to get the transaction date for 'Pagado' status
       },
     });
 
