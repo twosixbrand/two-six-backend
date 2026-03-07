@@ -110,7 +110,7 @@ export class ProductService {
   }
 
 
-  async findDesignsForStore(gender?: string, is_outlet?: boolean) {
+  async findDesignsForStore(gender?: string, is_outlet?: boolean, category?: string, page: number = 1, limit: number = 12) {
     const where: Prisma.DesignWhereInput = {
       clothingColors: {
         some: {
@@ -127,17 +127,31 @@ export class ProductService {
           }
         }
       },
-      ...(gender && {
+      ...((gender || category) && {
         clothing: {
-          gender: {
-            name: gender
-          }
+          ...(gender && {
+            gender: {
+              name: gender
+            }
+          }),
+          ...(category && {
+            OR: [
+              { category: { name: { contains: category, mode: 'insensitive' } } },
+              { typeClothing: { name: { contains: category, mode: 'insensitive' } } }
+            ]
+          })
         }
       })
     };
 
+    const total = await this.prisma.design.count({ where });
+    const skip = (page - 1) * limit;
+
     const designs = await this.prisma.design.findMany({
       where,
+      skip,
+      take: limit,
+      orderBy: { id: 'desc' }, // Recommend ordering by latest
       include: {
         clothing: {
           select: {
@@ -175,7 +189,7 @@ export class ProductService {
     // Map to a cleaner structure for the store
     // We need to pick one "main" image and price to show on the card.
     // Logic: Find the first product that is active and has stock.
-    return designs.map(design => {
+    const finalDesigns = designs.map(design => {
       // Flatten all products from all colors/sizes to find a representative one
       let validProduct: any = null;
       let validImage: string | null = null;
@@ -222,6 +236,18 @@ export class ProductService {
         gender: design.clothing.gender?.name || 'Unisex' // Single gender now
       };
     }).filter(d => d.id_product); // Ensure we only return items that resolved to a product
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: finalDesigns,
+      meta: {
+        total,
+        page,
+        totalPages,
+        limit
+      }
+    };
   }
 
   async findAll(gender?: string, is_outlet?: boolean) {
