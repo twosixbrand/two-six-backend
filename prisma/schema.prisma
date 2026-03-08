@@ -179,6 +179,17 @@ model Size {
   @@map("size")
 }
 
+model SizeGuide {
+  id        Int       @id @default(autoincrement())
+  size      String
+  width     String
+  length    String
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+
+  @@map("size_guide")
+}
+
 model Design {
   id                Int              @id @default(autoincrement())
   id_clothing       Int              @map("id_clothing")

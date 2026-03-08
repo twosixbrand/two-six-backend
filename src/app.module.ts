@@ -36,6 +36,7 @@ import { NewsletterModule } from './api/newsletter/newsletter.module';
 import { PqrModule } from './api/pqr/pqr.module';
 
 import { ScheduleModule } from '@nestjs/schedule';
+import { SizeGuideModule } from './api/size-guide/size-guide.module';
 
 @Module({
   imports: [
@@ -95,6 +96,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     }),
     NewsletterModule,
     PqrModule,
+    SizeGuideModule,
   ],
   controllers: [AppController],
   providers: [AppService],
