@@ -60,18 +60,31 @@ model UserRole {
 }
 
 model Provider {
-  id              String           @id @map("nit")
-  email           String           @unique
-  account_number  String           @map("account_number")
-  account_type    String           @map("account_type")
-  bank_name       String           @map("bank_name")
-  company_name    String           @map("company_name")
-  createdAt       DateTime         @default(now()) @map("created_at")
+  id              String              @id @map("nit")
+  email           String              @unique
+  account_number  String              @map("account_number")
+  account_type    String              @map("account_type")
+  bank_name       String              @map("bank_name")
+  company_name    String              @map("company_name")
+  createdAt       DateTime            @default(now()) @map("created_at")
   phone           String
-  updatedAt       DateTime?        @updatedAt @map("updated_at")
+  updatedAt       DateTime?           @updatedAt @map("updated_at")
   designProviders DesignProvider[]
+  documents       ProviderDocument[]
 
   @@map("provider")
+}
+
+model ProviderDocument {
+  id            Int      @id @default(autoincrement())
+  provider_id   String
+  document_type String   @map("document_type")
+  file_url      String   @map("file_url")
+  file_name     String   @map("file_name")
+  uploaded_at   DateTime @default(now()) @map("uploaded_at")
+  provider      Provider @relation(fields: [provider_id], references: [id], onDelete: Cascade)
+
+  @@map("provider_document")
 }
 
 model YearProduction {

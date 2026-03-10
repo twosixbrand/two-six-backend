@@ -6,7 +6,7 @@ import { Provider } from '@prisma/client';
 
 @Injectable()
 export class ProviderService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   create(createProviderDto: CreateProviderDto): Promise<Provider> {
     return this.prisma.provider.create({
@@ -15,12 +15,15 @@ export class ProviderService {
   }
 
   findAll(): Promise<Provider[]> {
-    return this.prisma.provider.findMany();
+    return this.prisma.provider.findMany({
+      include: { documents: true },
+    });
   }
 
   async findOne(nit: string): Promise<Provider> {
     const provider = await this.prisma.provider.findUnique({
       where: { id: nit },
+      include: { documents: true },
     });
 
     if (!provider) {
