@@ -32,6 +32,11 @@ export class OrderController {
     return this.orderService.checkStatusByReference(reference);
   }
 
+  @Post('validate-discount')
+  validateDiscount(@Body('code') code: string, @Body('email') email: string) {
+    return this.orderService.validateDiscountCode(code, email);
+  }
+
   @Post('track')
   trackOrder(@Body() trackOrderDto: { orderId: number; email: string }) {
     return this.orderService.trackOrder(trackOrderDto);

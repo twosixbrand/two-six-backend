@@ -84,4 +84,8 @@ export class CheckoutDto {
     @IsNumber()
     @IsNotEmpty()
     shippingCost: number;
+
+    @IsString()
+    @IsOptional()
+    discountCode?: string;
 }

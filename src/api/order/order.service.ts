@@ -16,6 +16,32 @@ export class OrderService {
     private configService: ConfigService,
   ) { }
 
+  async validateDiscountCode(code: string, email: string) {
+    if (!code) throw new BadRequestException('Debes proporcionar un código');
+
+    const subscriber = await this.prisma.subscriber.findUnique({
+      where: { discount_code: code.trim().toUpperCase() }
+    });
+
+    if (!subscriber) {
+      throw new BadRequestException('El código de descuento no es válido');
+    }
+
+    if (subscriber.email.toLowerCase() !== email.toLowerCase()) {
+      throw new BadRequestException('Este código pertenece a otra cuenta de correo');
+    }
+
+    if (!subscriber.status || subscriber.unsubscribed) {
+      throw new BadRequestException('La suscripción no está activa');
+    }
+
+    if (subscriber.is_discount_used) {
+      throw new BadRequestException('Este código ya fue utilizado en un pedido anterior');
+    }
+
+    return { valid: true, percentage: 10, code: subscriber.discount_code };
+  }
+
   async checkout(checkoutDto: CheckoutDto) {
     const { customer, items, total, shippingCost } = checkoutDto;
 
@@ -58,6 +84,17 @@ export class OrderService {
       const ivaRate = 0.19;
       const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
       const iva = subtotal * ivaRate; // Approximation
+
+      // Validate Discount if provided
+      if (checkoutDto.discountCode) {
+        const subscriber = await prisma.subscriber.findUnique({
+          where: { discount_code: checkoutDto.discountCode.trim().toUpperCase() }
+        });
+
+        if (!subscriber || subscriber.is_discount_used || subscriber.email.toLowerCase() !== customer.email.toLowerCase()) {
+          throw new BadRequestException('El código de descuento no es válido o ya fue usado');
+        }
+      }
 
       // 3. Create Order
       const order = await prisma.order.create({
@@ -248,6 +285,24 @@ export class OrderService {
             is_paid: true,
           },
         });
+
+        // Mark discount as used if applicable
+        const orderSubtotal = order.orderItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
+        const expectedTotalWithoutDiscount = orderSubtotal + order.shipping_cost;
+        const hasDiscount = order.total_payment < expectedTotalWithoutDiscount;
+
+        if (hasDiscount) {
+          const subscriber = await this.prisma.subscriber.findUnique({
+            where: { email: order.customer.email }
+          });
+
+          if (subscriber && !subscriber.is_discount_used) {
+            await this.prisma.subscriber.update({
+              where: { email: order.customer.email },
+              data: { is_discount_used: true }
+            });
+          }
+        }
 
         // 4. Registrar el pago en la tabla Payments
         if (transaction.status === 'APPROVED') {
