@@ -39,4 +39,12 @@ export class LocationController {
             throw error;
         }
     }
+
+    @Patch('departments/:id/bulk-cost')
+    async bulkUpdateCitiesCost(
+        @Param('id', ParseIntPipe) departmentId: number,
+        @Body() data: { shipping_cost: number },
+    ) {
+        return this.locationService.bulkUpdateCitiesCost(departmentId, data.shipping_cost);
+    }
 }

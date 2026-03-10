@@ -35,4 +35,11 @@ export class LocationService {
             data,
         });
     }
+
+    async bulkUpdateCitiesCost(departmentId: number, shippingCost: number) {
+        return this.prisma.city.updateMany({
+            where: { id_department: departmentId },
+            data: { shipping_cost: shippingCost },
+        });
+    }
 }
