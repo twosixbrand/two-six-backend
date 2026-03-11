@@ -22,6 +22,28 @@ export class OrderController {
     return this.orderService.checkout(checkoutDto);
   }
 
+  @Post('wompi-webhook')
+  async handleWompiWebhook(@Body() payload: any) {
+    console.log('Recibido webhook de Wompi:', JSON.stringify(payload));
+
+    // Wompi sends events like 'transaction.updated'
+    if (payload && payload.event === 'transaction.updated' && payload.data && payload.data.transaction) {
+      const transactionId = payload.data.transaction.id;
+
+      try {
+        // We reuse verifyPayment because it securely fetches the real status from Wompi API
+        await this.orderService.verifyPayment(transactionId);
+        return { success: true, message: 'Webhook procesado y orden actualizada' };
+      } catch (error) {
+        console.error('Error procesando webhook de Wompi:', error);
+        // Return 200 anyway so Wompi doesn't retry infinitely if it's a non-retriable error
+        return { success: false, error: error.message };
+      }
+    }
+
+    return { success: true, message: 'Evento ignorado' };
+  }
+
   @Post('verify-payment')
   verifyPayment(@Body('transactionId') transactionId: string) {
     return this.orderService.verifyPayment(transactionId);
@@ -55,6 +77,11 @@ export class OrderController {
   @Get('customer/:email')
   getOrdersByCustomer(@Param('email') email: string) {
     return this.orderService.findByCustomerEmail(email);
+  }
+
+  @Get('by-reference/:reference')
+  findByReference(@Param('reference') reference: string) {
+    return this.orderService.findByReference(reference);
   }
 
 

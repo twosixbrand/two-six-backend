@@ -1,4 +1,5 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Get, Put, Param, ParseIntPipe, Query } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Get, Put, Param, ParseIntPipe, Query, Res } from '@nestjs/common';
+import { Response } from 'express';
 import { NewsletterService } from './newsletter.service';
 import { SubscribeDto } from './dto/subscribe.dto';
 import { UpdateSubscriberDto } from './dto/update-subscriber.dto';
@@ -23,19 +24,14 @@ export class NewsletterController {
     }
 
     @Get('unsubscribe')
-    async unsubscribeEmail(@Query('email') email: string) {
+    async unsubscribeEmail(@Query('email') email: string, @Res() res: Response) {
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
         if (!email) {
-            return 'Correo no ingresado.';
+            return res.redirect(`${frontendUrl}/unsubscribe?status=error`);
         }
         await this.newsletterService.unsubscribe(email);
-        return `
-            <html>
-                <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #f8f8f8; color: #333;">
-                    <h2 style="color: #000;">Te has dado de baja exitosamente</h2>
-                    <p>Lamentamos verte partir. A partir de ahora ya no recibirás nuestros correos del Club Two Six.</p>
-                </body>
-            </html>
-        `;
+        return res.redirect(`${frontendUrl}/unsubscribe?status=success`);
     }
 
     @Put(':id')

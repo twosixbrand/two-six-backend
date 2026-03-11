@@ -107,7 +107,7 @@ export class OrderService {
         const mm = String(d.getMonth() + 1).padStart(2, '0');
         const dd = String(d.getDate()).padStart(2, '0');
         const randomStr = String(Math.floor(1000 + Math.random() * 9000));
-        
+
         newReference = `TS-${yy}${mm}${dd}-${randomStr}`;
 
         const exists = await prisma.order.findUnique({
@@ -371,9 +371,41 @@ export class OrderService {
               </td>
               <td style="padding: 12px; border-bottom: 1px solid #eee;">${item.size} / ${item.color}</td>
               <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
-              <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">$${item.unit_price.toLocaleString('es-CO')}</td>
+              <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+              <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">$${(item.unit_price * item.quantity).toLocaleString('es-CO')}</td>
             </tr>
           `).join('');
+
+            const subtotal = order.orderItems.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
+            const shipping = order.shipping_cost || 0;
+            // Sometimes JS floating point issues can make a tiny discount, so we check if it's > 1
+            const discount = Math.round((subtotal + shipping) - order.total_payment);
+
+            let discountHtml = '';
+            if (discount > 1) {
+              discountHtml = `
+                <tr>
+                  <td colspan="4" style="padding: 4px 12px; text-align: right; color: #dc3545;">Descuento aplicado:</td>
+                  <td style="padding: 4px 12px; text-align: right; color: #dc3545;">-$${discount.toLocaleString('es-CO')}</td>
+                </tr>
+              `;
+            }
+
+            const tfootHtml = `
+              <tr>
+                <td colspan="4" style="padding: 12px 12px 4px 12px; text-align: right;">Subtotal:</td>
+                <td style="padding: 12px 12px 4px 12px; text-align: right;">$${subtotal.toLocaleString('es-CO')}</td>
+              </tr>
+              ${discountHtml}
+              <tr>
+                <td colspan="4" style="padding: 4px 12px; text-align: right;">Costo de envío:</td>
+                <td style="padding: 4px 12px; text-align: right;">$${shipping.toLocaleString('es-CO')}</td>
+              </tr>
+              <tr>
+                <td colspan="4" style="padding: 12px; text-align: right; font-weight: bold; border-top: 1px solid #eee;">Total Pagado:</td>
+                <td style="padding: 12px; text-align: right; font-weight: bold; border-top: 1px solid #eee;">$${order.total_payment.toLocaleString('es-CO')}</td>
+              </tr>
+            `;
 
             const storeEmail = this.configService.get<string>('EMAIL_TO');
             console.log(`Enviando correo de confirmación a: ${order.customer.email} (copia a: ${storeEmail || 'NO CONFIGURADO'})`);
@@ -408,10 +440,7 @@ export class OrderService {
                       ${itemsHtml}
                     </tbody>
                     <tfoot>
-                      <tr>
-                        <td colspan="4" style="padding: 12px; text-align: right; font-weight: bold;">Total:</td>
-                        <td style="padding: 12px; text-align: right; font-weight: bold;">$${order.total_payment.toLocaleString('es-CO')}</td>
-                      </tr>
+                      ${tfootHtml}
                     </tfoot>
                   </table>
 
@@ -619,6 +648,32 @@ export class OrderService {
     });
   }
 
+  findByReference(reference: string) {
+    return this.prisma.order.findUnique({
+      where: { order_reference: reference },
+      include: {
+        customer: true,
+        orderItems: {
+          include: {
+            product: {
+              include: {
+                clothingSize: {
+                  include: {
+                    clothingColor: {
+                      include: {
+                        imageClothing: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+        },
+      },
+    });
+  }
+
   update(id: number, updateOrderDto: UpdateOrderDto) {
     return this.prisma.order.update({
       where: { id },
@@ -643,7 +698,19 @@ export class OrderService {
       include: {
         orderItems: {
           include: {
-            product: true,
+            product: {
+              include: {
+                clothingSize: {
+                  include: {
+                    clothingColor: {
+                      include: {
+                        imageClothing: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
         },
         shipments: {
