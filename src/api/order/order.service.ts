@@ -96,7 +96,35 @@ export class OrderService {
         }
       }
 
-      // 3. Create Order
+      // 3. Create Order Reference
+      let referencedGenerated = false;
+      let attempts = 0;
+      let newReference = '';
+
+      while (!referencedGenerated && attempts < 10) {
+        const d = new Date();
+        const yy = String(d.getFullYear()).slice(-2);
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const randomStr = String(Math.floor(1000 + Math.random() * 9000));
+        
+        newReference = `TS-${yy}${mm}${dd}-${randomStr}`;
+
+        const exists = await prisma.order.findUnique({
+          where: { order_reference: newReference }
+        });
+
+        if (!exists) {
+          referencedGenerated = true;
+        }
+        attempts++;
+      }
+
+      if (!referencedGenerated) {
+        throw new BadRequestException('No se pudo generar una referencia única para el pedido. Por favor, inténtalo de nuevo.');
+      }
+
+      // 4. Create Order
       const order = await prisma.order.create({
         data: {
           id_customer: customerRecord.id,
@@ -106,6 +134,7 @@ export class OrderService {
           shipping_cost: shippingCost,
           total_payment: total,
           purchase_date: new Date(),
+          order_reference: newReference,
           is_paid: false, // Payment integration would update this
           shipping_address: `${customer.address}, ${customer.city}, ${customer.department}`,
         },
@@ -114,7 +143,7 @@ export class OrderService {
         }
       });
 
-      // 4. Create Order Items and Update Stock
+      // 5. Create Order Items and Update Stock
       for (const item of items) {
         // Create Order Item
         await prisma.orderItem.create({
@@ -175,8 +204,8 @@ export class OrderService {
     }
 
     const amountInCents = Math.round(total * 100);
-    // Usar una referencia más única para evitar colisiones y posibles bloqueos
-    const reference = `ORDER-${order.id}-${Date.now()}`;
+    // Usar el order_reference para Wompi
+    const reference = order.order_reference;
     const currency = 'COP';
 
     const integrityString = `${reference}${amountInCents}${currency}${integritySecretRaw}`;
@@ -221,24 +250,15 @@ export class OrderService {
       const transaction = data.data;
 
       // 2. Obtener la referencia de la orden (orderId)
-      // La referencia ahora es del tipo "ORDER-{id}-{timestamp}"
-      const referenceParts = transaction.reference.split('-');
-      let orderId: number;
+      const orderReference = transaction.reference;
 
-      if (referenceParts.length >= 2 && referenceParts[0] === 'ORDER') {
-        orderId = Number(referenceParts[1]);
-      } else {
-        // Fallback por si acaso llega solo el número (versiones viejas)
-        orderId = Number(transaction.reference);
-      }
-
-      if (isNaN(orderId)) {
+      if (!orderReference) {
         throw new Error(`Referencia de orden inválida en la transacción de Wompi: ${transaction.reference}`);
       }
 
-      // 3. Buscar la orden
+      // 3. Buscar la orden por Referencia
       const order = await this.prisma.order.findUnique({
-        where: { id: orderId },
+        where: { order_reference: orderReference },
         include: {
           customer: true,
           orderItems: {
@@ -262,9 +282,9 @@ export class OrderService {
       });
 
       if (!order) {
-        throw new Error(`Orden #${orderId} no encontrada`);
+        throw new Error(`Orden con referencia ${orderReference} no encontrada`);
       }
-      console.log('Order found:', order.id);
+      console.log('Order found:', order.order_reference);
 
       // 4. Verificar el estado
       // Estados de Wompi: APPROVED, DECLINED, VOIDED, ERROR
@@ -279,7 +299,7 @@ export class OrderService {
 
         // 3. Actualizar estado de la orden
         await this.prisma.order.update({
-          where: { id: orderId },
+          where: { order_reference: orderReference },
           data: {
             status: 'Pagado',
             is_paid: true,
@@ -325,7 +345,7 @@ export class OrderService {
 
             await this.prisma.payments.create({
               data: {
-                id_order: orderId,
+                id_order: order.id,
                 id_customer: order.id_customer,
                 id_payment_method: paymentMethod.id,
                 status: transaction.status,
@@ -361,7 +381,7 @@ export class OrderService {
             await this.mailerService.sendMail({
               to: order.customer.email,
               ...(storeEmail ? { bcc: storeEmail } : {}),
-              subject: `Confirmación de Pedido #${order.id} - Two Six`,
+              subject: `Confirmación de Pedido ${order.order_reference} - Two Six`,
               html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
                 <div style="text-align: center; padding: 20px; background-color: #f8f9fa;">
@@ -371,7 +391,7 @@ export class OrderService {
                 
                 <div style="padding: 20px;">
                   <h2 style="color: #333;">¡Gracias por tu compra, ${order.customer.name}!</h2>
-                  <p>Hemos recibido tu pago para el pedido <strong>#${order.id}</strong>.</p>
+                  <p>Hemos recibido tu pago para el pedido <strong>${order.order_reference}</strong>.</p>
                   
                   <h3 style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-top: 30px;">Detalles del Pedido</h3>
                   <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
@@ -428,7 +448,7 @@ export class OrderService {
       } else {
         // Si fue rechazada o error
         await this.prisma.order.update({
-          where: { id: orderId },
+          where: { order_reference: orderReference },
           data: {
             status: 'Rechazado', // O el estado que prefieras
           }
@@ -436,7 +456,7 @@ export class OrderService {
 
         return {
           status: transaction.status,
-          orderId: order.id,
+          orderId: order.order_reference,
           message: `El pago no fue aprobado. Estado: ${transaction.status}`
         };
       }
@@ -503,9 +523,9 @@ export class OrderService {
     });
   }
 
-  async trackOrder(dto: { orderId: number; email: string }) {
+  async trackOrder(dto: { orderReference: string; email: string }) {
     const order = await this.prisma.order.findUnique({
-      where: { id: dto.orderId },
+      where: { order_reference: dto.orderReference },
       include: {
         customer: true,
         orderItems: {

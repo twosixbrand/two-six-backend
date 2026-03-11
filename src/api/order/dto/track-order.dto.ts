@@ -1,9 +1,9 @@
-import { IsEmail, IsNotEmpty, IsNumber } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
 
 export class TrackOrderDto {
     @IsNotEmpty()
-    @IsNumber()
-    orderId: number;
+    @IsString()
+    orderReference: string;
 
     @IsNotEmpty()
     @IsEmail()

@@ -382,6 +382,7 @@ model IdentificationType {
 
 model Order {
   id               Int             @id @default(autoincrement()) @map("id_order")
+  order_reference  String?         @unique
   id_customer      Int             @map("id_customer")
   order_date       DateTime
   status           String

@@ -38,7 +38,7 @@ export class OrderController {
   }
 
   @Post('track')
-  trackOrder(@Body() trackOrderDto: { orderId: number; email: string }) {
+  trackOrder(@Body() trackOrderDto: { orderReference: string; email: string }) {
     return this.orderService.trackOrder(trackOrderDto);
   }
 

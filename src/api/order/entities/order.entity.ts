@@ -2,6 +2,7 @@ import { Order as OrderModel } from '@prisma/client';
 
 export class OrderEntity implements OrderModel {
   id: number;
+  order_reference: string | null;
   id_customer: number;
   order_date: Date;
   status: string;
