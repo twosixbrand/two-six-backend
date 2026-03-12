@@ -43,7 +43,14 @@ export class OrderService {
   }
 
   async checkout(checkoutDto: CheckoutDto) {
-    const { customer, items, total, shippingCost } = checkoutDto;
+    const { customer, items, total, shippingCost, paymentMethod } = checkoutDto;
+    
+    // Validate Payment Method
+    const method = paymentMethod === 'WOMPI_COD' ? 'WOMPI_COD' : 'WOMPI_FULL';
+    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    // If COD, the amount to collect is the subtotal (products), otherwise 0
+    const codAmount = method === 'WOMPI_COD' ? subtotal : 0;
+
 
     const order = await this.prisma.$transaction(async (prisma) => {
       // 1. Find or Create Customer
@@ -133,6 +140,8 @@ export class OrderService {
           iva: iva,
           shipping_cost: shippingCost,
           total_payment: total,
+          payment_method: method,
+          cod_amount: codAmount,
           purchase_date: new Date(),
           order_reference: newReference,
           is_paid: false, // Payment integration would update this
@@ -203,7 +212,10 @@ export class OrderService {
       console.warn('ADVERTENCIA: WOMPI_INTEGRITY_SECRET no parece tener el formato correcto (debería empezar por test_integrity_ o prod_integrity_).');
     }
 
-    const amountInCents = Math.round(total * 100);
+    // Determine Wompi checkout amount depending on COD or Full payment
+    const totalToPayNow = method === 'WOMPI_COD' ? shippingCost : total;
+    const amountInCents = Math.round(totalToPayNow * 100);
+    
     // Usar el order_reference para Wompi
     const reference = order.order_reference;
     const currency = 'COP';
@@ -291,18 +303,21 @@ export class OrderService {
       if (transaction.status === 'APPROVED') {
         // Verificar el monto (opcional pero recomendado)
         const amountInCents = transaction.amount_in_cents;
-        const orderTotalInCents = order.total_payment * 100;
+        const expectedPaymentAmount = order.payment_method === 'WOMPI_COD' ? order.shipping_cost : order.total_payment;
+        const orderTotalInCents = expectedPaymentAmount * 100;
 
         if (amountInCents < orderTotalInCents) {
-          console.warn(`Alerta: El monto pagado (${amountInCents}) es menor al total de la orden (${orderTotalInCents})`);
+          console.warn(`Alerta: El monto pagado (${amountInCents}) es menor al total esperado de la orden (${orderTotalInCents})`);
         }
 
         // 3. Actualizar estado de la orden
+        const nextStatus = order.payment_method === 'WOMPI_COD' ? 'Aprobado PCE' : 'Pagado';
+
         await this.prisma.order.update({
           where: { order_reference: orderReference },
           data: {
-            status: 'Pagado',
-            is_paid: true,
+            status: nextStatus,
+            is_paid: order.payment_method === 'WOMPI_COD' ? false : true,
           },
         });
 
@@ -391,20 +406,29 @@ export class OrderService {
               `;
             }
 
+            const isCod = order.payment_method === 'WOMPI_COD';
+            const paidToday = isCod ? shipping : order.total_payment;
+            const dueOnDelivery = isCod ? subtotal : 0;
+
             const tfootHtml = `
               <tr>
                 <td colspan="4" style="padding: 12px 12px 4px 12px; text-align: right;">Subtotal:</td>
                 <td style="padding: 12px 12px 4px 12px; text-align: right;">$${subtotal.toLocaleString('es-CO')}</td>
               </tr>
-              ${discountHtml}
+               ${discountHtml}
               <tr>
                 <td colspan="4" style="padding: 4px 12px; text-align: right;">Costo de envío:</td>
                 <td style="padding: 4px 12px; text-align: right;">$${shipping.toLocaleString('es-CO')}</td>
               </tr>
               <tr>
-                <td colspan="4" style="padding: 12px; text-align: right; font-weight: bold; border-top: 1px solid #eee;">Total Pagado:</td>
-                <td style="padding: 12px; text-align: right; font-weight: bold; border-top: 1px solid #eee;">$${order.total_payment.toLocaleString('es-CO')}</td>
+                <td colspan="4" style="padding: 12px; text-align: right; font-weight: bold; border-top: 1px solid #eee;">Total Pagado Hoy:</td>
+                <td style="padding: 12px; text-align: right; font-weight: bold; border-top: 1px solid #eee; color: #10b981;">$${paidToday.toLocaleString('es-CO')}</td>
               </tr>
+              ${dueOnDelivery > 0 ? `
+              <tr>
+                <td colspan="4" style="padding: 12px; text-align: right; font-weight: bold; border-top: 1px solid #eee;">A Pagar Contra Entrega (PCE):</td>
+                <td style="padding: 12px; text-align: right; font-weight: bold; border-top: 1px solid #eee; color: #d4af37;">$${dueOnDelivery.toLocaleString('es-CO')}</td>
+              </tr>` : ''}
             `;
 
             const storeEmail = this.configService.get<string>('EMAIL_TO');
@@ -423,7 +447,10 @@ export class OrderService {
                 
                 <div style="padding: 20px;">
                   <h2 style="color: #333;">¡Gracias por tu compra, ${order.customer.name}!</h2>
-                  <p>Hemos recibido tu pago para el pedido <strong>${order.order_reference}</strong>.</p>
+                  <p>Hemos recibido el pago de tu envío para el pedido <strong>${order.order_reference}</strong>. Tu pedido está confirmado.</p>
+                  ${isCod ? `<div style="background-color: #fef3c7; padding: 15px; border-left: 4px solid #f59e0b; margin-bottom: 20px;">
+                    <strong>Importante:</strong> Has seleccionado Pago Contra Entrega (PCE). Deberás entregar <strong>$${dueOnDelivery.toLocaleString('es-CO')}</strong> en efectivo al transportador al momento de recibir tus prendas.
+                  </div>` : ''}
                   
                   <h3 style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-top: 30px;">Detalles del Pedido</h3>
                   <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">

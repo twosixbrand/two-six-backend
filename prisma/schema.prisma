@@ -394,6 +394,8 @@ model Order {
   purchase_date    DateTime        @map("purchase_date")
   shipping_cost    Float           @map("shipping_cost")
   total_payment    Float           @map("total_payment")
+  payment_method   String          @default("WOMPI_FULL") @map("payment_method")
+  cod_amount       Float           @default(0) @map("cod_amount")
   dianEInvoicing   DianEInvoicing?
   customer         Customer        @relation(fields: [id_customer], references: [id])
   orderItems       OrderItem[]

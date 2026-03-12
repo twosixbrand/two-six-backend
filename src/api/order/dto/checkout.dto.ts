@@ -88,4 +88,8 @@ export class CheckoutDto {
     @IsString()
     @IsOptional()
     discountCode?: string;
+
+    @IsString()
+    @IsOptional()
+    paymentMethod?: string;
 }
