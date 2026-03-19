@@ -492,21 +492,47 @@ model Payments {
 }
 
 model DianEInvoicing {
-  id              Int       @id @default(autoincrement())
-  id_order        Int       @unique @map("id_order")
-  cufe_code       String
-  qr_code         String
-  document_number String
-  issue_date      DateTime
-  due_date        DateTime
-  status          String
-  url_pdf         String
-  url_xml         String
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime? @updatedAt @map("updated_at")
-  order           Order     @relation(fields: [id_order], references: [id])
+  id                 Int             @id @default(autoincrement())
+  id_order           Int?            @unique @map("id_order")
+  id_dian_resolution Int?            @map("id_dian_resolution")
+  cufe_code          String?
+  qr_code            String?
+  document_number    String
+  issue_date         DateTime
+  due_date           DateTime
+  status             String
+  url_pdf            String?
+  url_xml            String?
+  dian_response      String?         @db.Text
+  environment        String          @default("TEST") // "TEST" o "PRODUCTION"
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime?       @updatedAt @map("updated_at")
+  order              Order?          @relation(fields: [id_order], references: [id])
+  dianResolution     DianResolution? @relation(fields: [id_dian_resolution], references: [id])
 
   @@map("dian_e_invoicing")
+}
+
+model DianResolution {
+  id               Int       @id @default(autoincrement())
+  type             String    // 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'
+  prefix           String?
+  resolutionNumber String    @map("resolution_number")
+  startNumber      Int       @map("start_number")
+  endNumber        Int       @map("end_number")
+  currentNumber    Int       @default(0) @map("current_number")
+  technicalKey     String?   @map("technical_key")
+  startDate        DateTime  @map("start_date")
+  endDate          DateTime  @map("end_date")
+  environment      String    @default("TEST") // 'TEST', 'PRODUCTION'
+  testSetId        String?   @map("test_set_id") // Only for TEST
+  isActive         Boolean   @default(true) @map("is_active")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime? @updatedAt @map("updated_at")
+
+  dianInvoices     DianEInvoicing[]
+
+  @@map("dian_resolution")
 }
 
 model ShippingProvider {
