@@ -6,12 +6,15 @@ export class DianPdfService {
   private readonly logger = new Logger(DianPdfService.name);
 
   async generateQrBase64(cufe: string, nit: string, valFac: string, valIva: string, valTot: string, fecha: string): Promise<string> {
-    // Según requerimientos de la DIAN para el código bifásico (QR)
+    // URL de consulta DIAN — esto es lo que debe codificar el QR
     const url = `https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=${cufe}`;
-    const qrData = `NumFac: ...\nFecFac: ${fecha}\nNitOfe: ${nit}\nValFac: ${valFac}\nValIva: ${valIva}\nValTot: ${valTot}\nCUFE: ${cufe}\nURL: ${url}`;
-    
+
     try {
-      return await QRCode.toDataURL(qrData);
+      return await QRCode.toDataURL(url, {
+        width: 200,
+        margin: 2,
+        errorCorrectionLevel: 'M',
+      });
     } catch (error) {
       this.logger.error(`Error generando Código QR: ${error.message}`);
       return '';

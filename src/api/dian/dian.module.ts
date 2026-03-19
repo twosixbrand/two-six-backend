@@ -9,6 +9,7 @@ import { DianPdfService } from './dian-pdf/dian-pdf.service';
 
 @Module({
   providers: [DianService, DianUblService, DianSignerService, DianSoapService, DianCufeService, DianPdfService],
-  controllers: [DianController]
+  controllers: [DianController],
+  exports: [DianUblService, DianSignerService, DianSoapService, DianCufeService, DianPdfService, DianService]
 })
 export class DianModule {}

@@ -7,6 +7,11 @@ import { CheckoutDto } from './dto/checkout.dto';
 import { MailerService } from '@nestjs-modules/mailer';
 
 import { ConfigService } from '@nestjs/config';
+import { DianUblService } from '../dian/dian-ubl/dian-ubl.service';
+import { DianSignerService } from '../dian/dian-signer/dian-signer.service';
+import { DianCufeService } from '../dian/dian-cufe/dian-cufe.service';
+import { DianSoapService } from '../dian/dian-soap/dian-soap.service';
+import { DianPdfService } from '../dian/dian-pdf/dian-pdf.service';
 
 @Injectable()
 export class OrderService {
@@ -14,6 +19,11 @@ export class OrderService {
     private prisma: PrismaService,
     private readonly mailerService: MailerService,
     private configService: ConfigService,
+    private readonly ublService: DianUblService,
+    private readonly signerService: DianSignerService,
+    private readonly cufeService: DianCufeService,
+    private readonly soapService: DianSoapService,
+    private readonly pdfService: DianPdfService,
   ) { }
 
   async validateDiscountCode(code: string, email: string) {
@@ -372,8 +382,112 @@ export class OrderService {
           }
         }
 
-        // Enviar correo de confirmación SOLO si el pago es aprobado Y no se ha enviado antes
-        if (!order.is_paid) {
+        // 5. Generar factura electrónica DIAN (solo si no existe una previa)
+        let invoiceData: any = null;
+        const existingInvoice = await this.prisma.dianEInvoicing.findFirst({
+          where: { id_order: order.id }
+        });
+
+        if (existingInvoice) {
+          invoiceData = {
+            id: existingInvoice.id,
+            cufe: existingInvoice.cufe_code,
+            qrBase64: existingInvoice.qr_code,
+            invoiceNumber: existingInvoice.document_number,
+            cufeUrl: `https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=${existingInvoice.cufe_code}`,
+          };
+        }
+
+        if (!existingInvoice) try {
+          const nit = this.configService.get<string>('DIAN_COMPANY_NIT') || '';
+          const env = this.configService.get<string>('DIAN_ENVIRONMENT', 'TEST');
+
+          // Obtener siguiente número consecutivo de la resolución DIAN
+          const resolution = await this.prisma.dianResolution.findFirst({
+            where: { isActive: true, environment: env, type: 'INVOICE' },
+          });
+          if (!resolution) throw new Error('No hay resolución DIAN activa');
+          if (resolution.currentNumber >= resolution.endNumber) throw new Error('Rango de numeración DIAN agotado');
+
+          const nextNum = resolution.currentNumber + 1;
+          await this.prisma.dianResolution.update({
+            where: { id: resolution.id },
+            data: { currentNumber: nextNum },
+          });
+
+          const invoiceNumber = `${resolution.prefix}${nextNum}`;
+          const claveTecnica = resolution.technicalKey || this.configService.get<string>('DIAN_TECHNICAL_KEY') || '';
+          const invoiceDate = new Date().toISOString().split('T')[0];
+          const subtotal = order.orderItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
+          const iva = order.iva || 0;
+          const total = order.total_payment;
+
+          const invoiceLines = order.orderItems.map(item => ({
+            description: item.product_name,
+            quantity: item.quantity,
+            unitPrice: item.unit_price,
+            taxPercent: 19,
+          }));
+
+          const invoiceDto = {
+            number: invoiceNumber,
+            date: invoiceDate,
+            time: '12:00:00-05:00',
+            customerName: order.customer.name,
+            customerDoc: '222222222222',
+            paymentMeansCode: order.payment_method === 'WOMPI_COD' ? '10' : '48',
+            customerDocType: '13',
+            lines: invoiceLines,
+            subtotal,
+            taxTotal: iva,
+            total,
+          };
+
+          // 1. Generar CUFE primero
+          const cufe = this.cufeService.generateCufe({
+            NumFac: invoiceNumber, FecFac: invoiceDate, HorFac: '12:00:00-05:00',
+            ValFac: subtotal.toFixed(2), CodImp1: '01', ValImp1: iva.toFixed(2),
+            CodImp2: '', ValImp2: '', CodImp3: '', ValImp3: '',
+            ValTot: total.toFixed(2), NitOfe: nit, NumAdq: invoiceDto.customerDoc,
+            ClTec: claveTecnica, TipoAmb: env === 'TEST' ? '2' : '1'
+          });
+
+          // 2. Generar XML con CUFE insertado, luego firmar
+          const xmlBase = this.ublService.generateInvoiceXml(invoiceDto);
+          const xmlWithCufe = xmlBase.replace('CUFE_PLACEHOLDER', cufe);
+          const signedXml = this.signerService.signXml(xmlWithCufe);
+
+          // 3. Enviar a DIAN
+          const soapResponse = await this.soapService.sendInvoice(Buffer.from(signedXml), invoiceNumber);
+
+          const qrBase64 = await this.pdfService.generateQrBase64(
+            cufe, nit, subtotal.toFixed(2), iva.toFixed(2), total.toFixed(2), invoiceDate
+          );
+
+          // Guardar en base de datos
+          const savedInvoice = await this.prisma.dianEInvoicing.create({
+            data: {
+              document_number: invoiceNumber,
+              cufe_code: cufe,
+              qr_code: qrBase64,
+              issue_date: new Date(invoiceDate),
+              due_date: new Date(invoiceDate),
+              status: 'SENT',
+              dian_response: typeof soapResponse === 'string' ? soapResponse : JSON.stringify(soapResponse),
+              environment: env,
+              id_order: order.id,
+            },
+          });
+
+          invoiceData = { id: savedInvoice.id, cufe, qrBase64, invoiceNumber, cufeUrl: `https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=${cufe}` };
+          console.log(`Factura DIAN ${invoiceNumber} generada para orden ${order.order_reference}`);
+        } catch (dianError) {
+          console.error('Error generando factura DIAN (no bloquea el flujo):', dianError.message);
+        }
+
+        // Enviar correo de confirmación SOLO si no se había pagado antes (evita duplicados)
+        const shouldSendEmail = !order.is_paid;
+        if (shouldSendEmail) {
           try {
             const itemsHtml = order.orderItems.map(item => `
             <tr>
@@ -434,10 +548,27 @@ export class OrderService {
             const storeEmail = this.configService.get<string>('EMAIL_TO');
             console.log(`Enviando correo de confirmación a: ${order.customer.email} (copia a: ${storeEmail || 'NO CONFIGURADO'})`);
 
+            // Generar QR como buffer PNG para adjuntar inline
+            let qrAttachments: Array<{ filename: string; content: Buffer; cid: string }> = [];
+            if (invoiceData) {
+              try {
+                const QRCode = require('qrcode');
+                const qrPngBuffer = await QRCode.toBuffer(invoiceData.cufeUrl, { width: 200, margin: 2, errorCorrectionLevel: 'M' });
+                qrAttachments = [{
+                  filename: 'qr-dian.png',
+                  content: qrPngBuffer,
+                  cid: 'qr-dian',
+                }];
+              } catch (e) {
+                console.error('Error generando QR para email:', e);
+              }
+            }
+
             await this.mailerService.sendMail({
               to: order.customer.email,
               ...(storeEmail ? { bcc: storeEmail } : {}),
-              subject: `Confirmación de Pedido ${order.order_reference} - Two Six`,
+              subject: `${this.configService.get<string>('FRONTEND_URL', '').includes('localhost') ? '[LOCAL] ' : ''}Confirmación de Pedido ${order.order_reference} - Two Six`,
+              attachments: qrAttachments,
               html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
                 <div style="text-align: center; padding: 20px; background-color: #f8f9fa;">
@@ -479,6 +610,15 @@ export class OrderService {
                     </p>
                   </div>
 
+                  ${invoiceData ? `
+                  <div style="background-color: #e8f5e9; padding: 15px; margin-top: 20px; border-radius: 5px; border-left: 4px solid #4caf50;">
+                    <h4 style="margin-top: 0; color: #2e7d32;">Factura Electrónica DIAN</h4>
+                    <p style="margin-bottom: 5px;"><strong>Número:</strong> ${invoiceData.invoiceNumber}</p>
+                    <p style="margin-bottom: 5px;"><strong>CUFE:</strong> <span style="font-size: 10px; word-break: break-all;">${invoiceData.cufe}</span></p>
+                    <div style="text-align: center; margin-top: 10px;"><img src="cid:qr-dian" alt="QR Factura DIAN" width="140" height="140" style="width: 140px; height: 140px;"/></div>
+                    <p style="font-size: 11px; color: #666; margin-top: 10px;">Puedes consultar tu factura en el catálogo de la DIAN: <a href="${invoiceData.cufeUrl}">catalogo-vpfe.dian.gov.co</a></p>
+                  </div>` : ''}
+
                   <p style="margin-top: 30px; text-align: center;">
                     <a href="${this.configService.get<string>('FRONTEND_URL')}/tracking" style="background-color: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Rastrear mi Pedido</a>
                   </p>
@@ -499,7 +639,8 @@ export class OrderService {
           status: 'APPROVED',
           orderId: order.id,
           transactionId: transactionId,
-          message: 'Pago aprobado exitosamente'
+          message: 'Pago aprobado exitosamente',
+          ...(invoiceData ? { invoice: invoiceData } : {}),
         };
       } else {
         // Si fue rechazada o error
@@ -643,6 +784,7 @@ export class OrderService {
       where: { id },
       include: {
         customer: true,
+        dianEInvoicing: true,
         orderItems: {
           include: {
             product: {
@@ -680,6 +822,7 @@ export class OrderService {
       where: { order_reference: reference },
       include: {
         customer: true,
+        dianEInvoicing: true,
         orderItems: {
           include: {
             product: {
