@@ -3,7 +3,7 @@ import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 
-import { DianUblService, InvoiceDto } from './dian-ubl/dian-ubl.service';
+import { DianUblService, InvoiceDto, NoteDto } from './dian-ubl/dian-ubl.service';
 import { DianSignerService } from './dian-signer/dian-signer.service';
 import { DianCufeService } from './dian-cufe/dian-cufe.service';
 import { DianSoapService } from './dian-soap/dian-soap.service';
@@ -53,6 +53,7 @@ export class DianController {
       const statusMessage = rawResponse.match(/<b:StatusMessage>(.*?)<\/b:StatusMessage>/s)?.[1];
       const isValid = rawResponse.match(/<b:IsValid>(.*?)<\/b:IsValid>/)?.[1];
       const errorMessages = rawResponse.match(/<b:ErrorMessage>(.*?)<\/b:ErrorMessage>/s)?.[1];
+      const xmlBase64Bytes = rawResponse.match(/<b:XmlBase64Bytes>(.*?)<\/b:XmlBase64Bytes>/s)?.[1];
 
       // Extraer lista de errores de validación si existen
       const processedMessages: string[] = [];
@@ -70,10 +71,47 @@ export class DianController {
         isValid: isValid || 'false',
         errorMessages: errorMessages || '',
         validationMessages: processedMessages,
+        hasXmlResponse: !!xmlBase64Bytes,
         rawResponse,
       };
     } catch (error) {
       this.logger.error('Error consultando estado DIAN:', error.message);
+      throw new HttpException({ error: error.message }, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Get('status/:trackId/xml')
+  @ApiOperation({ summary: 'Descargar ApplicationResponse XML de DIAN' })
+  async getStatusXml(@Param('trackId') trackId: string, @Res() res: Response) {
+    try {
+      const rawResponse = await this.soapService.getStatusZip(trackId);
+      const xmlBase64Bytes = rawResponse.match(/<b:XmlBase64Bytes>(.*?)<\/b:XmlBase64Bytes>/s)?.[1];
+      
+      if (!xmlBase64Bytes) {
+        throw new HttpException('La respuesta de la DIAN no contiene XmlBase64Bytes', HttpStatus.NOT_FOUND);
+      }
+
+      const xmlBuffer = Buffer.from(xmlBase64Bytes, 'base64');
+      
+      // La DIAN a veces puede empacar ApplicationResponse adentro de un ZIP en el XmlBase64Bytes.
+      // (En la gran mayoría de casos de Validación es un XML Directo (AttachedDocument / ApplicationResponse).
+      // Le ponemos descarga ApplicationResponse.xml 
+      // Si el buffer empieza con "PK.." entonces es un ZIP.
+      if (xmlBuffer.slice(0, 4).toString() === 'PK\x03\x04') {
+        res.set({
+          'Content-Type': 'application/zip',
+          'Content-Disposition': `attachment; filename="ApplicationResponse_${trackId}.zip"`,
+        });
+      } else {
+        res.set({
+          'Content-Type': 'application/xml',
+          'Content-Disposition': `attachment; filename="ApplicationResponse_${trackId}.xml"`,
+        });
+      }
+
+      res.send(xmlBuffer);
+    } catch (error) {
+      this.logger.error('Error descargando XML DIAN:', error.message);
       throw new HttpException({ error: error.message }, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
@@ -99,17 +137,30 @@ export class DianController {
     if (!invoice) throw new HttpException('Factura no encontrada', HttpStatus.NOT_FOUND);
 
     // Regenerar el XML firmado con CUFE real
-    const invoiceDto: any = {
+    const resolution = await this.prisma.dianResolution.findFirst({
+      where: { id: invoice.id_dian_resolution || 0 },
+    }) || await this.prisma.dianResolution.findFirst({
+      where: { isActive: true, environment: invoice.environment as any, type: 'INVOICE' },
+    });
+
+    const invoiceDto: InvoiceDto = {
       number: invoice.document_number,
       date: invoice.issue_date.toISOString().split('T')[0],
       time: '12:00:00-05:00',
       customerName: 'Cliente',
-      customerDoc: '1020304050',
+      customerDoc: '222222222222',
       customerDocType: '13',
+      // Resolution data
+      resolutionPrefix: resolution?.prefix,
+      resolutionNumber: resolution?.resolutionNumber,
+      resolutionStartDate: resolution?.startDate.toISOString().split('T')[0],
+      resolutionEndDate: resolution?.endDate.toISOString().split('T')[0],
+      resolutionStartNumber: resolution?.startNumber,
+      resolutionEndNumber: resolution?.endNumber,
     };
 
     const xmlBase = this.ublService.generateInvoiceXml(invoiceDto);
-    const xmlWithCufe = xmlBase.replace('CUFE_PLACEHOLDER', invoice.cufe_code || '');
+    const xmlWithCufe = xmlBase.replace(/CUFE_PLACEHOLDER/g, invoice.cufe_code || '');
     const signedXml = this.signerService.signXml(xmlWithCufe);
 
     res.set({
@@ -309,6 +360,14 @@ export class DianController {
         customerName: body.customerName || 'Cliente Externo API',
         customerDoc: body.customerDoc || '1020304050',
         customerDocType: body.customerDocType || '13',
+
+        // Pasar datos de resolución para el XML
+        resolutionPrefix: resolution.prefix,
+        resolutionNumber: resolution.resolutionNumber,
+        resolutionStartDate: resolution.startDate.toISOString().split('T')[0],
+        resolutionEndDate: resolution.endDate.toISOString().split('T')[0],
+        resolutionStartNumber: resolution.startNumber,
+        resolutionEndNumber: resolution.endNumber,
       };
 
       this.logger.log(`Generando Factura Electrónica: ${invoiceDto.number}`);
@@ -327,7 +386,7 @@ export class DianController {
 
       // 2. Generar XML con CUFE insertado, luego firmar
       const xmlBase = this.ublService.generateInvoiceXml(invoiceDto);
-      const xmlWithCufe = xmlBase.replace('CUFE_PLACEHOLDER', cufe);
+      const xmlWithCufe = xmlBase.replace(/CUFE_PLACEHOLDER/g, cufe);
       const signedXml = this.signerService.signXml(xmlWithCufe);
 
       // 3. Enviar a DIAN
@@ -368,6 +427,275 @@ export class DianController {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
         error: error.message,
       }, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+  @Post('invoices/:id/credit-note')
+  @ApiOperation({ summary: 'Generar Nota Crédito para una Factura' })
+  async createCreditNote(@Param('id') id: string, @Body() body: any) {
+    try {
+      const invoice = await this.prisma.dianEInvoicing.findUnique({
+        where: { id: parseInt(id, 10) },
+        include: { order: { include: { customer: true, orderItems: true } } }
+      });
+
+      if (!invoice || !invoice.cufe_code) {
+        throw new Error('La factura no existe o no tiene CUFE');
+      }
+
+      const env = this.configService.get<string>('DIAN_ENVIRONMENT', 'TEST');
+      const resolution = await this.prisma.dianResolution.findFirst({
+        where: { isActive: true, environment: env, type: 'CREDIT_NOTE' },
+      });
+
+      if (!resolution) throw new Error('No hay resolución configurada para Notas Crédito');
+
+      const nextNumber = resolution.currentNumber + 1;
+      await this.prisma.dianResolution.update({
+        where: { id: resolution.id },
+        data: { currentNumber: nextNumber },
+      });
+
+      const noteNumber = `${resolution.prefix}${nextNumber}`;
+      const customer = invoice.order?.customer;
+
+      const noteDto: NoteDto = {
+        number: noteNumber,
+        date: new Date().toISOString().split('T')[0],
+        time: '12:00:00-05:00',
+        customerName: customer?.name || 'Cliente',
+        customerDoc: body.customerDoc || '222222222222',
+        customerDocType: body.customerDocType || '13',
+        paymentMeansCode: '10',
+        lines: body.lines || [{ description: 'Devolución Total', quantity: 1, unitPrice: invoice.order!.iva ? (invoice.order!.total_payment - invoice.order!.iva) : 100000, taxPercent: 19 }],
+        originalInvoiceNumber: invoice.document_number,
+        originalInvoiceDate: invoice.issue_date.toISOString().split('T')[0],
+        originalInvoiceCufe: invoice.cufe_code,
+        reasonCode: body.reasonCode || '2', // 2 = Anulación de factura electrónica
+        reasonDesc: body.reasonDesc || 'Anulación por devolución',
+      };
+
+      const softwarePin = this.configService.get<string>('DIAN_SOFTWARE_PIN') || '';
+      const nit = this.configService.get<string>('DIAN_COMPANY_NIT') || '';
+
+      // 1. Calcular Totales para CUDE
+      const subtotal = noteDto.lines!.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
+      const taxTotal = Math.round(subtotal * 0.19);
+      const total = subtotal + taxTotal;
+
+      // 2. Generar CUDE
+      const cude = this.cufeService.generateCude({
+        NumNota: noteDto.number, FecNota: noteDto.date, HorNota: noteDto.time,
+        ValNota: subtotal.toFixed(2), CodImp1: '01', ValImp1: taxTotal.toFixed(2),
+        CodImp2: '', ValImp2: '', CodImp3: '', ValImp3: '',
+        ValTot: total.toFixed(2), NitOfe: nit, NumAdq: noteDto.customerDoc,
+        PinSoftware: softwarePin, TipoAmb: env === 'TEST' ? '2' : '1'
+      });
+
+      // 3. Generar XML XML y Firmar
+      const xmlBase = this.ublService.generateCreditNoteXml(noteDto);
+      const xmlWithCude = xmlBase.replace(/CUFE_PLACEHOLDER/g, cude);
+      const signedXml = this.signerService.signXml(xmlWithCude);
+
+      // 4. Enviar a DIAN
+      const soapResponse = await this.soapService.sendInvoice(Buffer.from(signedXml), noteDto.number);
+
+      // 5. Guardar en Base de Datos
+      const savedNote = await this.prisma.dianNote.create({
+        data: {
+          id_dian_invoice: invoice.id,
+          type: 'CREDIT',
+          note_number: noteNumber,
+          cude: cude,
+          issue_date: new Date(noteDto.date),
+          reason_code: noteDto.reasonCode,
+          reason_desc: noteDto.reasonDesc,
+          amount: total,
+          status: 'SENT',
+          dian_status_code: 'UNKNOWN',
+          status_message: typeof soapResponse === 'string' ? soapResponse : JSON.stringify(soapResponse),
+        }
+      });
+
+      return {
+        success: true,
+        message: 'Nota Crédito enviada a la DIAN',
+        noteId: savedNote.id,
+        cude,
+        dianResponse: soapResponse,
+      };
+    } catch (error) {
+      this.logger.error('Error generando Nota Crédito', error);
+      throw new HttpException({ error: error.message }, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Post('invoices/:id/debit-note')
+  @ApiOperation({ summary: 'Generar Nota Débito para una Factura' })
+  async createDebitNote(@Param('id') id: string, @Body() body: any) {
+    try {
+      const invoice = await this.prisma.dianEInvoicing.findUnique({
+        where: { id: parseInt(id, 10) },
+        include: { order: { include: { customer: true, orderItems: true } } }
+      });
+
+      if (!invoice || !invoice.cufe_code) {
+        throw new Error('La factura no existe o no tiene CUFE');
+      }
+
+      const env = this.configService.get<string>('DIAN_ENVIRONMENT', 'TEST');
+      const resolution = await this.prisma.dianResolution.findFirst({
+        where: { isActive: true, environment: env, type: 'DEBIT_NOTE' },
+      });
+
+      if (!resolution) throw new Error('No hay resolución configurada para Notas Débito');
+
+      const nextNumber = resolution.currentNumber + 1;
+      await this.prisma.dianResolution.update({
+        where: { id: resolution.id },
+        data: { currentNumber: nextNumber },
+      });
+
+      const noteNumber = `${resolution.prefix}${nextNumber}`;
+      const customer = invoice.order?.customer;
+
+      const noteDto: NoteDto = {
+        number: noteNumber,
+        date: new Date().toISOString().split('T')[0],
+        time: '12:00:00-05:00',
+        customerName: customer?.name || 'Cliente',
+        customerDoc: body.customerDoc || '222222222222',
+        customerDocType: body.customerDocType || '13',
+        paymentMeansCode: '10',
+        lines: body.lines || [{ description: 'Ajuste de precio', quantity: 1, unitPrice: 10000, taxPercent: 19 }],
+        originalInvoiceNumber: invoice.document_number,
+        originalInvoiceDate: invoice.issue_date.toISOString().split('T')[0],
+        originalInvoiceCufe: invoice.cufe_code,
+        reasonCode: body.reasonCode || '4', // 4 = Otros
+        reasonDesc: body.reasonDesc || 'Ajuste adicional',
+      };
+
+      const softwarePin = this.configService.get<string>('DIAN_SOFTWARE_PIN') || '';
+      const nit = this.configService.get<string>('DIAN_COMPANY_NIT') || '';
+
+      // 1. Calcular Totales para CUDE
+      const subtotal = noteDto.lines!.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
+      const taxTotal = Math.round(subtotal * 0.19);
+      const total = subtotal + taxTotal;
+
+      // 2. Generar CUDE
+      const cude = this.cufeService.generateCude({
+        NumNota: noteDto.number, FecNota: noteDto.date, HorNota: noteDto.time,
+        ValNota: subtotal.toFixed(2), CodImp1: '01', ValImp1: taxTotal.toFixed(2),
+        CodImp2: '', ValImp2: '', CodImp3: '', ValImp3: '',
+        ValTot: total.toFixed(2), NitOfe: nit, NumAdq: noteDto.customerDoc,
+        PinSoftware: softwarePin, TipoAmb: env === 'TEST' ? '2' : '1'
+      });
+
+      // 3. Generar XML y Firmar
+      const xmlBase = this.ublService.generateDebitNoteXml(noteDto);
+      const xmlWithCude = xmlBase.replace(/CUFE_PLACEHOLDER/g, cude);
+      const signedXml = this.signerService.signXml(xmlWithCude);
+
+      // 4. Enviar a DIAN
+      const soapResponse = await this.soapService.sendInvoice(Buffer.from(signedXml), noteDto.number);
+
+      // 5. Guardar en Base de Datos
+      const savedNote = await this.prisma.dianNote.create({
+        data: {
+          id_dian_invoice: invoice.id,
+          type: 'DEBIT',
+          note_number: noteNumber,
+          cude: cude,
+          issue_date: new Date(noteDto.date),
+          reason_code: noteDto.reasonCode,
+          reason_desc: noteDto.reasonDesc,
+          amount: total,
+          status: 'SENT',
+          dian_status_code: 'UNKNOWN',
+          status_message: typeof soapResponse === 'string' ? soapResponse : JSON.stringify(soapResponse),
+        }
+      });
+
+      return {
+        success: true,
+        message: 'Nota Débito enviada a la DIAN',
+        noteId: savedNote.id,
+        cude,
+        dianResponse: soapResponse,
+      };
+    } catch (error) {
+      this.logger.error('Error generando Nota Débito', error);
+      throw new HttpException({ error: error.message }, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Get('invoices/:id/notes')
+  @ApiOperation({ summary: 'Obtener Notas Crédito y Débito asociadas a una Factura' })
+  async getInvoiceNotes(@Param('id') id: string) {
+    return this.prisma.dianNote.findMany({
+      where: { id_dian_invoice: parseInt(id, 10) },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  @Post('notes/:id/sync-status')
+  @ApiOperation({ summary: 'Consultar y actualizar el estado de una Nota con DIAN' })
+  async syncNoteStatus(@Param('id') id: string) {
+    try {
+      const note = await this.prisma.dianNote.findUnique({
+        where: { id: parseInt(id, 10) }
+      });
+
+      if (!note || !note.status_message) {
+        throw new Error('Nota no encontrada o sin mensaje de respuesta DIAN original');
+      }
+
+      // 1. Extraer ZipKey
+      const zipKeyMatch = note.status_message.match(/<b:ZipKey>(.*?)<\/b:ZipKey>/);
+      if (!zipKeyMatch) {
+        throw new Error('No se encontró ZipKey en la respuesta original de la Nota');
+      }
+      const trackId = zipKeyMatch[1];
+
+      // 2. Consultar DIAN
+      const rawResponse = await this.soapService.getStatusZip(trackId);
+      const isValid = rawResponse.match(/<b:IsValid>(.*?)<\/b:IsValid>/)?.[1] === 'true';
+      const statusCode = rawResponse.match(/<b:StatusCode>(.*?)<\/b:StatusCode>/)?.[1] || 'UNKNOWN';
+      const statusDescription = rawResponse.match(/<b:StatusDescription>(.*?)<\/b:StatusDescription>/)?.[1] || '';
+
+      // 3. Determinar estado
+      let newStatus = note.status;
+      if (isValid && statusCode === '00') {
+        newStatus = 'AUTHORIZED';
+      } else if (!isValid && statusCode === '2') {
+        newStatus = 'AUTHORIZED'; // En Sandbox, '2' indica Set de Pruebas Aceptado
+      } else if (!isValid && parseInt(statusCode, 10) >= 60) {
+        newStatus = 'REJECTED';
+      } else if (statusCode !== 'UNKNOWN') {
+        newStatus = 'PROCESSED'; // Processed but maybe not valid or has remarks
+      }
+
+      // 4. Actualizar base de datos
+      const updatedNote = await this.prisma.dianNote.update({
+        where: { id: note.id },
+        data: {
+          dian_status_code: statusCode,
+          status: newStatus,
+          status_message: rawResponse, // Opcional: reemplazar respuesta asíncrona por respuesta de validación final
+        }
+      });
+
+      return {
+        success: true,
+        trackId,
+        isValid,
+        statusCode,
+        statusDescription,
+        note: updatedNote,
+      };
+    } catch (error) {
+      this.logger.error('Error sincronizando estado de Nota:', error);
+      throw new HttpException({ error: error.message }, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 }

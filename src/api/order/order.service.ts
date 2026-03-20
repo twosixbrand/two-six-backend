@@ -7,7 +7,7 @@ import { CheckoutDto } from './dto/checkout.dto';
 import { MailerService } from '@nestjs-modules/mailer';
 
 import { ConfigService } from '@nestjs/config';
-import { DianUblService } from '../dian/dian-ubl/dian-ubl.service';
+import { DianUblService, InvoiceDto } from '../dian/dian-ubl/dian-ubl.service';
 import { DianSignerService } from '../dian/dian-signer/dian-signer.service';
 import { DianCufeService } from '../dian/dian-cufe/dian-cufe.service';
 import { DianSoapService } from '../dian/dian-soap/dian-soap.service';
@@ -282,7 +282,11 @@ export class OrderService {
       const order = await this.prisma.order.findUnique({
         where: { order_reference: orderReference },
         include: {
-          customer: true,
+          customer: {
+            include: {
+              identificationType: true
+            }
+          },
           orderItems: {
             include: {
               product: {
@@ -310,6 +314,20 @@ export class OrderService {
 
       // 4. Verificar el estado
       // Estados de Wompi: APPROVED, DECLINED, VOIDED, ERROR
+
+      // Prevenir concurrencia: Si ya se pagó y procesó, evitar doble correo/factura
+      if (order.is_paid && transaction.status === 'APPROVED') {
+        console.log(`La orden ${orderReference} ya fue procesada previamente. Omitiendo duplicados.`);
+        const existingInvoice = await this.prisma.dianEInvoicing.findFirst({
+          where: { id_order: order.id }
+        });
+        return {
+          status: 'APPROVED',
+          orderId: order.id,
+          invoiceNumber: existingInvoice ? existingInvoice.document_number : undefined,
+        };
+      }
+
       if (transaction.status === 'APPROVED') {
         // Verificar el monto (opcional pero recomendado)
         const amountInCents = transaction.amount_in_cents;
@@ -418,50 +436,82 @@ export class OrderService {
           const invoiceNumber = `${resolution.prefix}${nextNum}`;
           const claveTecnica = resolution.technicalKey || this.configService.get<string>('DIAN_TECHNICAL_KEY') || '';
           const invoiceDate = new Date().toISOString().split('T')[0];
-          const subtotal = order.orderItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
-          const iva = order.iva || 0;
-          const total = order.total_payment;
+          const invoiceLines: any[] = order.orderItems.map(item => {
+            const basePrice = item.unit_price / 1.19;
+            return {
+              description: item.product_name,
+              quantity: item.quantity,
+              unitPrice: basePrice,
+              taxPercent: 19,
+            };
+          });
 
-          const invoiceLines = order.orderItems.map(item => ({
-            description: item.product_name,
-            quantity: item.quantity,
-            unitPrice: item.unit_price,
-            taxPercent: 19,
-          }));
+          if (order.shipping_cost > 0) {
+            invoiceLines.push({
+              description: 'Servicio de Envío',
+              quantity: 1,
+              unitPrice: order.shipping_cost,
+              taxPercent: 0,
+            });
+          }
 
-          const invoiceDto = {
+          // Generate exact DIAN totals
+          let dianSubtotal = 0;
+          let dianIva = 0;
+          invoiceLines.forEach(line => {
+            line.unitPrice = Number(line.unitPrice.toFixed(2));
+            const lineTotal = Number((line.quantity * line.unitPrice).toFixed(2));
+            const lineTax = Number((lineTotal * (line.taxPercent / 100)).toFixed(2));
+            
+            dianSubtotal += lineTotal;
+            dianIva += lineTax;
+          });
+          
+          dianSubtotal = Number(dianSubtotal.toFixed(2));
+          dianIva = Number(dianIva.toFixed(2));
+          const dianTotal = Number((dianSubtotal + dianIva).toFixed(2));
+
+          const invoiceDto: InvoiceDto = {
             number: invoiceNumber,
             date: invoiceDate,
             time: '12:00:00-05:00',
             customerName: order.customer.name,
-            customerDoc: '222222222222',
+            customerDoc: '222222222222', // Consumidor final since ID is not captured
             paymentMeansCode: order.payment_method === 'WOMPI_COD' ? '10' : '48',
-            customerDocType: '13',
+            customerDocType: '13', // Cédula (Consumidor final)
             lines: invoiceLines,
-            subtotal,
-            taxTotal: iva,
-            total,
+            subtotal: dianSubtotal,
+            taxTotal: dianIva,
+            total: dianTotal,
+
+            // Resolution data for XML
+            resolutionPrefix: resolution.prefix,
+            resolutionNumber: resolution.resolutionNumber,
+            resolutionStartDate: resolution.startDate.toISOString().split('T')[0],
+            resolutionEndDate: resolution.endDate.toISOString().split('T')[0],
+            resolutionStartNumber: resolution.startNumber,
+            resolutionEndNumber: resolution.endNumber,
           };
 
           // 1. Generar CUFE primero
           const cufe = this.cufeService.generateCufe({
             NumFac: invoiceNumber, FecFac: invoiceDate, HorFac: '12:00:00-05:00',
-            ValFac: subtotal.toFixed(2), CodImp1: '01', ValImp1: iva.toFixed(2),
-            CodImp2: '', ValImp2: '', CodImp3: '', ValImp3: '',
-            ValTot: total.toFixed(2), NitOfe: nit, NumAdq: invoiceDto.customerDoc,
+            ValFac: dianSubtotal.toFixed(2), CodImp1: '01', ValImp1: dianIva.toFixed(2),
+            CodImp2: '04', ValImp2: '0.00', CodImp3: '03', ValImp3: '0.00',
+            ValTot: dianTotal.toFixed(2), NitOfe: nit, NumAdq: invoiceDto.customerDoc,
             ClTec: claveTecnica, TipoAmb: env === 'TEST' ? '2' : '1'
           });
 
           // 2. Generar XML con CUFE insertado, luego firmar
           const xmlBase = this.ublService.generateInvoiceXml(invoiceDto);
-          const xmlWithCufe = xmlBase.replace('CUFE_PLACEHOLDER', cufe);
+          const xmlWithCufe = xmlBase.replace(/CUFE_PLACEHOLDER/g, cufe);
           const signedXml = this.signerService.signXml(xmlWithCufe);
 
           // 3. Enviar a DIAN
           const soapResponse = await this.soapService.sendInvoice(Buffer.from(signedXml), invoiceNumber);
 
           const qrBase64 = await this.pdfService.generateQrBase64(
-            cufe, nit, subtotal.toFixed(2), iva.toFixed(2), total.toFixed(2), invoiceDate
+            cufe, nit, dianSubtotal.toFixed(2), dianIva.toFixed(2), dianTotal.toFixed(2), invoiceDate
           );
 
           // Guardar en base de datos
@@ -784,7 +834,11 @@ export class OrderService {
       where: { id },
       include: {
         customer: true,
-        dianEInvoicing: true,
+        dianEInvoicing: {
+          include: {
+            dianNotes: true
+          }
+        },
         orderItems: {
           include: {
             product: {
