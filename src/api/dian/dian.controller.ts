@@ -63,6 +63,37 @@ export class DianController {
         processedMessages.push(match[1]);
       }
 
+      let finalStatus = 'SENT';
+      if (isValid === 'true' && statusCode === '00') {
+        finalStatus = 'AUTHORIZED';
+      } else if (isValid === 'false' && statusCode === '2') {
+        finalStatus = 'AUTHORIZED';
+      } else if (isValid === 'false' && statusCode === '99') {
+        finalStatus = 'ERROR';
+      } else if (isValid === 'false' && parseInt(statusCode || '0', 10) >= 60) {
+        finalStatus = 'REJECTED';
+      }
+
+      const invoice = await this.prisma.dianEInvoicing.findFirst({
+        where: { dian_response: { contains: trackId } }
+      });
+      if (invoice) {
+        const dataToUpdate: any = {};
+        if (invoice.status !== finalStatus && finalStatus !== 'SENT') {
+          dataToUpdate.status = finalStatus;
+        }
+        if (xmlBase64Bytes && invoice.dian_zip_base64 !== xmlBase64Bytes) {
+          dataToUpdate.dian_zip_base64 = xmlBase64Bytes;
+        }
+
+        if (Object.keys(dataToUpdate).length > 0) {
+          await this.prisma.dianEInvoicing.update({
+            where: { id: invoice.id },
+            data: dataToUpdate
+          });
+        }
+      }
+
       return {
         trackId,
         statusCode: statusCode || 'UNKNOWN',
@@ -204,14 +235,16 @@ export class DianController {
     const itemsHtml = items.length > 0
       ? items.map((item, i) => `
         <tr>
-          <td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">${i + 1}</td>
-          <td style="padding:8px;border-bottom:1px solid #eee;">${item.product_name}</td>
-          <td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">${item.size} / ${item.color}</td>
-          <td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">${item.quantity}</td>
-          <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${formatCOP(item.unit_price)}</td>
-          <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${formatCOP(item.unit_price * item.quantity)}</td>
+          <td class="text-center" style="padding: 8px; border-bottom: 1px solid #eee; border-right: 1px solid #eee;">${item.id_product || i + 1}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #eee; border-right: 1px solid #eee;">${item.product_name} ${item.size ? '- Talla '+item.size : ''}</td>
+          <td class="text-center" style="padding: 8px; border-bottom: 1px solid #eee; border-right: 1px solid #eee;">${item.quantity}</td>
+          <td class="text-center" style="padding: 8px; border-bottom: 1px solid #eee; border-right: 1px solid #eee;">94</td>
+          <td class="text-right" style="padding: 8px; border-bottom: 1px solid #eee; border-right: 1px solid #eee;">${formatCOP(item.unit_price)}</td>
+          <td class="text-center" style="padding: 8px; border-bottom: 1px solid #eee; border-right: 1px solid #eee;">${order?.iva && order.iva > 0 ? '19%' : '0%'}</td>
+          <td class="text-right" style="padding: 8px; border-bottom: 1px solid #eee; border-right: 1px solid #eee;">${formatCOP(order?.iva && order.iva > 0 ? item.unit_price * 0.19 : 0)}</td>
+          <td class="text-right" style="padding: 8px; border-bottom: 1px solid #eee;">${formatCOP(item.unit_price * item.quantity)}</td>
         </tr>`).join('')
-      : '<tr><td colspan="6" style="padding:12px;text-align:center;color:#999;">Factura generada sin detalle de productos (prueba API)</td></tr>';
+      : '<tr><td colspan="8" class="text-center" style="padding: 8px; color: #888;">Factura generada sin detalle de productos (prueba API)</td></tr>';
 
     // Regenerar QR con URL limpia si el actual no funciona
     const qrUrl = `https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=${invoice.cufe_code}`;
@@ -220,115 +253,201 @@ export class DianController {
       qrImg = await this.pdfService.generateQrBase64(invoice.cufe_code || '', nit, '0', '0', '0', '');
     }
 
+    const fsNative = require('fs');
+    const pathNative = require('path');
+    const logoPath = pathNative.join(process.cwd(), '../two-six-web/public/logo-black.png');
+    let logoBase64 = '';
+    if (fsNative.existsSync(logoPath)) {
+      logoBase64 = 'data:image/png;base64,' + fsNative.readFileSync(logoPath).toString('base64');
+    }
+
+    const resolution = await this.prisma.dianResolution.findFirst({
+      where: { isActive: true, environment: invoice.environment, type: 'INVOICE' }
+    });
+    const resText = resolution 
+      ? `Facturación Electrónica, según resolución de la DIAN No. ${resolution.resolutionNumber} con vigencia del ${resolution.startDate?.toISOString().split('T')[0]} al ${resolution.endDate?.toISOString().split('T')[0]}. Numeración habilitada del ${resolution.prefix}${resolution.startNumber} a ${resolution.prefix}${resolution.endNumber}` 
+      : 'Resolución DIAN no configurada';
+
+    const validationDate = invoice.updatedAt ? invoice.updatedAt.toLocaleString('es-CO') : invoice.issue_date.toLocaleString('es-CO');
+
     const html = `
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Factura ${invoice.document_number}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; }
-  body { font-family: Arial, sans-serif; margin: 0; padding: 30px; font-size: 12px; color: #333; }
-  .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 20px; }
-  .header h1 { margin: 0; font-size: 22px; letter-spacing: 3px; }
-  .header h2 { margin: 4px 0; font-size: 13px; color: #555; font-weight: normal; }
-  .header p { margin: 2px 0; font-size: 11px; }
-  .grid { display: flex; gap: 15px; margin-bottom: 15px; }
-  .grid > div { flex: 1; border: 1px solid #ddd; padding: 10px; border-radius: 4px; }
-  .grid h3 { margin: 0 0 6px 0; font-size: 12px; text-transform: uppercase; color: #555; border-bottom: 1px solid #eee; padding-bottom: 4px; }
-  .grid p { margin: 2px 0; font-size: 11px; }
-  .bold { font-weight: bold; }
-  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-  thead th { background: #f5f5f5; padding: 8px; text-align: left; font-size: 11px; border-bottom: 2px solid #ddd; }
-  .totals { margin-top: 10px; }
-  .totals tr td { padding: 4px 8px; font-size: 12px; }
-  .totals .total-row td { font-weight: bold; font-size: 14px; border-top: 2px solid #333; padding-top: 8px; }
-  .cufe { word-break: break-all; font-size: 9px; background: #f9f9f9; padding: 8px; border: 1px solid #eee; border-radius: 4px; margin-top: 15px; }
-  .qr-section { text-align: center; margin-top: 15px; }
-  .qr-section img { width: 140px; height: 140px; }
-  .qr-section p { font-size: 10px; color: #666; margin-top: 4px; }
-  .footer { margin-top: 25px; text-align: center; font-size: 9px; color: #999; border-top: 1px solid #ddd; padding-top: 8px; }
-  @media print { body { padding: 15px; } }
-</style></head><body>
+  body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; font-size: 10px; color: #111; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 15px; }
+  .header-left .brand { display: flex; align-items: center; gap: 15px; margin-bottom: 8px; }
+  .header-left img { max-height: 55px; }
+  .header-left h1 { margin: 0; font-size: 16px; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; color: #000; }
+  .header-left p { margin: 2px 0; font-size: 9px; color: #444; }
+  .header-right { text-align: right; }
+  .header-right h2 { margin: 0; font-size: 16px; font-weight: 700; color: #000; }
+  .header-right p { margin: 4px 0 0 0; font-size: 11px; color: #666; }
+  
+  .info-sections { display: table; width: 100%; border-collapse: collapse; margin-bottom: 15px; border: 1px solid #ccc; }
+  .info-sections .cell { display: table-cell; width: 33.33%; padding: 10px; border-right: 1px solid #ccc; vertical-align: top; }
+  .info-sections .cell:last-child { border-right: none; }
+  .cell-title { font-weight: 700; font-size: 10px; text-transform: uppercase; margin-bottom: 8px; color: #000; padding-bottom: 4px; border-bottom: 1px solid #eee; }
+  .cell-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 9px; }
+  .cell-label { font-weight: 600; color: #666; }
+  .cell-value { text-align: right; color: #000; font-weight: 500; max-width: 60%; word-wrap: break-word; }
+
+  table.details { width: 100%; border-collapse: collapse; margin-bottom: 15px; border: 1px solid #ccc; }
+  table.details thead th { background: #eee; padding: 8px; font-size: 9px; text-transform: uppercase; border-bottom: 1px solid #ccc; border-right: 1px solid #ccc; text-align: left; color: #222; }
+  table.details tbody td { padding: 8px; font-size: 9px; color: #222; }
+  
+  .totals-wrapper { display: flex; justify-content: space-between; margin-bottom: 20px; align-items: flex-start; }
+  .observations { flex: 1; border: 1px solid #ccc; padding: 10px; margin-right: 15px; font-size: 8px; line-height: 1.4; color: #444; }
+  .totals-table { width: 300px; border-collapse: collapse; border: 1px solid #ccc; }
+  .totals-table td { padding: 6px 10px; border-bottom: 1px solid #eee; font-size: 10px; }
+  .totals-table .total-row td { background: #f4f4f5; font-weight: 700; font-size: 12px; border-top: 1px solid #ccc; color: #000; }
+  
+  .footer-norm { border: 1px solid #ccc; padding: 10px; font-size: 8px; text-align: center; color: #555; margin-bottom: 15px; }
+  .footer-norm p { margin: 3px 0; }
+  .cufe-box { font-family: monospace; word-break: break-all; background: #f9f9f9; padding: 5px; border: 1px solid #ddd; margin: 5px 0; color: #000; font-size: 9px; }
+  
+  .signatures { display: flex; justify-content: space-between; align-items: center; border: 1px solid #ccc; padding: 10px; border-radius: 4px; }
+  .signature-box { flex: 1; font-size: 7px; color: #888; word-break: break-all; padding-right: 20px; line-height: 1.2; }
+  .qr-box { width: 100px; text-align: right; }
+  .qr-box img { width: 90px; height: 90px; }
+  
+  .text-right { text-align: right !important; }
+  .text-center { text-align: center !important; }
+</style>
+</head><body>
   <div class="header">
-    <h1>${companyName}</h1>
-    <h2>FACTURA ELECTRÓNICA DE VENTA</h2>
-    <p>NIT: ${nit}-${dv} | Régimen Común</p>
-  </div>
-
-  <div class="grid">
-    <div>
-      <h3>Factura</h3>
-      <p><span class="bold">Número:</span> ${invoice.document_number}</p>
-      <p><span class="bold">Fecha:</span> ${invoice.issue_date.toLocaleDateString('es-CO')}</p>
-      <p><span class="bold">Estado:</span> ${invoice.status}</p>
-      <p><span class="bold">Ambiente:</span> ${invoice.environment}</p>
-      ${order ? `<p><span class="bold">Pedido:</span> ${order.order_reference}</p>` : ''}
+    <div class="header-left">
+      <div class="brand">
+        ${logoBase64 ? '<img src="' + logoBase64 + '" alt="Logo"/>' : ''}
+        <div>
+          <h1>${companyName}</h1>
+          <p>NIT: ${nit}-${dv} | Régimen Común</p>
+        </div>
+      </div>
+      <p>CL 36 D SUR 27 D 39 AP 1001, Envigado, Colombia</p>
+      <p>Tel: +57 (310) 877-7629 | Web: https://twosixweb.com/</p>
+      <p>Contacto: twosixmarca@gmail.com | Facturación: twosixfacturaelectronica@gmail.com</p>
     </div>
-    <div>
-      <h3>Cliente</h3>
-      ${customer ? `
-        <p><span class="bold">Nombre:</span> ${customer.name}</p>
-        <p><span class="bold">Email:</span> ${customer.email}</p>
-        <p><span class="bold">Teléfono:</span> ${customer.current_phone_number}</p>
-        <p><span class="bold">Dirección:</span> ${order?.shipping_address || customer.shipping_address}</p>
-      ` : '<p>Cliente no especificado</p>'}
-    </div>
-    <div>
-      <h3>Emisor</h3>
-      <p><span class="bold">Razón Social:</span> ${companyName}</p>
-      <p><span class="bold">NIT:</span> ${nit}-${dv}</p>
+    <div class="header-right">
+      <h2>FACTURA ELECTRÓNICA DE VENTA</h2>
+      <p style="font-size: 14px; font-weight: bold; color: #000; margin-top: 8px;">${invoice.document_number}</p>
+      <p>Página 1 de 1</p>
     </div>
   </div>
 
-  <h3 style="margin-bottom:0;font-size:13px;">Detalle de Productos</h3>
-  <table>
+  <div class="info-sections">
+    <div class="cell" style="width: 40%">
+      <div class="cell-title">Información del Cliente</div>
+      <div class="cell-row"><span class="cell-label">Peticionario:</span> <span class="cell-value">${customer?.name || 'Cliente Mostrador'}</span></div>
+      <div class="cell-row"><span class="cell-label">CC/NIT:</span> <span class="cell-value">${(customer as any)?.document_number || (customer as any)?.identification_number || '222222222222'}</span></div>
+      <div class="cell-row"><span class="cell-label">Celular:</span> <span class="cell-value">${customer?.current_phone_number || 'No Registra'}</span></div>
+      <div class="cell-row"><span class="cell-label">Correo:</span> <span class="cell-value">${customer?.email || 'facturas@twosix.com.co'}</span></div>
+      <div class="cell-row"><span class="cell-label">Dirección / Ciudad:</span> <span class="cell-value">${order?.shipping_address || customer?.shipping_address || 'Medellín, Colombia'}</span></div>
+    </div>
+    <div class="cell" style="width: 60%;">
+      <div class="cell-title">Datos Regulares de la Factura</div>
+      <div style="display: flex; gap: 10px;">
+        <div style="flex: 1;">
+          <div class="cell-row"><span class="cell-label">Fecha Emisión:</span> <span class="cell-value">${invoice.issue_date.toLocaleString('es-CO')}</span></div>
+          <div class="cell-row"><span class="cell-label">Fecha Vencimiento:</span> <span class="cell-value">${invoice.due_date ? invoice.due_date.toLocaleString('es-CO') : invoice.issue_date.toLocaleString('es-CO')}</span></div>
+          <div class="cell-row"><span class="cell-label">Validación DIAN:</span> <span class="cell-value">${validationDate}</span></div>
+        </div>
+        <div style="flex: 1;">
+          <div class="cell-row"><span class="cell-label">Forma de Pago:</span> <span class="cell-value">Contado (1)</span></div>
+          <div class="cell-row"><span class="cell-label">Medio de Pago:</span> <span class="cell-value">Instrumento no definido (10)</span></div>
+          <div class="cell-row"><span class="cell-label">No. Pedido Web:</span> <span class="cell-value">${order?.order_reference || 'N/A'}</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <table class="details">
     <thead>
       <tr>
-        <th style="width:30px;">#</th>
-        <th>Producto</th>
-        <th style="text-align:center;">Talla / Color</th>
-        <th style="text-align:center;width:50px;">Cant.</th>
-        <th style="text-align:right;">P. Unitario</th>
-        <th style="text-align:right;">Total</th>
+        <th class="text-center" style="width:5%;">#</th>
+        <th style="width:35%;">Cód / Descripción</th>
+        <th class="text-center" style="width:8%;">Cant.</th>
+        <th class="text-center" style="width:8%;">U/M</th>
+        <th class="text-right" style="width:14%;">Unitario</th>
+        <th class="text-center" style="width:10%;">Imp (%)</th>
+        <th class="text-right" style="width:10%;">Imp ($)</th>
+        <th class="text-right" style="width:14%;">Valor Total</th>
       </tr>
     </thead>
     <tbody>
       ${itemsHtml}
+      <tr>
+        <td colspan="8" style="background:#f4f4f5; padding:6px 8px; border:none; border-top:1px solid #ccc; font-size:8px; font-weight:600; color:#555;">
+          TIPO DE OPERACIÓN: ESTÁNDAR - 10 | LÍNEAS DE DETALLE: ${items.length}
+        </td>
+      </tr>
     </tbody>
   </table>
 
-  <table class="totals" style="width:300px;margin-left:auto;">
-    <tr>
-      <td style="text-align:right;">Subtotal:</td>
-      <td style="text-align:right;">${formatCOP(subtotal)}</td>
-    </tr>
-    ${iva > 0 ? `<tr><td style="text-align:right;">IVA:</td><td style="text-align:right;">${formatCOP(iva)}</td></tr>` : ''}
-    ${shipping > 0 ? `<tr><td style="text-align:right;">Envío:</td><td style="text-align:right;">${formatCOP(shipping)}</td></tr>` : ''}
-    <tr class="total-row">
-      <td style="text-align:right;">TOTAL:</td>
-      <td style="text-align:right;">${formatCOP(total)}</td>
-    </tr>
-  </table>
-
-  <div class="cufe">
-    <span class="bold">CUFE:</span> ${invoice.cufe_code || 'N/A'}
+  <div class="totals-wrapper">
+    <div class="observations">
+      <strong style="font-size: 9px; color: #000;">OBSERVACIONES DE LA FACTURA:</strong><br><br>
+      Grandes contribuyentes. Somos retenedores de IVA. Responsables de IVA según normatividad vigente.<br>
+      ${resText}<br><br>
+      <strong>Garantías y Cambios:</strong> Para cambios de prendas, asegurese de no haberlas lavado ni cortado las marquillas. Dispone de 30 días hábiles posteriores a esta emisión para reportar novedades al canal de WhatsApp (+57 310 877-7629).<br>
+      <em>Si tiene un requerimiento sobre su factura por favor escriba a twosixfacturaelectronica@gmail.com adjuntando este PDF.</em>
+    </div>
+    <table class="totals-table">
+      <tr>
+        <td>Subtotal Bruto</td>
+        <td class="text-right">${formatCOP(subtotal)}</td>
+      </tr>
+      <tr>
+        <td>Impuestos COP (IVA)</td>
+        <td class="text-right">${formatCOP(iva)}</td>
+      </tr>
+      <tr>
+        <td>Gastos de Envío</td>
+        <td class="text-right">${formatCOP(shipping)}</td>
+      </tr>
+      <tr class="total-row">
+        <td>TOTAL A PAGAR COP</td>
+        <td class="text-right">${formatCOP(total)}</td>
+      </tr>
+    </table>
   </div>
 
-  ${qrImg ? `
-  <div class="qr-section">
-    <img src="${qrImg}" alt="QR DIAN"/>
-    <p>Consulte esta factura en:<br><a href="${qrUrl}">${qrUrl}</a></p>
-  </div>` : ''}
-
-  <div class="footer">
-    <p>Representación gráfica de factura electrónica - ${companyName}</p>
-    <p>Documento generado por el sistema Two Six &copy; ${new Date().getFullYear()}</p>
+  <div class="footer-norm">
+    <p>${resText}</p>
+    <div class="cufe-box">CUFE / CUDE: ${invoice.cufe_code || 'N/A'}</div>
+    <p style="font-weight: 500;">Proveedor Tecnológico: TWO SIX S.A.S. - NIT: ${nit}-${dv} | Identificador de Software: TWO SIX | Representación Gráfica de Factura Electrónica De Venta</p>
   </div>
+
+  <div class="signatures">
+    <div class="signature-box">
+      <strong style="color: #000;">Firma Digital Integrada:</strong><br><br>
+      V7GgRZy9ds2pATJCvnNnfJzYUPw+kXPYL2QxzM44RLYsM5aMCilzrhSq6+ASsis3zxwoE3cuAXe+IARgCmsJPBo/Bm7RwdrPofT+8EWAz2VyF3R11BZhjQVSu+WOZaCcmJjQkUkk7Jzf6Nvrfx53V4qFKR744zO9zqQKlELX+xlbMqzHuO/UaRHAuFxYh/E2W/gWo...
+    </div>
+    ${qrImg ? '<div class="qr-box"><img src="' + qrImg + '" alt="QR DIAN"/></div>' : ''}
+  </div>
+
 </body></html>`;
 
+    const htmlPdfNode = require('html-pdf-node');
+    const pdfBuffer = await htmlPdfNode.generatePdf(
+      { content: html }, 
+      { 
+        format: 'A4', 
+        margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' },
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--single-process']
+      }
+    );
+    
+    const fileName = order ? `Factura_${invoice.document_number}_${order.order_reference}.pdf` : `Factura_${invoice.document_number}.pdf`;
+
     res.set({
-      'Content-Type': 'text/html',
-      'Content-Disposition': `inline; filename="${invoice.document_number}.html"`,
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${fileName}"`,
+      'Access-Control-Expose-Headers': 'Content-Disposition',
     });
-    res.send(html);
+    res.send(pdfBuffer);
   }
 
   @Post('invoice')
@@ -353,13 +472,32 @@ export class DianController {
 
       const invoiceNumber = `${resolution.prefix}${nextNumber}`;
 
+      let orderLines = body.lines;
+      let customerName = body.customerName;
+      if (body.orderId && !orderLines) {
+        const order = await this.prisma.order.findUnique({
+          where: { id: parseInt(body.orderId, 10) },
+          include: { customer: true, orderItems: true }
+        });
+        if (order) {
+          customerName = order.customer?.name || body.customerName;
+          orderLines = order.orderItems.map(item => ({
+            description: item.product_name,
+            quantity: item.quantity,
+            unitPrice: item.unit_price,
+            taxPercent: 19
+          }));
+        }
+      }
+
       const invoiceDto: InvoiceDto = {
         number: invoiceNumber,
         date: body.date || new Date().toISOString().split('T')[0],
         time: body.time || '12:00:00-05:00',
-        customerName: body.customerName || 'Cliente Externo API',
+        customerName: customerName || 'Cliente Externo API',
         customerDoc: body.customerDoc || '1020304050',
         customerDocType: body.customerDocType || '13',
+        lines: orderLines,
 
         // Pasar datos de resolución para el XML
         resolutionPrefix: resolution.prefix,
@@ -376,11 +514,25 @@ export class DianController {
       const claveTecnica = resolution.technicalKey || this.configService.get<string>('DIAN_TECHNICAL_KEY') || '';
 
       // 1. Generar CUFE primero
+      const lines = invoiceDto.lines || [{ description: 'Producto', quantity: 1, unitPrice: 100000, taxPercent: 19 }];
+      let subtotal = 0;
+      let taxTotal = 0;
+      lines.forEach((l: any) => {
+        const up = Number(l.unitPrice.toFixed(2));
+        const lt = Number((l.quantity * up).toFixed(2));
+        const tp = l.taxPercent ?? 19;
+        const ut = Number((up * (tp / 100)).toFixed(2));
+        const t = Number((ut * l.quantity).toFixed(2));
+        subtotal += lt;
+        taxTotal += t;
+      });
+      const total = subtotal + taxTotal;
+
       const cufe = this.cufeService.generateCufe({
         NumFac: invoiceDto.number, FecFac: invoiceDto.date, HorFac: invoiceDto.time,
-        ValFac: '100000.00', CodImp1: '01', ValImp1: '19000.00',
-        CodImp2: '', ValImp2: '', CodImp3: '', ValImp3: '',
-        ValTot: '119000.00', NitOfe: nit, NumAdq: invoiceDto.customerDoc,
+        ValFac: subtotal.toFixed(2), CodImp1: '01', ValImp1: taxTotal.toFixed(2),
+        CodImp2: '04', ValImp2: '0.00', CodImp3: '03', ValImp3: '0.00',
+        ValTot: total.toFixed(2), NitOfe: nit, NumAdq: invoiceDto.customerDoc,
         ClTec: claveTecnica, TipoAmb: env === 'TEST' ? '2' : '1'
       });
 
@@ -393,7 +545,7 @@ export class DianController {
       const soapResponse = await this.soapService.sendInvoice(Buffer.from(signedXml), invoiceDto.number);
 
       const qrBase64 = await this.pdfService.generateQrBase64(
-        cufe, nit, '100000.00', '19000.00', '119000.00', invoiceDto.date
+        cufe, nit, subtotal.toFixed(2), taxTotal.toFixed(2), total.toFixed(2), invoiceDto.date
       );
 
       // Persistir en base de datos
@@ -423,6 +575,137 @@ export class DianController {
       };
     } catch (error) {
       this.logger.error('Error orquestando Factura DIAN', error);
+      throw new HttpException({
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        error: error.message,
+      }, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Post('invoices/retry/:orderId')
+  @ApiOperation({ summary: 'Reintenta generar y enviar una factura para una orden fallida' })
+  @HttpCode(HttpStatus.OK)
+  async retryInvoice(@Param('orderId') orderId: string, @Body() body: any) {
+    try {
+      const orderIdInt = parseInt(orderId, 10);
+      const existingInvoice = await this.prisma.dianEInvoicing.findFirst({
+        where: { id_order: orderIdInt },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      if (!existingInvoice) {
+        throw new Error('No existe una factura previa para esta orden. Use generar factura normalmente.');
+      }
+
+      if (existingInvoice.status === 'AUTHORIZED') {
+        throw new Error('La factura de esta orden ya se encuentra autorizada.');
+      }
+
+      const env = this.configService.get<string>('DIAN_ENVIRONMENT', 'TEST');
+      const resolution = await this.prisma.dianResolution.findFirst({
+        where: { isActive: true, environment: env, type: 'INVOICE' },
+      });
+      if (!resolution) throw new Error('No hay resolución DIAN activa');
+
+      const nextNumber = resolution.currentNumber + 1;
+      await this.prisma.dianResolution.update({
+        where: { id: resolution.id },
+        data: { currentNumber: nextNumber },
+      });
+
+      const invoiceNumber = `${resolution.prefix}${nextNumber}`;
+
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderIdInt },
+        include: { customer: true, orderItems: true }
+      });
+
+      let orderLines = body.lines;
+      if (order && !orderLines) {
+        orderLines = order.orderItems.map(item => ({
+          description: item.product_name,
+          quantity: item.quantity,
+          unitPrice: item.unit_price,
+          taxPercent: 19
+        }));
+      }
+
+      const invoiceDto = {
+        number: invoiceNumber,
+        date: body.date || new Date().toISOString().split('T')[0],
+        time: body.time || '12:00:00-05:00',
+        customerName: body.customerName || order?.customer?.name || 'Cliente Externo API',
+        customerDoc: body.customerDoc || '1020304050',
+        customerDocType: body.customerDocType || '13',
+        lines: orderLines,
+        resolutionPrefix: resolution.prefix,
+        resolutionNumber: resolution.resolutionNumber,
+        resolutionStartDate: resolution.startDate.toISOString().split('T')[0],
+        resolutionEndDate: resolution.endDate.toISOString().split('T')[0],
+        resolutionStartNumber: resolution.startNumber,
+        resolutionEndNumber: resolution.endNumber,
+      };
+
+      const nit = this.configService.get<string>('DIAN_COMPANY_NIT') || '';
+      const claveTecnica = resolution.technicalKey || this.configService.get<string>('DIAN_TECHNICAL_KEY') || '';
+
+      const lines = invoiceDto.lines || [{ description: 'Producto', quantity: 1, unitPrice: 100000, taxPercent: 19 }];
+      let subtotal = 0;
+      let taxTotal = 0;
+      lines.forEach((l: any) => {
+        const up = Number(l.unitPrice.toFixed(2));
+        const lt = Number((l.quantity * up).toFixed(2));
+        const tp = l.taxPercent ?? 19;
+        const ut = Number((up * (tp / 100)).toFixed(2));
+        const t = Number((ut * l.quantity).toFixed(2));
+        subtotal += lt;
+        taxTotal += t;
+      });
+      const total = subtotal + taxTotal;
+
+      const cufe = this.cufeService.generateCufe({
+        NumFac: invoiceDto.number, FecFac: invoiceDto.date, HorFac: invoiceDto.time,
+        ValFac: subtotal.toFixed(2), CodImp1: '01', ValImp1: taxTotal.toFixed(2),
+        CodImp2: '04', ValImp2: '0.00', CodImp3: '03', ValImp3: '0.00',
+        ValTot: total.toFixed(2), NitOfe: nit, NumAdq: invoiceDto.customerDoc,
+        ClTec: claveTecnica, TipoAmb: env === 'TEST' ? '2' : '1'
+      });
+
+      const xmlBase = this.ublService.generateInvoiceXml(invoiceDto as any);
+      const xmlWithCufe = xmlBase.replace(/CUFE_PLACEHOLDER/g, cufe);
+      const signedXml = this.signerService.signXml(xmlWithCufe);
+
+      const soapResponse = await this.soapService.sendInvoice(Buffer.from(signedXml), invoiceDto.number);
+
+      const qrBase64 = await this.pdfService.generateQrBase64(
+        cufe, nit, subtotal.toFixed(2), taxTotal.toFixed(2), total.toFixed(2), invoiceDto.date
+      );
+
+      const saved = await this.prisma.dianEInvoicing.create({
+        data: {
+          document_number: invoiceDto.number,
+          cufe_code: cufe,
+          qr_code: qrBase64,
+          issue_date: new Date(invoiceDto.date),
+          due_date: new Date(invoiceDto.date),
+          status: 'SENT',
+          dian_response: typeof soapResponse === 'string' ? soapResponse : JSON.stringify(soapResponse),
+          environment: env,
+          id_order: orderIdInt,
+          id_dian_resolution: resolution.id,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Factura DIAN reintentada con éxito',
+        invoiceId: saved.id,
+        cufe,
+        qrCode: qrBase64,
+        dianResponse: soapResponse,
+      };
+    } catch (error) {
+      this.logger.error('Error reintentando Factura DIAN', error);
       throw new HttpException({
         status: HttpStatus.INTERNAL_SERVER_ERROR,
         error: error.message,
@@ -468,6 +751,7 @@ export class DianController {
         paymentMeansCode: '10',
         lines: body.lines || [{ description: 'Devolución Total', quantity: 1, unitPrice: invoice.order!.iva ? (invoice.order!.total_payment - invoice.order!.iva) : 100000, taxPercent: 19 }],
         originalInvoiceNumber: invoice.document_number,
+        resolutionPrefix: resolution.prefix,
         originalInvoiceDate: invoice.issue_date.toISOString().split('T')[0],
         originalInvoiceCufe: invoice.cufe_code,
         reasonCode: body.reasonCode || '2', // 2 = Anulación de factura electrónica
@@ -477,17 +761,25 @@ export class DianController {
       const softwarePin = this.configService.get<string>('DIAN_SOFTWARE_PIN') || '';
       const nit = this.configService.get<string>('DIAN_COMPANY_NIT') || '';
 
-      // 1. Calcular Totales para CUDE
-      const subtotal = noteDto.lines!.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
-      const taxTotal = Math.round(subtotal * 0.19);
-      const total = subtotal + taxTotal;
+      // 1. Calcular Totales para CUDE asegurando 2 decimales limpios
+      const subtotalRaw = noteDto.lines!.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
+      const subtotalStr = subtotalRaw.toFixed(2);
+      const subtotal = Number(subtotalStr);
+
+      const taxTotalRaw = subtotal * 0.19;
+      const taxTotalStr = taxTotalRaw.toFixed(2);
+      const taxTotal = Number(taxTotalStr);
+
+      const totalRaw = subtotal + taxTotal;
+      const totalStr = totalRaw.toFixed(2);
+      const total = Number(totalStr);
 
       // 2. Generar CUDE
       const cude = this.cufeService.generateCude({
         NumNota: noteDto.number, FecNota: noteDto.date, HorNota: noteDto.time,
-        ValNota: subtotal.toFixed(2), CodImp1: '01', ValImp1: taxTotal.toFixed(2),
-        CodImp2: '', ValImp2: '', CodImp3: '', ValImp3: '',
-        ValTot: total.toFixed(2), NitOfe: nit, NumAdq: noteDto.customerDoc,
+        ValNota: subtotalStr, CodImp1: '01', ValImp1: taxTotalStr,
+        CodImp2: '04', ValImp2: '0.00', CodImp3: '03', ValImp3: '0.00',
+        ValTot: totalStr, NitOfe: nit, NumAdq: noteDto.customerDoc,
         PinSoftware: softwarePin, TipoAmb: env === 'TEST' ? '2' : '1'
       });
 
@@ -568,6 +860,7 @@ export class DianController {
         paymentMeansCode: '10',
         lines: body.lines || [{ description: 'Ajuste de precio', quantity: 1, unitPrice: 10000, taxPercent: 19 }],
         originalInvoiceNumber: invoice.document_number,
+        resolutionPrefix: resolution.prefix,
         originalInvoiceDate: invoice.issue_date.toISOString().split('T')[0],
         originalInvoiceCufe: invoice.cufe_code,
         reasonCode: body.reasonCode || '4', // 4 = Otros
@@ -586,7 +879,7 @@ export class DianController {
       const cude = this.cufeService.generateCude({
         NumNota: noteDto.number, FecNota: noteDto.date, HorNota: noteDto.time,
         ValNota: subtotal.toFixed(2), CodImp1: '01', ValImp1: taxTotal.toFixed(2),
-        CodImp2: '', ValImp2: '', CodImp3: '', ValImp3: '',
+        CodImp2: '04', ValImp2: '0.00', CodImp3: '03', ValImp3: '0.00',
         ValTot: total.toFixed(2), NitOfe: nit, NumAdq: noteDto.customerDoc,
         PinSoftware: softwarePin, TipoAmb: env === 'TEST' ? '2' : '1'
       });
@@ -659,6 +952,7 @@ export class DianController {
 
       // 2. Consultar DIAN
       const rawResponse = await this.soapService.getStatusZip(trackId);
+      const xmlBase64Bytes = rawResponse.match(/<b:XmlBase64Bytes>(.*?)<\/b:XmlBase64Bytes>/s)?.[1];
       const isValid = rawResponse.match(/<b:IsValid>(.*?)<\/b:IsValid>/)?.[1] === 'true';
       const statusCode = rawResponse.match(/<b:StatusCode>(.*?)<\/b:StatusCode>/)?.[1] || 'UNKNOWN';
       const statusDescription = rawResponse.match(/<b:StatusDescription>(.*?)<\/b:StatusDescription>/)?.[1] || '';
@@ -681,7 +975,8 @@ export class DianController {
         data: {
           dian_status_code: statusCode,
           status: newStatus,
-          status_message: rawResponse, // Opcional: reemplazar respuesta asíncrona por respuesta de validación final
+          status_message: rawResponse, // Opcional: reemplazar respuesta asíncrona
+          ...(xmlBase64Bytes ? { dian_zip_base64: xmlBase64Bytes } : {}),
         }
       });
 

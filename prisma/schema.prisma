@@ -396,7 +396,7 @@ model Order {
   total_payment    Float           @map("total_payment")
   payment_method   String          @default("WOMPI_FULL") @map("payment_method")
   cod_amount       Float           @default(0) @map("cod_amount")
-  dianEInvoicing   DianEInvoicing?
+  dianEInvoicings  DianEInvoicing[]
   customer         Customer        @relation(fields: [id_customer], references: [id])
   orderItems       OrderItem[]
   payments         Payments[]
@@ -493,7 +493,7 @@ model Payments {
 
 model DianEInvoicing {
   id                 Int             @id @default(autoincrement())
-  id_order           Int?            @unique @map("id_order")
+  id_order           Int?            @map("id_order")
   id_dian_resolution Int?            @map("id_dian_resolution")
   cufe_code          String?
   qr_code            String?
@@ -504,7 +504,9 @@ model DianEInvoicing {
   url_pdf            String?
   url_xml            String?
   dian_response      String?         @db.Text
+  dian_zip_base64    String?         @db.Text @map("dian_zip_base64")
   environment        String          @default("TEST") // "TEST" o "PRODUCTION"
+  email_sent         Boolean         @default(false) @map("email_sent")
   createdAt          DateTime        @default(now()) @map("created_at")
   updatedAt          DateTime?       @updatedAt @map("updated_at")
   order              Order?          @relation(fields: [id_order], references: [id])
@@ -551,6 +553,7 @@ model DianNote {
   status           String         @default("PENDING") // PENDING, SENT, ERROR
   status_message   String?        @db.Text @map("status_message")
   dian_status_code String?        @map("dian_status_code")
+  dian_zip_base64  String?        @db.Text @map("dian_zip_base64")
   
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime?      @updatedAt @map("updated_at")

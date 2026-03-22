@@ -137,7 +137,7 @@ export class DianUblService {
             schemeAgencyID: '195',
             schemeAgencyName: 'CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)',
           }).txt(nit).up()
-          .ele('cbc:TaxLevelCode', { listName: '48' }).txt('O-99').up()
+          .ele('cbc:TaxLevelCode', { listName: '48' }).txt('O-47').up()
           .ele('cac:RegistrationAddress')
             .ele('cbc:ID').txt('05266').up()
             .ele('cbc:CityName').txt('Envigado').up()
@@ -152,7 +152,7 @@ export class DianUblService {
             .up()
           .up()
           .ele('cac:TaxScheme')
-            .ele('cbc:ID').txt('01').up()
+            .ele('cbc:ID', { schemeID: '01', schemeName: 'IVA' }).txt('01').up()
             .ele('cbc:Name').txt('IVA').up()
           .up()
         .up()
@@ -165,7 +165,7 @@ export class DianUblService {
             schemeAgencyName: 'CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)',
           }).txt(nit).up()
           .ele('cac:CorporateRegistrationScheme')
-            .ele('cbc:ID').txt('SETP').up()
+            .ele('cbc:ID').txt(invoiceObj.resolutionPrefix || 'SETP').up()
             .ele('cbc:Name').txt('800197268').up()
           .up()
         .up()
@@ -184,12 +184,16 @@ export class DianUblService {
         .ele('cac:PartyTaxScheme')
           .ele('cbc:RegistrationName').txt(invoiceObj.customerName).up()
           .ele('cbc:CompanyID', { schemeID: invoiceObj.customerDocType, schemeName: invoiceObj.customerDocType, schemeAgencyID: '195', schemeAgencyName: 'CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)' }).txt(invoiceObj.customerDoc).up()
-          .ele('cbc:TaxLevelCode', { listName: '48' }).txt(customerAccountType === '1' ? 'O-99' : 'R-99-PN').up()
+          .ele('cbc:TaxLevelCode', { listName: '48' }).txt(customerAccountType === '2' ? 'O-47' : 'R-99-PN').up()
           .ele('cac:TaxScheme')
             .ele('cbc:ID').txt('ZZ').up()
             .ele('cbc:Name').txt('No aplica').up()
           .up()
         .up();
+
+    customerParty.ele('cac:Contact')
+      .ele('cbc:ElectronicMail').txt(invoiceObj.customerDoc + '@receptordian.com').up()
+    .up();
 
     if (customerAccountType === '2') { // Legal entity
       customerParty.ele('cac:PartyLegalEntity')
@@ -219,14 +223,35 @@ export class DianUblService {
       .update(softwareId + softwarePin + invoiceObj.number)
       .digest('hex');
 
-    // Calcular totales desde las líneas o usar valores por defecto
     const lines = invoiceObj.lines && invoiceObj.lines.length > 0
       ? invoiceObj.lines
       : [{ description: 'Producto', quantity: 1, unitPrice: 100000, taxPercent: 19 }];
 
-    const subtotal = invoiceObj.subtotal ?? lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
-    const taxTotal = invoiceObj.taxTotal ?? Math.round(subtotal * 0.19);
-    const total = invoiceObj.total ?? subtotal + taxTotal;
+    let subtotal = 0;
+    let taxTotal = 0;
+    const taxSubtotals: Record<string, { taxableAmount: number, taxAmount: number }> = {};
+    
+    const processedLines = lines.map(l => {
+      const unitPrice = Number(l.unitPrice.toFixed(2));
+      const lineTotal = Number((l.quantity * unitPrice).toFixed(2));
+      const lineTaxPercent = l.taxPercent ?? 19;
+      const unitTax = Number((unitPrice * (lineTaxPercent / 100)).toFixed(2));
+      const lineTax = Number((unitTax * l.quantity).toFixed(2));
+      
+      subtotal += lineTotal;
+      taxTotal += lineTax;
+      
+      const percentStr = Number(lineTaxPercent).toFixed(2);
+      if (!taxSubtotals[percentStr]) taxSubtotals[percentStr] = { taxableAmount: 0, taxAmount: 0 };
+      taxSubtotals[percentStr].taxableAmount += lineTotal;
+      taxSubtotals[percentStr].taxAmount += lineTax;
+      
+      return { ...l, unitPrice, lineTotal, lineTaxPercent, lineTax };
+    });
+
+    subtotal = invoiceObj.subtotal ?? Number(subtotal.toFixed(2));
+    taxTotal = invoiceObj.taxTotal ?? Number(taxTotal.toFixed(2));
+    const total = invoiceObj.total ?? Number((subtotal + taxTotal).toFixed(2));
 
     const doc = create({ version: '1.0', encoding: 'UTF-8', standalone: false })
       .ele('Invoice', {
@@ -274,20 +299,23 @@ export class DianUblService {
     .up();
 
     // Total de impuestos
-    doc.ele('cac:TaxTotal')
-      .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(taxTotal.toFixed(2)).up()
-      .ele('cac:TaxSubtotal')
-        .ele('cbc:TaxableAmount', { currencyID: 'COP' }).txt(subtotal.toFixed(2)).up()
-        .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(taxTotal.toFixed(2)).up()
+    const taxTotalNode = doc.ele('cac:TaxTotal')
+      .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(taxTotal.toFixed(2)).up();
+
+    for (const [percent, amounts] of Object.entries(taxSubtotals)) {
+      taxTotalNode.ele('cac:TaxSubtotal')
+        .ele('cbc:TaxableAmount', { currencyID: 'COP' }).txt(amounts.taxableAmount.toFixed(2)).up()
+        .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(amounts.taxAmount.toFixed(2)).up()
         .ele('cac:TaxCategory')
-          .ele('cbc:Percent').txt('19.00').up()
+          .ele('cbc:Percent').txt(percent).up()
           .ele('cac:TaxScheme')
-            .ele('cbc:ID').txt('01').up()
+            .ele('cbc:ID', { schemeID: '01', schemeName: 'IVA' }).txt('01').up()
             .ele('cbc:Name').txt('IVA').up()
           .up()
         .up()
-      .up()
-    .up();
+      .up();
+    }
+    taxTotalNode.up();
 
     // Totales monetarios
     doc.ele('cac:LegalMonetaryTotal')
@@ -298,17 +326,13 @@ export class DianUblService {
     .up();
 
     // Líneas de la factura
-    lines.forEach((line, index) => {
-      const unitPrice = Number(line.unitPrice.toFixed(2));
-      const lineTotal = Number((line.quantity * unitPrice).toFixed(2));
-      const lineTaxPercent = line.taxPercent ?? 19;
-      const lineTax = Number((lineTotal * (lineTaxPercent / 100)).toFixed(2));
-      
+    processedLines.forEach((line, index) => {
+      const { unitPrice, lineTotal, lineTaxPercent, lineTax } = line;
       const taxPercentStr = Number(lineTaxPercent).toFixed(2); // '19.00'
 
       doc.ele('cac:InvoiceLine')
         .ele('cbc:ID').txt(String(index + 1)).up()
-        .ele('cbc:InvoicedQuantity', { unitCode: 'EA' }).txt(String(line.quantity)).up()
+        .ele('cbc:InvoicedQuantity', { unitCode: '94' }).txt(String(line.quantity)).up()
         .ele('cbc:LineExtensionAmount', { currencyID: 'COP' }).txt(lineTotal.toFixed(2)).up()
         .ele('cac:TaxTotal')
           .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(lineTax.toFixed(2)).up()
@@ -318,7 +342,7 @@ export class DianUblService {
             .ele('cac:TaxCategory')
               .ele('cbc:Percent').txt(taxPercentStr).up()
               .ele('cac:TaxScheme')
-                .ele('cbc:ID').txt('01').up()
+                .ele('cbc:ID', { schemeID: '01', schemeName: 'IVA' }).txt('01').up()
                 .ele('cbc:Name').txt('IVA').up()
               .up()
             .up()
@@ -329,10 +353,17 @@ export class DianUblService {
           .ele('cac:StandardItemIdentification')
             .ele('cbc:ID', { schemeID: '999' }).txt('001').up()
           .up()
+          .ele('cac:ClassifiedTaxCategory')
+            .ele('cbc:Percent').txt(taxPercentStr).up()
+            .ele('cac:TaxScheme')
+              .ele('cbc:ID', { schemeID: '01', schemeName: 'IVA' }).txt('01').up()
+              .ele('cbc:Name').txt('IVA').up()
+            .up()
+          .up()
         .up()
         .ele('cac:Price')
           .ele('cbc:PriceAmount', { currencyID: 'COP' }).txt(line.unitPrice.toFixed(2)).up()
-          .ele('cbc:BaseQuantity', { unitCode: 'EA' }).txt('1').up()
+          .ele('cbc:BaseQuantity', { unitCode: '94' }).txt('1').up()
         .up()
       .up();
     });
@@ -354,9 +385,31 @@ export class DianUblService {
       ? noteObj.lines
       : [{ description: 'Devolución Producto', quantity: 1, unitPrice: 100000, taxPercent: 19 }];
 
-    const subtotal = noteObj.subtotal ?? lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
-    const taxTotal = noteObj.taxTotal ?? Math.round(subtotal * 0.19);
-    const total = noteObj.total ?? subtotal + taxTotal;
+    let subtotal = 0;
+    let taxTotal = 0;
+    const taxSubtotals: Record<string, { taxableAmount: number, taxAmount: number }> = {};
+    
+    const processedLines = lines.map(l => {
+      const unitPrice = Number(l.unitPrice.toFixed(2));
+      const lineTotal = Number((l.quantity * unitPrice).toFixed(2));
+      const lineTaxPercent = l.taxPercent ?? 19;
+      const unitTax = Number((unitPrice * (lineTaxPercent / 100)).toFixed(2));
+      const lineTax = Number((unitTax * l.quantity).toFixed(2));
+      
+      subtotal += lineTotal;
+      taxTotal += lineTax;
+      
+      const percentStr = Number(lineTaxPercent).toFixed(2);
+      if (!taxSubtotals[percentStr]) taxSubtotals[percentStr] = { taxableAmount: 0, taxAmount: 0 };
+      taxSubtotals[percentStr].taxableAmount += lineTotal;
+      taxSubtotals[percentStr].taxAmount += lineTax;
+      
+      return { ...l, unitPrice, lineTotal, lineTaxPercent, lineTax };
+    });
+
+    subtotal = noteObj.subtotal ?? Number(subtotal.toFixed(2));
+    taxTotal = noteObj.taxTotal ?? Number(taxTotal.toFixed(2));
+    const total = noteObj.total ?? Number((subtotal + taxTotal).toFixed(2));
 
     const doc = create({ version: '1.0', encoding: 'UTF-8', standalone: false })
       .ele('CreditNote', {
@@ -402,21 +455,31 @@ export class DianUblService {
 
     this.buildSupplierAndCustomer(doc, noteObj);
 
+    doc.ele('cac:PaymentMeans')
+      .ele('cbc:ID').txt('1').up()
+      .ele('cbc:PaymentMeansCode').txt(noteObj.paymentMeansCode || '10').up()
+      .ele('cbc:PaymentDueDate').txt(noteObj.date).up()
+      .ele('cbc:PaymentID').txt(noteObj.number).up()
+    .up();
+
     // Totales y lineas (CreditNoteLine instead of InvoiceLine)
-    doc.ele('cac:TaxTotal')
-      .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(taxTotal.toFixed(2)).up()
-      .ele('cac:TaxSubtotal')
-        .ele('cbc:TaxableAmount', { currencyID: 'COP' }).txt(subtotal.toFixed(2)).up()
-        .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(taxTotal.toFixed(2)).up()
+    const taxTotalNode = doc.ele('cac:TaxTotal')
+      .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(taxTotal.toFixed(2)).up();
+
+    for (const [percent, amounts] of Object.entries(taxSubtotals)) {
+      taxTotalNode.ele('cac:TaxSubtotal')
+        .ele('cbc:TaxableAmount', { currencyID: 'COP' }).txt(amounts.taxableAmount.toFixed(2)).up()
+        .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(amounts.taxAmount.toFixed(2)).up()
         .ele('cac:TaxCategory')
-          .ele('cbc:Percent').txt('19.00').up()
+          .ele('cbc:Percent').txt(percent).up()
           .ele('cac:TaxScheme')
-            .ele('cbc:ID').txt('01').up()
+            .ele('cbc:ID', { schemeID: '01', schemeName: 'IVA' }).txt('01').up()
             .ele('cbc:Name').txt('IVA').up()
           .up()
         .up()
-      .up()
-    .up();
+      .up();
+    }
+    taxTotalNode.up();
 
     doc.ele('cac:LegalMonetaryTotal')
       .ele('cbc:LineExtensionAmount', { currencyID: 'COP' }).txt(subtotal.toFixed(2)).up()
@@ -425,16 +488,13 @@ export class DianUblService {
       .ele('cbc:PayableAmount', { currencyID: 'COP' }).txt(total.toFixed(2)).up()
     .up();
 
-    lines.forEach((line, index) => {
-      const unitPrice = Number(line.unitPrice.toFixed(2));
-      const lineTotal = Number((line.quantity * unitPrice).toFixed(2));
-      const lineTaxPercent = line.taxPercent ?? 19;
-      const lineTax = Number((lineTotal * (lineTaxPercent / 100)).toFixed(2));
+    processedLines.forEach((line, index) => {
+      const { unitPrice, lineTotal, lineTaxPercent, lineTax } = line;
       const taxPercentStr = Number(lineTaxPercent).toFixed(2);
 
       doc.ele('cac:CreditNoteLine')
         .ele('cbc:ID').txt(String(index + 1)).up()
-        .ele('cbc:CreditedQuantity', { unitCode: 'EA' }).txt(String(line.quantity)).up()
+        .ele('cbc:CreditedQuantity', { unitCode: '94' }).txt(String(line.quantity)).up()
         .ele('cbc:LineExtensionAmount', { currencyID: 'COP' }).txt(lineTotal.toFixed(2)).up()
         .ele('cac:TaxTotal')
           .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(lineTax.toFixed(2)).up()
@@ -444,7 +504,7 @@ export class DianUblService {
             .ele('cac:TaxCategory')
               .ele('cbc:Percent').txt(taxPercentStr).up()
               .ele('cac:TaxScheme')
-                .ele('cbc:ID').txt('01').up()
+                .ele('cbc:ID', { schemeID: '01', schemeName: 'IVA' }).txt('01').up()
                 .ele('cbc:Name').txt('IVA').up()
               .up()
             .up()
@@ -455,10 +515,17 @@ export class DianUblService {
           .ele('cac:StandardItemIdentification')
             .ele('cbc:ID', { schemeID: '999' }).txt('001').up()
           .up()
+          .ele('cac:ClassifiedTaxCategory')
+            .ele('cbc:Percent').txt(taxPercentStr).up()
+            .ele('cac:TaxScheme')
+              .ele('cbc:ID', { schemeID: '01', schemeName: 'IVA' }).txt('01').up()
+              .ele('cbc:Name').txt('IVA').up()
+            .up()
+          .up()
         .up()
         .ele('cac:Price')
           .ele('cbc:PriceAmount', { currencyID: 'COP' }).txt(line.unitPrice.toFixed(2)).up()
-          .ele('cbc:BaseQuantity', { unitCode: 'EA' }).txt('1').up()
+          .ele('cbc:BaseQuantity', { unitCode: '94' }).txt('1').up()
         .up()
       .up();
     });
@@ -480,9 +547,31 @@ export class DianUblService {
       ? noteObj.lines
       : [{ description: 'Ajuste Producto', quantity: 1, unitPrice: 100000, taxPercent: 19 }];
 
-    const subtotal = noteObj.subtotal ?? lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
-    const taxTotal = noteObj.taxTotal ?? Math.round(subtotal * 0.19);
-    const total = noteObj.total ?? subtotal + taxTotal;
+    let subtotal = 0;
+    let taxTotal = 0;
+    const taxSubtotals: Record<string, { taxableAmount: number, taxAmount: number }> = {};
+    
+    const processedLines = lines.map(l => {
+      const unitPrice = Number(l.unitPrice.toFixed(2));
+      const lineTotal = Number((l.quantity * unitPrice).toFixed(2));
+      const lineTaxPercent = l.taxPercent ?? 19;
+      const unitTax = Number((unitPrice * (lineTaxPercent / 100)).toFixed(2));
+      const lineTax = Number((unitTax * l.quantity).toFixed(2));
+      
+      subtotal += lineTotal;
+      taxTotal += lineTax;
+      
+      const percentStr = Number(lineTaxPercent).toFixed(2);
+      if (!taxSubtotals[percentStr]) taxSubtotals[percentStr] = { taxableAmount: 0, taxAmount: 0 };
+      taxSubtotals[percentStr].taxableAmount += lineTotal;
+      taxSubtotals[percentStr].taxAmount += lineTax;
+      
+      return { ...l, unitPrice, lineTotal, lineTaxPercent, lineTax };
+    });
+
+    subtotal = noteObj.subtotal ?? Number(subtotal.toFixed(2));
+    taxTotal = noteObj.taxTotal ?? Number(taxTotal.toFixed(2));
+    const total = noteObj.total ?? Number((subtotal + taxTotal).toFixed(2));
 
     const doc = create({ version: '1.0', encoding: 'UTF-8', standalone: false })
       .ele('DebitNote', {
@@ -527,20 +616,30 @@ export class DianUblService {
 
     this.buildSupplierAndCustomer(doc, noteObj);
 
-    doc.ele('cac:TaxTotal')
-      .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(taxTotal.toFixed(2)).up()
-      .ele('cac:TaxSubtotal')
-        .ele('cbc:TaxableAmount', { currencyID: 'COP' }).txt(subtotal.toFixed(2)).up()
-        .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(taxTotal.toFixed(2)).up()
+    doc.ele('cac:PaymentMeans')
+      .ele('cbc:ID').txt('1').up()
+      .ele('cbc:PaymentMeansCode').txt(noteObj.paymentMeansCode || '10').up()
+      .ele('cbc:PaymentDueDate').txt(noteObj.date).up()
+      .ele('cbc:PaymentID').txt(noteObj.number).up()
+    .up();
+
+    const taxTotalNode = doc.ele('cac:TaxTotal')
+      .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(taxTotal.toFixed(2)).up();
+
+    for (const [percent, amounts] of Object.entries(taxSubtotals)) {
+      taxTotalNode.ele('cac:TaxSubtotal')
+        .ele('cbc:TaxableAmount', { currencyID: 'COP' }).txt(amounts.taxableAmount.toFixed(2)).up()
+        .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(amounts.taxAmount.toFixed(2)).up()
         .ele('cac:TaxCategory')
-          .ele('cbc:Percent').txt('19.00').up()
+          .ele('cbc:Percent').txt(percent).up()
           .ele('cac:TaxScheme')
-            .ele('cbc:ID').txt('01').up()
+            .ele('cbc:ID', { schemeID: '01', schemeName: 'IVA' }).txt('01').up()
             .ele('cbc:Name').txt('IVA').up()
           .up()
         .up()
-      .up()
-    .up();
+      .up();
+    }
+    taxTotalNode.up();
 
     doc.ele('cac:RequestedMonetaryTotal')
       .ele('cbc:LineExtensionAmount', { currencyID: 'COP' }).txt(subtotal.toFixed(2)).up()
@@ -549,16 +648,13 @@ export class DianUblService {
       .ele('cbc:PayableAmount', { currencyID: 'COP' }).txt(total.toFixed(2)).up()
     .up();
 
-    lines.forEach((line, index) => {
-      const unitPrice = Number(line.unitPrice.toFixed(2));
-      const lineTotal = Number((line.quantity * unitPrice).toFixed(2));
-      const lineTaxPercent = line.taxPercent ?? 19;
-      const lineTax = Number((lineTotal * (lineTaxPercent / 100)).toFixed(2));
+    processedLines.forEach((line, index) => {
+      const { unitPrice, lineTotal, lineTaxPercent, lineTax } = line;
       const taxPercentStr = Number(lineTaxPercent).toFixed(2);
 
       doc.ele('cac:DebitNoteLine')
         .ele('cbc:ID').txt(String(index + 1)).up()
-        .ele('cbc:DebitedQuantity', { unitCode: 'EA' }).txt(String(line.quantity)).up()
+        .ele('cbc:DebitedQuantity', { unitCode: '94' }).txt(String(line.quantity)).up()
         .ele('cbc:LineExtensionAmount', { currencyID: 'COP' }).txt(lineTotal.toFixed(2)).up()
         .ele('cac:TaxTotal')
           .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(lineTax.toFixed(2)).up()
@@ -568,7 +664,7 @@ export class DianUblService {
             .ele('cac:TaxCategory')
               .ele('cbc:Percent').txt(taxPercentStr).up()
               .ele('cac:TaxScheme')
-                .ele('cbc:ID').txt('01').up()
+                .ele('cbc:ID', { schemeID: '01', schemeName: 'IVA' }).txt('01').up()
                 .ele('cbc:Name').txt('IVA').up()
               .up()
             .up()
@@ -579,10 +675,17 @@ export class DianUblService {
           .ele('cac:StandardItemIdentification')
             .ele('cbc:ID', { schemeID: '999' }).txt('001').up()
           .up()
+          .ele('cac:ClassifiedTaxCategory')
+            .ele('cbc:Percent').txt(taxPercentStr).up()
+            .ele('cac:TaxScheme')
+              .ele('cbc:ID', { schemeID: '01', schemeName: 'IVA' }).txt('01').up()
+              .ele('cbc:Name').txt('IVA').up()
+            .up()
+          .up()
         .up()
         .ele('cac:Price')
           .ele('cbc:PriceAmount', { currencyID: 'COP' }).txt(line.unitPrice.toFixed(2)).up()
-          .ele('cbc:BaseQuantity', { unitCode: 'EA' }).txt('1').up()
+          .ele('cbc:BaseQuantity', { unitCode: '94' }).txt('1').up()
         .up()
       .up();
     });

@@ -12,6 +12,7 @@ import { DianSignerService } from '../dian/dian-signer/dian-signer.service';
 import { DianCufeService } from '../dian/dian-cufe/dian-cufe.service';
 import { DianSoapService } from '../dian/dian-soap/dian-soap.service';
 import { DianPdfService } from '../dian/dian-pdf/dian-pdf.service';
+import { DianEmailService } from '../dian/dian-email.service';
 
 @Injectable()
 export class OrderService {
@@ -24,6 +25,7 @@ export class OrderService {
     private readonly cufeService: DianCufeService,
     private readonly soapService: DianSoapService,
     private readonly pdfService: DianPdfService,
+    private readonly dianEmailService: DianEmailService,
   ) { }
 
   async validateDiscountCode(code: string, email: string) {
@@ -319,7 +321,8 @@ export class OrderService {
       if (order.is_paid && transaction.status === 'APPROVED') {
         console.log(`La orden ${orderReference} ya fue procesada previamente. Omitiendo duplicados.`);
         const existingInvoice = await this.prisma.dianEInvoicing.findFirst({
-          where: { id_order: order.id }
+          where: { id_order: order.id },
+          orderBy: { createdAt: 'desc' }
         });
         return {
           status: 'APPROVED',
@@ -403,7 +406,8 @@ export class OrderService {
         // 5. Generar factura electrónica DIAN (solo si no existe una previa)
         let invoiceData: any = null;
         const existingInvoice = await this.prisma.dianEInvoicing.findFirst({
-          where: { id_order: order.id }
+          where: { id_order: order.id },
+          orderBy: { createdAt: 'desc' }
         });
 
         if (existingInvoice) {
@@ -455,13 +459,16 @@ export class OrderService {
             });
           }
 
-          // Generate exact DIAN totals
+          // Generate exact DIAN totals (Must strictly match UBL engine logic: unit tax first)
           let dianSubtotal = 0;
           let dianIva = 0;
           invoiceLines.forEach(line => {
             line.unitPrice = Number(line.unitPrice.toFixed(2));
             const lineTotal = Number((line.quantity * line.unitPrice).toFixed(2));
-            const lineTax = Number((lineTotal * (line.taxPercent / 100)).toFixed(2));
+            
+            const lineTaxPercent = line.taxPercent ?? 19;
+            const unitTax = Number((line.unitPrice * (lineTaxPercent / 100)).toFixed(2));
+            const lineTax = Number((unitTax * line.quantity).toFixed(2));
             
             dianSubtotal += lineTotal;
             dianIva += lineTax;
@@ -522,12 +529,17 @@ export class OrderService {
               qr_code: qrBase64,
               issue_date: new Date(invoiceDate),
               due_date: new Date(invoiceDate),
-              status: 'SENT',
+              status: env === 'TEST' ? 'SENT' : 'AUTHORIZED',
               dian_response: typeof soapResponse === 'string' ? soapResponse : JSON.stringify(soapResponse),
               environment: env,
               id_order: order.id,
             },
           });
+
+          if (savedInvoice.status === 'AUTHORIZED') {
+             // Producción dispara correo síncrono
+             this.dianEmailService.sendDianInvoiceEmail(savedInvoice.id).catch(err => console.error('Error enviando correo síncrono DIAN:', err));
+          }
 
           invoiceData = { id: savedInvoice.id, cufe, qrBase64, invoiceNumber, cufeUrl: `https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=${cufe}` };
           console.log(`Factura DIAN ${invoiceNumber} generada para orden ${order.order_reference}`);
@@ -598,27 +610,12 @@ export class OrderService {
             const storeEmail = this.configService.get<string>('EMAIL_TO');
             console.log(`Enviando correo de confirmación a: ${order.customer.email} (copia a: ${storeEmail || 'NO CONFIGURADO'})`);
 
-            // Generar QR como buffer PNG para adjuntar inline
-            let qrAttachments: Array<{ filename: string; content: Buffer; cid: string }> = [];
-            if (invoiceData) {
-              try {
-                const QRCode = require('qrcode');
-                const qrPngBuffer = await QRCode.toBuffer(invoiceData.cufeUrl, { width: 200, margin: 2, errorCorrectionLevel: 'M' });
-                qrAttachments = [{
-                  filename: 'qr-dian.png',
-                  content: qrPngBuffer,
-                  cid: 'qr-dian',
-                }];
-              } catch (e) {
-                console.error('Error generando QR para email:', e);
-              }
-            }
+            // El correo incluirá detalles comerciales del pedido (Facturación viaja en flujo independiente async/sync).
 
             await this.mailerService.sendMail({
               to: order.customer.email,
               ...(storeEmail ? { bcc: storeEmail } : {}),
               subject: `${this.configService.get<string>('FRONTEND_URL', '').includes('localhost') ? '[LOCAL] ' : ''}Confirmación de Pedido ${order.order_reference} - Two Six`,
-              attachments: qrAttachments,
               html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
                 <div style="text-align: center; padding: 20px; background-color: #f8f9fa;">
@@ -660,14 +657,7 @@ export class OrderService {
                     </p>
                   </div>
 
-                  ${invoiceData ? `
-                  <div style="background-color: #e8f5e9; padding: 15px; margin-top: 20px; border-radius: 5px; border-left: 4px solid #4caf50;">
-                    <h4 style="margin-top: 0; color: #2e7d32;">Factura Electrónica DIAN</h4>
-                    <p style="margin-bottom: 5px;"><strong>Número:</strong> ${invoiceData.invoiceNumber}</p>
-                    <p style="margin-bottom: 5px;"><strong>CUFE:</strong> <span style="font-size: 10px; word-break: break-all;">${invoiceData.cufe}</span></p>
-                    <div style="text-align: center; margin-top: 10px;"><img src="cid:qr-dian" alt="QR Factura DIAN" width="140" height="140" style="width: 140px; height: 140px;"/></div>
-                    <p style="font-size: 11px; color: #666; margin-top: 10px;">Puedes consultar tu factura en el catálogo de la DIAN: <a href="${invoiceData.cufeUrl}">catalogo-vpfe.dian.gov.co</a></p>
-                  </div>` : ''}
+                  <!-- Facturación viaja en flujo independiente async/sync -->
 
                   <p style="margin-top: 30px; text-align: center;">
                     <a href="${this.configService.get<string>('FRONTEND_URL')}/tracking" style="background-color: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Rastrear mi Pedido</a>
@@ -829,12 +819,13 @@ export class OrderService {
     });
   }
 
-  findOne(id: number) {
-    return this.prisma.order.findUnique({
+  async findOne(id: number) {
+    const order = await this.prisma.order.findUnique({
       where: { id },
       include: {
         customer: true,
-        dianEInvoicing: {
+        dianEInvoicings: {
+          orderBy: { createdAt: 'desc' },
           include: {
             dianNotes: true
           }
@@ -869,14 +860,22 @@ export class OrderService {
         }
       },
     });
+
+    if (!order) return null;
+
+    // Map dianEInvoicing for backward compatibility while exposing the full history
+    return {
+      ...order,
+      dianEInvoicing: order.dianEInvoicings?.length > 0 ? order.dianEInvoicings[0] : null,
+    };
   }
 
-  findByReference(reference: string) {
-    return this.prisma.order.findUnique({
+  async findByReference(reference: string) {
+    const order = await this.prisma.order.findUnique({
       where: { order_reference: reference },
       include: {
         customer: true,
-        dianEInvoicing: true,
+        dianEInvoicings: { orderBy: { createdAt: 'desc' } },
         orderItems: {
           include: {
             product: {
@@ -896,6 +895,13 @@ export class OrderService {
         },
       },
     });
+
+    if (!order) return null;
+
+    return {
+      ...order,
+      dianEInvoicing: order.dianEInvoicings?.length > 0 ? order.dianEInvoicings[0] : null,
+    };
   }
 
   update(id: number, updateOrderDto: UpdateOrderDto) {
