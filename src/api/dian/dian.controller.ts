@@ -26,7 +26,7 @@ export class DianController {
     private readonly pdfService: DianPdfService,
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService
-  ) {}
+  ) { }
 
   @Get('invoices')
   @ApiOperation({ summary: 'Listar historial de Facturas Electrónicas DIAN' })
@@ -117,13 +117,13 @@ export class DianController {
     try {
       const rawResponse = await this.soapService.getStatusZip(trackId);
       const xmlBase64Bytes = rawResponse.match(/<b:XmlBase64Bytes>(.*?)<\/b:XmlBase64Bytes>/s)?.[1];
-      
+
       if (!xmlBase64Bytes) {
         throw new HttpException('La respuesta de la DIAN no contiene XmlBase64Bytes', HttpStatus.NOT_FOUND);
       }
 
       const xmlBuffer = Buffer.from(xmlBase64Bytes, 'base64');
-      
+
       // La DIAN a veces puede empacar ApplicationResponse adentro de un ZIP en el XmlBase64Bytes.
       // (En la gran mayoría de casos de Validación es un XML Directo (AttachedDocument / ApplicationResponse).
       // Le ponemos descarga ApplicationResponse.xml 
@@ -235,16 +235,14 @@ export class DianController {
     const itemsHtml = items.length > 0
       ? items.map((item, i) => `
         <tr>
-          <td class="text-center" style="padding: 8px; border-bottom: 1px solid #eee; border-right: 1px solid #eee;">${item.id_product || i + 1}</td>
-          <td style="padding: 8px; border-bottom: 1px solid #eee; border-right: 1px solid #eee;">${item.product_name} ${item.size ? '- Talla '+item.size : ''}</td>
-          <td class="text-center" style="padding: 8px; border-bottom: 1px solid #eee; border-right: 1px solid #eee;">${item.quantity}</td>
-          <td class="text-center" style="padding: 8px; border-bottom: 1px solid #eee; border-right: 1px solid #eee;">94</td>
-          <td class="text-right" style="padding: 8px; border-bottom: 1px solid #eee; border-right: 1px solid #eee;">${formatCOP(item.unit_price)}</td>
-          <td class="text-center" style="padding: 8px; border-bottom: 1px solid #eee; border-right: 1px solid #eee;">${order?.iva && order.iva > 0 ? '19%' : '0%'}</td>
-          <td class="text-right" style="padding: 8px; border-bottom: 1px solid #eee; border-right: 1px solid #eee;">${formatCOP(order?.iva && order.iva > 0 ? item.unit_price * 0.19 : 0)}</td>
-          <td class="text-right" style="padding: 8px; border-bottom: 1px solid #eee;">${formatCOP(item.unit_price * item.quantity)}</td>
+          <td class="text-center">${item.id_product || i + 1}</td>
+          <td>${item.product_name} ${item.size ? '- Talla ' + item.size : ''}</td>
+          <td class="text-center">${item.quantity}</td>
+          <td class="text-right">${formatCOP(item.unit_price)}</td>
+          <td class="text-center">${order?.iva && order.iva > 0 ? '19%' : '0%'}</td>
+          <td class="text-right">${formatCOP(item.unit_price * item.quantity)}</td>
         </tr>`).join('')
-      : '<tr><td colspan="8" class="text-center" style="padding: 8px; color: #888;">Factura generada sin detalle de productos (prueba API)</td></tr>';
+      : '<tr><td colspan="6" class="text-center" style="color: #888;">Factura generada sin detalle de productos (prueba API)</td></tr>';
 
     // Regenerar QR con URL limpia si el actual no funciona
     const qrUrl = `https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=${invoice.cufe_code}`;
@@ -255,7 +253,7 @@ export class DianController {
 
     const fsNative = require('fs');
     const pathNative = require('path');
-    const logoPath = pathNative.join(process.cwd(), '../two-six-web/public/logo-black.png');
+    const logoPath = pathNative.join(process.cwd(), '../two-six-web/public/logo-gorilla.png');
     let logoBase64 = '';
     if (fsNative.existsSync(logoPath)) {
       logoBase64 = 'data:image/png;base64,' + fsNative.readFileSync(logoPath).toString('base64');
@@ -264,182 +262,249 @@ export class DianController {
     const resolution = await this.prisma.dianResolution.findFirst({
       where: { isActive: true, environment: invoice.environment, type: 'INVOICE' }
     });
-    const resText = resolution 
-      ? `Facturación Electrónica, según resolución de la DIAN No. ${resolution.resolutionNumber} con vigencia del ${resolution.startDate?.toISOString().split('T')[0]} al ${resolution.endDate?.toISOString().split('T')[0]}. Numeración habilitada del ${resolution.prefix}${resolution.startNumber} a ${resolution.prefix}${resolution.endNumber}` 
+    const resText = resolution
+      ? `Facturación Electrónica, según resolución de la DIAN No. ${resolution.resolutionNumber} con vigencia del ${resolution.startDate?.toISOString().split('T')[0]} al ${resolution.endDate?.toISOString().split('T')[0]}. Numeración habilitada del ${resolution.prefix}${resolution.startNumber} a ${resolution.prefix}${resolution.endNumber}`
       : 'Resolución DIAN no configurada';
 
     const validationDate = invoice.updatedAt ? invoice.updatedAt.toLocaleString('es-CO') : invoice.issue_date.toLocaleString('es-CO');
 
     const html = `
-<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Factura ${invoice.document_number}</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  * { box-sizing: border-box; }
-  body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; font-size: 10px; color: #111; }
-  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 15px; }
-  .header-left .brand { display: flex; align-items: center; gap: 15px; margin-bottom: 8px; }
-  .header-left img { max-height: 55px; }
-  .header-left h1 { margin: 0; font-size: 16px; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; color: #000; }
-  .header-left p { margin: 2px 0; font-size: 9px; color: #444; }
-  .header-right { text-align: right; }
-  .header-right h2 { margin: 0; font-size: 16px; font-weight: 700; color: #000; }
-  .header-right p { margin: 4px 0 0 0; font-size: 11px; color: #666; }
-  
-  .info-sections { display: table; width: 100%; border-collapse: collapse; margin-bottom: 15px; border: 1px solid #ccc; }
-  .info-sections .cell { display: table-cell; width: 33.33%; padding: 10px; border-right: 1px solid #ccc; vertical-align: top; }
-  .info-sections .cell:last-child { border-right: none; }
-  .cell-title { font-weight: 700; font-size: 10px; text-transform: uppercase; margin-bottom: 8px; color: #000; padding-bottom: 4px; border-bottom: 1px solid #eee; }
-  .cell-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 9px; }
-  .cell-label { font-weight: 600; color: #666; }
-  .cell-value { text-align: right; color: #000; font-weight: 500; max-width: 60%; word-wrap: break-word; }
+    <!DOCTYPE html>
+    <html><head><meta charset="utf-8"><title>Factura ${invoice.document_number}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; font-size: 9px; color: #1e293b; background: #fff; }
 
-  table.details { width: 100%; border-collapse: collapse; margin-bottom: 15px; border: 1px solid #ccc; }
-  table.details thead th { background: #eee; padding: 8px; font-size: 9px; text-transform: uppercase; border-bottom: 1px solid #ccc; border-right: 1px solid #ccc; text-align: left; color: #222; }
-  table.details tbody td { padding: 8px; font-size: 9px; color: #222; }
-  
-  .totals-wrapper { display: flex; justify-content: space-between; margin-bottom: 20px; align-items: flex-start; }
-  .observations { flex: 1; border: 1px solid #ccc; padding: 10px; margin-right: 15px; font-size: 8px; line-height: 1.4; color: #444; }
-  .totals-table { width: 300px; border-collapse: collapse; border: 1px solid #ccc; }
-  .totals-table td { padding: 6px 10px; border-bottom: 1px solid #eee; font-size: 10px; }
-  .totals-table .total-row td { background: #f4f4f5; font-weight: 700; font-size: 12px; border-top: 1px solid #ccc; color: #000; }
-  
-  .footer-norm { border: 1px solid #ccc; padding: 10px; font-size: 8px; text-align: center; color: #555; margin-bottom: 15px; }
-  .footer-norm p { margin: 3px 0; }
-  .cufe-box { font-family: monospace; word-break: break-all; background: #f9f9f9; padding: 5px; border: 1px solid #ddd; margin: 5px 0; color: #000; font-size: 9px; }
-  
-  .signatures { display: flex; justify-content: space-between; align-items: center; border: 1px solid #ccc; padding: 10px; border-radius: 4px; }
-  .signature-box { flex: 1; font-size: 7px; color: #888; word-break: break-all; padding-right: 20px; line-height: 1.2; }
-  .qr-box { width: 100px; text-align: right; }
-  .qr-box img { width: 90px; height: 90px; }
-  
-  .text-right { text-align: right !important; }
-  .text-center { text-align: center !important; }
-</style>
-</head><body>
-  <div class="header">
-    <div class="header-left">
-      <div class="brand">
-        ${logoBase64 ? '<img src="' + logoBase64 + '" alt="Logo"/>' : ''}
-        <div>
-          <h1>${companyName}</h1>
-          <p>NIT: ${nit}-${dv} | Régimen Común</p>
+      /* ═══ HEADER ═══ */
+      .hdr { background: linear-gradient(135deg, #131313 0%, #1a1a1a 40%, #222222 100%); padding: 22px 28px 18px; display: flex; justify-content: space-between; align-items: flex-start; position: relative; }
+      .hdr::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #b8962e, #d4af37, #f5d76e, #d4af37, #b8962e); }
+      .hdr-left { display: flex; gap: 14px; align-items: center; }
+      .logo-icon { width: 50px; height: 50px; filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.5)); flex-shrink: 0; }
+      .logo-icon img { width: 100%; height: 100%; object-fit: contain; }
+      .hdr-info { display: flex; flex-direction: column; justify-content: center; }
+      .hdr-info .co-name { margin-bottom: 2px; height: 26px; }
+      .hdr-info .co-sub { font-size: 8px; color: #d4af37; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; opacity: 0.95; }
+      .hdr-info .co-detail { font-size: 7.5px; line-height: 1.8; color: #999; }
+      .hdr-info .co-detail b { color: #ccc; font-weight: 400; }
+      .hdr-right { display: flex; gap: 18px; align-items: center; text-align: right; }
+      .hdr-right-text { display: flex; flex-direction: column; align-items: center; }
+      .hdr-right-text .fe-label { font-family: 'Georgia', 'Times New Roman', serif; font-size: 14px; font-weight: 400; color: #ffffff; text-transform: uppercase; letter-spacing: 4px; margin-bottom: 6px; }
+      .hdr-right-text .doc-num-wrap { padding: 5px 0; margin-bottom: 6px; position: relative; width: 100%; text-align: center; }
+      .hdr-right-text .doc-num-wrap::before { content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px; background: linear-gradient(90deg, transparent, #b8962e, #f5d76e, #b8962e, transparent); }
+      .hdr-right-text .doc-num-wrap::after { content: ''; position: absolute; bottom: 0; left: 10%; right: 10%; height: 1px; background: linear-gradient(90deg, transparent, #b8962e, #f5d76e, #b8962e, transparent); }
+      .hdr-right-text .doc-num { font-size: 22px; font-weight: 800; color: #d4af37; letter-spacing: 2px; }
+      .hdr-right-text .doc-dates { font-size: 7.5px; color: #888; line-height: 1.7; text-align: center; }
+      .hdr-right-text .doc-dates b { color: #bbb; }
+      .hdr-qr img { width: 68px; height: 68px; border: 1px solid #d4af37; border-radius: 4px; background: #fff; padding: 2px; }
+
+      /* ═══ GOLD BAR ═══ */
+      .gold-bar { height: 4px; background: linear-gradient(90deg, #b8962e, #d4af37, #f5d76e, #d4af37, #b8962e); }
+
+      /* ═══ BODY ═══ */
+      .body { padding: 24px 28px 18px; background: linear-gradient(135deg, #f6f7f9 0%, #e2e8f0 100%); }
+
+      /* ═══ INFO SECTION ═══ */
+      .info-grid { display: flex; gap: 16px; margin-bottom: 16px; }
+      .info-box { flex: 1; border: 1px solid #cbd5e1; border-left: 4px solid #d4af37; border-radius: 0 6px 6px 0; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+      .info-box .ib-title { padding: 7px 12px; font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; color: #0f172a; border-bottom: 1px solid #f0ebe0; background: linear-gradient(90deg, rgba(212,175,55,0.08) 0%, transparent 100%); }
+      .info-box .ib-title .icon { margin-right: 6px; }
+      .info-box .ib-row { display: flex; justify-content: space-between; padding: 5px 12px; border-bottom: 1px solid #f8f5ee; font-size: 9px; }
+      .info-box .ib-row:last-child { border-bottom: none; }
+      .info-box .ib-row .lbl { color: #7c7362; font-weight: 600; font-size: 8px; text-transform: uppercase; }
+      .info-box .ib-row .val { color: #0f172a; font-weight: 700; text-align: right; max-width: 60%; }
+
+      /* ═══ ITEMS TABLE ═══ */
+      .tbl-wrap { border: 2px solid #d4af37; border-radius: 8px; overflow: hidden; margin-bottom: 6px; background: #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.03); }
+      .tbl { width: 100%; border-collapse: collapse; }
+      .tbl thead th { background: linear-gradient(135deg, #131313, #222222); color: #d4af37; padding: 9px 10px; font-size: 8px; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 800; text-align: left; }
+      .tbl tbody td { padding: 8px 10px; font-size: 9px; color: #1e293b; border-bottom: 1px solid #f0ebe0; font-weight: 500; }
+      .tbl tbody tr:nth-child(even) td { background: #fdfcf8; }
+      .tbl tbody tr:last-child td { border-bottom: none; }
+      .tbl .td-total { color: #d4af37; font-weight: 800; font-size: 10px; }
+      .tbl-footer { text-align: center; padding: 5px; font-size: 7.5px; color: #94a3b8; border-top: 1px dashed #e5e0d0; background: #fdfcf8; }
+
+      /* ═══ BOTTOM SECTION ═══ */
+      .bottom { display: flex; gap: 16px; margin-top: 14px; }
+      .obs-col { flex: 1; }
+      .obs-title { font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #0f172a; padding-bottom: 4px; border-bottom: 2px solid #d4af37; margin-bottom: 8px; display: inline-block; }
+      .obs-txt { font-size: 8px; color: #475569; line-height: 1.5; }
+      .obs-txt b { color: #0f172a; }
+      .obs-contact { margin-top: 8px; background: linear-gradient(90deg, rgba(212,175,55,0.08), transparent); border-left: 3px solid #d4af37; padding: 6px 10px; border-radius: 0 4px 4px 0; font-size: 7.5px; color: #475569; }
+      .obs-contact a { color: #d4af37; font-weight: 700; text-decoration: none; }
+
+      /* ═══ TOTALS ═══ */
+      .tot-col { width: 260px; }
+      .tot-box { border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+      .tot-row { display: flex; justify-content: space-between; padding: 7px 14px; border-bottom: 1px solid #f0ebe0; }
+      .tot-row .tl { font-size: 8.5px; color: #64748b; font-weight: 600; }
+      .tot-row .tv { font-size: 10px; color: #0f172a; font-weight: 700; }
+      .tot-grand { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: linear-gradient(135deg, #d4af37 0%, #f5d76e 50%, #d4af37 100%); }
+      .tot-grand .tl { font-size: 10px; color: #0f172a; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+      .tot-grand .tv { font-size: 16px; color: #0f172a; font-weight: 800; }
+
+      /* ═══ THANK YOU ═══ */
+      .thanks { text-align: center; margin: 20px 0 8px; }
+      .thanks .msg { font-size: 14px; font-style: italic; color: #d4af37; font-weight: 600; }
+      .thanks .brand-line { font-size: 11px; font-weight: 700; color: #0f172a; margin-top: 3px; font-style: italic; }
+
+      /* ═══ DARK FOOTER ═══ */
+      .dark-foot { background: linear-gradient(135deg, #131313 0%, #1a1a1a 40%, #222222 100%); padding: 18px 28px; color: #94a3b8; font-size: 8px; line-height: 1.6; }
+      .foot-row { margin-bottom: 5px; }
+      .foot-cufe-label { color: #d4af37; font-weight: 800; }
+      .foot-cufe-val { color: #f8fafc; word-break: break-all; }
+      .foot-text { color: #94a3b8; }
+
+      .text-right { text-align: right !important; }
+      .text-center { text-align: center !important; }
+    </style>
+    </head><body>
+
+      <!-- ═══ HEADER ═══ -->
+      <div class="hdr">
+        <div class="hdr-left">
+          ${logoBase64 ? '<div class="logo-icon"><img src="' + logoBase64 + '" alt="Two Six"/></div>' : ''}
+          <div class="hdr-info">
+            <div class="co-name">
+              <svg width="220" height="28" viewBox="0 0 220 28" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#b8962e"/>
+                    <stop offset="50%" stop-color="#fef0a0"/>
+                    <stop offset="100%" stop-color="#d4af37"/>
+                  </linearGradient>
+                </defs>
+                <text x="0" y="22" font-family="Georgia, serif" font-size="22px" font-weight="800" fill="url(#goldGrad)" letter-spacing="5">TWO SIX</text>
+              </svg>
+            </div>
+            <div class="co-sub">CRAFTED FOR REAL ONES</div>
+            <div class="co-detail">
+              <b>TWO SIX S.A.S. | NIT:</b> ${nit}-${dv} <b>|</b> Régimen Común<br>
+              <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="#d4af37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 2px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> CL 36 D SUR 27 D 39 <span style="color: #d4af37; margin: 0 4px">•</span> Envigado, Colombia<br>
+              <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="#d4af37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 2px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> +57 (310) 877-7629 &nbsp;&nbsp; <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="#d4af37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 2px;"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg> twosixweb.com<br>
+              <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="#d4af37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 2px;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg> twosixfacturaelectronica@gmail.com
+            </div>
+          </div>
+        </div>
+        <div class="hdr-right">
+          <div class="hdr-right-text">
+            <div class="fe-label">Factura Electrónica</div>
+            <div class="doc-num-wrap">
+              <div class="doc-num">${invoice.document_number}</div>
+            </div>
+            <div class="doc-dates">
+              Emitida: <b>${invoice.issue_date.toLocaleString('es-CO')}</b><br>
+              Validación DIAN: <b>${validationDate}</b>
+            </div>
+          </div>
+          ${qrImg ? '<div class="hdr-qr"><img src="' + qrImg + '" alt="QR"/></div>' : ''}
         </div>
       </div>
-      <p>CL 36 D SUR 27 D 39 AP 1001, Envigado, Colombia</p>
-      <p>Tel: +57 (310) 877-7629 | Web: https://twosixweb.com/</p>
-      <p>Contacto: twosixmarca@gmail.com | Facturación: twosixfacturaelectronica@gmail.com</p>
-    </div>
-    <div class="header-right">
-      <h2>FACTURA ELECTRÓNICA DE VENTA</h2>
-      <p style="font-size: 14px; font-weight: bold; color: #000; margin-top: 8px;">${invoice.document_number}</p>
-      <p>Página 1 de 1</p>
-    </div>
-  </div>
 
-  <div class="info-sections">
-    <div class="cell" style="width: 40%">
-      <div class="cell-title">Información del Cliente</div>
-      <div class="cell-row"><span class="cell-label">Peticionario:</span> <span class="cell-value">${customer?.name || 'Cliente Mostrador'}</span></div>
-      <div class="cell-row"><span class="cell-label">CC/NIT:</span> <span class="cell-value">${(customer as any)?.document_number || (customer as any)?.identification_number || '222222222222'}</span></div>
-      <div class="cell-row"><span class="cell-label">Celular:</span> <span class="cell-value">${customer?.current_phone_number || 'No Registra'}</span></div>
-      <div class="cell-row"><span class="cell-label">Correo:</span> <span class="cell-value">${customer?.email || 'facturas@twosix.com.co'}</span></div>
-      <div class="cell-row"><span class="cell-label">Dirección / Ciudad:</span> <span class="cell-value">${order?.shipping_address || customer?.shipping_address || 'Medellín, Colombia'}</span></div>
-    </div>
-    <div class="cell" style="width: 60%;">
-      <div class="cell-title">Datos Regulares de la Factura</div>
-      <div style="display: flex; gap: 10px;">
-        <div style="flex: 1;">
-          <div class="cell-row"><span class="cell-label">Fecha Emisión:</span> <span class="cell-value">${invoice.issue_date.toLocaleString('es-CO')}</span></div>
-          <div class="cell-row"><span class="cell-label">Fecha Vencimiento:</span> <span class="cell-value">${invoice.due_date ? invoice.due_date.toLocaleString('es-CO') : invoice.issue_date.toLocaleString('es-CO')}</span></div>
-          <div class="cell-row"><span class="cell-label">Validación DIAN:</span> <span class="cell-value">${validationDate}</span></div>
+      <!-- ═══ GOLD BAR ═══ -->
+      <div class="gold-bar"></div>
+
+      <!-- ═══ BODY ═══ -->
+      <div class="body">
+
+        <!-- INFO CARDS -->
+        <div class="info-grid">
+          <div class="info-box">
+            <div class="ib-title"><span class="icon">👤</span> Facturar A</div>
+            <div class="ib-row"><span class="lbl">Razón Social / Nombre</span><span class="val">${customer?.name || 'Cliente'}</span></div>
+            <div class="ib-row"><span class="lbl">CC / NIT</span><span class="val">${(customer as any)?.document_number || (customer as any)?.identification_number || '222222222222'}</span></div>
+            <div class="ib-row"><span class="lbl">Teléfono</span><span class="val">${customer?.current_phone_number || 'N/A'}</span></div>
+            <div class="ib-row"><span class="lbl">Dirección / Ubi.</span><span class="val">${order?.shipping_address || customer?.shipping_address || 'No registrada'}</span></div>
+            <div class="ib-row"><span class="lbl">Correo Electrónico</span><span class="val">${customer?.email || 'N/A'}</span></div>
+          </div>
+          <div class="info-box">
+            <div class="ib-title"><span class="icon">📄</span> Datos del Documento</div>
+            <div class="ib-row"><span class="lbl">Forma de Pago</span><span class="val">Contado (1)</span></div>
+            <div class="ib-row"><span class="lbl">Medio de Pago</span><span class="val">Instrumento no definido (10)</span></div>
+            <div class="ib-row"><span class="lbl">Pedido Web</span><span class="val">${order?.order_reference || 'N/A'}</span></div>
+            <div class="ib-row"><span class="lbl">Moneda</span><span class="val">COP (Pesos Colombianos)</span></div>
+            <div class="ib-row"><span class="lbl">Tipo Operación</span><span class="val">Estándar (10)</span></div>
+          </div>
         </div>
-        <div style="flex: 1;">
-          <div class="cell-row"><span class="cell-label">Forma de Pago:</span> <span class="cell-value">Contado (1)</span></div>
-          <div class="cell-row"><span class="cell-label">Medio de Pago:</span> <span class="cell-value">Instrumento no definido (10)</span></div>
-          <div class="cell-row"><span class="cell-label">No. Pedido Web:</span> <span class="cell-value">${order?.order_reference || 'N/A'}</span></div>
+
+        <!-- ITEMS TABLE -->
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th class="text-center" style="width:5%">#</th>
+                <th style="width:42%">Descripción</th>
+                <th class="text-center" style="width:8%">Cant.</th>
+                <th class="text-right" style="width:15%">V. Unitario</th>
+                <th class="text-center" style="width:10%">% IVA</th>
+                <th class="text-right" style="width:20%">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+          <div class="tbl-footer">· · ·&nbsp;&nbsp;&nbsp;FIN DEL DETALLE &nbsp;|&nbsp; TIPO OPERACIÓN: 10&nbsp;&nbsp;&nbsp;· · ·</div>
+        </div>
+
+        <!-- OBSERVATIONS + TOTALS -->
+        <div class="bottom">
+          <div class="obs-col">
+            <div class="obs-title">Condiciones y Observaciones</div>
+            <div class="obs-txt">
+              ${resText}<br><br>
+              <b>Garantías y Cambios:</b> Para cambios de prendas, asegúrese de no haberlas lavado ni cortado las marquillas. Dispone de 30 días hábiles posteriores a esta emisión para reportar novedades al canal de WhatsApp <b>(+57 310 877-7629)</b>.
+            </div>
+            <div class="obs-contact">
+              Para consultas sobre esta factura, escriba a<br>
+              <a href="mailto:twosixfacturaelectronica@gmail.com">twosixfacturaelectronica@gmail.com</a> adjuntando este archivo.
+            </div>
+          </div>
+          <div class="tot-col">
+            <div class="tot-box">
+              <div class="tot-row"><span class="tl">Subtotal Bruto</span><span class="tv">${formatCOP(subtotal)}</span></div>
+              <div class="tot-row"><span class="tl">Gastos de Envío</span><span class="tv">${formatCOP(shipping)}</span></div>
+              <div class="tot-row"><span class="tl">Impuestos (IVA)</span><span class="tv">${formatCOP(iva)}</span></div>
+              <div class="tot-grand"><span class="tl">Total a Pagar</span><span class="tv">${formatCOP(total)}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- THANK YOU -->
+        <div class="thanks">
+          <div class="msg">Gracias por ser parte de Two Six</div>
+          <div class="brand-line">Two Six — Crafted for real ones</div>
+        </div>
+
+      </div>
+
+      <!-- ═══ DARK FOOTER ═══ -->
+      <div class="gold-bar"></div>
+      <div class="dark-foot">
+        <div class="foot-row">
+          <span class="foot-cufe-label">CUFE/CUDE: </span>
+          <span class="foot-cufe-val">${invoice.cufe_code || 'N/A'}</span>
+        </div>
+        <div class="foot-text">
+          Proveedor Tecnológico: TWO SIX S.A.S. - NIT: ${nit}-${dv} &nbsp;|&nbsp; Identificador de Software: TWO SIX<br>
+          Representación Gráfica de Factura Electrónica De Venta. Firma Digital Integrada en el XML adjunto.
         </div>
       </div>
-    </div>
-  </div>
 
-  <table class="details">
-    <thead>
-      <tr>
-        <th class="text-center" style="width:5%;">#</th>
-        <th style="width:35%;">Cód / Descripción</th>
-        <th class="text-center" style="width:8%;">Cant.</th>
-        <th class="text-center" style="width:8%;">U/M</th>
-        <th class="text-right" style="width:14%;">Unitario</th>
-        <th class="text-center" style="width:10%;">Imp (%)</th>
-        <th class="text-right" style="width:10%;">Imp ($)</th>
-        <th class="text-right" style="width:14%;">Valor Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${itemsHtml}
-      <tr>
-        <td colspan="8" style="background:#f4f4f5; padding:6px 8px; border:none; border-top:1px solid #ccc; font-size:8px; font-weight:600; color:#555;">
-          TIPO DE OPERACIÓN: ESTÁNDAR - 10 | LÍNEAS DE DETALLE: ${items.length}
-        </td>
-      </tr>
-    </tbody>
-  </table>
+    </body></html>`;
 
-  <div class="totals-wrapper">
-    <div class="observations">
-      <strong style="font-size: 9px; color: #000;">OBSERVACIONES DE LA FACTURA:</strong><br><br>
-      Grandes contribuyentes. Somos retenedores de IVA. Responsables de IVA según normatividad vigente.<br>
-      ${resText}<br><br>
-      <strong>Garantías y Cambios:</strong> Para cambios de prendas, asegurese de no haberlas lavado ni cortado las marquillas. Dispone de 30 días hábiles posteriores a esta emisión para reportar novedades al canal de WhatsApp (+57 310 877-7629).<br>
-      <em>Si tiene un requerimiento sobre su factura por favor escriba a twosixfacturaelectronica@gmail.com adjuntando este PDF.</em>
-    </div>
-    <table class="totals-table">
-      <tr>
-        <td>Subtotal Bruto</td>
-        <td class="text-right">${formatCOP(subtotal)}</td>
-      </tr>
-      <tr>
-        <td>Impuestos COP (IVA)</td>
-        <td class="text-right">${formatCOP(iva)}</td>
-      </tr>
-      <tr>
-        <td>Gastos de Envío</td>
-        <td class="text-right">${formatCOP(shipping)}</td>
-      </tr>
-      <tr class="total-row">
-        <td>TOTAL A PAGAR COP</td>
-        <td class="text-right">${formatCOP(total)}</td>
-      </tr>
-    </table>
-  </div>
-
-  <div class="footer-norm">
-    <p>${resText}</p>
-    <div class="cufe-box">CUFE / CUDE: ${invoice.cufe_code || 'N/A'}</div>
-    <p style="font-weight: 500;">Proveedor Tecnológico: TWO SIX S.A.S. - NIT: ${nit}-${dv} | Identificador de Software: TWO SIX | Representación Gráfica de Factura Electrónica De Venta</p>
-  </div>
-
-  <div class="signatures">
-    <div class="signature-box">
-      <strong style="color: #000;">Firma Digital Integrada:</strong><br><br>
-      V7GgRZy9ds2pATJCvnNnfJzYUPw+kXPYL2QxzM44RLYsM5aMCilzrhSq6+ASsis3zxwoE3cuAXe+IARgCmsJPBo/Bm7RwdrPofT+8EWAz2VyF3R11BZhjQVSu+WOZaCcmJjQkUkk7Jzf6Nvrfx53V4qFKR744zO9zqQKlELX+xlbMqzHuO/UaRHAuFxYh/E2W/gWo...
-    </div>
-    ${qrImg ? '<div class="qr-box"><img src="' + qrImg + '" alt="QR DIAN"/></div>' : ''}
-  </div>
-
-</body></html>`;
 
     const htmlPdfNode = require('html-pdf-node');
     const pdfBuffer = await htmlPdfNode.generatePdf(
-      { content: html }, 
-      { 
-        format: 'A4', 
+      { content: html },
+      {
+        format: 'A4',
+        printBackground: true,
         margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' },
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--single-process']
       }
     );
-    
+
     const fileName = order ? `Factura_${invoice.document_number}_${order.order_reference}.pdf` : `Factura_${invoice.document_number}.pdf`;
 
     res.set({
