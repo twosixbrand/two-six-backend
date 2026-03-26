@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsPositive,
   IsString,
+  IsOptional,
 } from 'class-validator';
 
 export class CreateOrderDto {
@@ -44,4 +45,8 @@ export class CreateOrderDto {
   @IsString()
   @IsNotEmpty()
   shipping_address: string;
+
+  @IsString()
+  @IsOptional()
+  delivery_method?: string;
 }

@@ -55,8 +55,22 @@ export class OrderService {
   }
 
   async checkout(checkoutDto: CheckoutDto) {
-    const { customer, items, total, shippingCost, paymentMethod } = checkoutDto;
-    
+    const { customer, items, total, shippingCost, paymentMethod, deliveryMethod } = checkoutDto;
+
+    const mapDianCodeToId = (code: string) => {
+      switch (code) {
+        case '13': return 1; // CC
+        case '31': return 2; // NIT
+        case '22': return 3; // CE
+        case '41':
+        case '42': return 4; // Pasaporte
+        case '11':
+        case '12': return 5; // TI
+        default: return 1;
+      }
+    };
+    const idIdentType = mapDianCodeToId(customer.document_type || "13");
+
     // Validate Payment Method
     const method = paymentMethod === 'WOMPI_COD' ? 'WOMPI_COD' : 'WOMPI_FULL';
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -67,33 +81,37 @@ export class OrderService {
     const order = await this.prisma.$transaction(async (prisma) => {
       // 1. Find or Create Customer
       let customerRecord = await prisma.customer.findUnique({
-        where: { email: customer.email },
+        where: { document_number: customer.document_number },
       });
 
       if (!customerRecord) {
         customerRecord = await prisma.customer.create({
           data: {
+            document_number: customer.document_number,
             name: customer.name,
             email: customer.email,
             current_phone_number: customer.phone,
-            shipping_address: customer.address,
-            city: customer.city,
-            state: customer.department,
+            shipping_address: deliveryMethod === 'PICKUP' ? '' : customer.address || '',
+            city: deliveryMethod === 'PICKUP' ? '' : customer.city || '',
+            state: deliveryMethod === 'PICKUP' ? '' : customer.department || '',
             postal_code: '000000', // Default
             country: 'Colombia',
             responsable_for_vat: false,
             id_customer_type: 1, // Default: Natural
-            id_identification_type: 1, // Default: CC
+            id_identification_type: idIdentType,
           },
         });
       } else {
-        // Update address if needed (optional, but good for guest checkout)
+        // Update contact details
         await prisma.customer.update({
           where: { id: customerRecord.id },
           data: {
-            shipping_address: customer.address,
-            city: customer.city,
-            state: customer.department,
+            name: customer.name,
+            email: customer.email,
+            id_identification_type: idIdentType,
+            shipping_address: deliveryMethod === 'PICKUP' ? undefined : customer.address,
+            city: deliveryMethod === 'PICKUP' ? undefined : customer.city,
+            state: deliveryMethod === 'PICKUP' ? undefined : customer.department,
             current_phone_number: customer.phone,
           },
         });
@@ -143,6 +161,11 @@ export class OrderService {
         throw new BadRequestException('No se pudo generar una referencia única para el pedido. Por favor, inténtalo de nuevo.');
       }
 
+      // 3.5 Generate Pickup PIN
+      const pickupPin = deliveryMethod === 'PICKUP' 
+        ? Math.random().toString(36).substring(2, 6).toUpperCase() 
+        : null;
+
       // 4. Create Order
       const order = await prisma.order.create({
         data: {
@@ -150,14 +173,17 @@ export class OrderService {
           order_date: new Date(),
           status: 'Pendiente',
           iva: iva,
-          shipping_cost: shippingCost,
+          shipping_cost: deliveryMethod === 'PICKUP' ? 0 : shippingCost,
           total_payment: total,
           payment_method: method,
           cod_amount: codAmount,
           purchase_date: new Date(),
           order_reference: newReference,
           is_paid: false, // Payment integration would update this
-          shipping_address: `${customer.address}, ${customer.city}, ${customer.department}`,
+          shipping_address: deliveryMethod === 'PICKUP' ? 'CL 36D SUR #27D-39, APTO 1001, URB Guadalcanal Apartamentos, Envigado' : `${customer.address}, ${customer.city}, ${customer.department}`,
+          delivery_method: deliveryMethod || 'SHIPPING',
+          pickup_status: deliveryMethod === 'PICKUP' ? 'PENDING' : null,
+          pickup_pin: pickupPin,
         },
         include: {
           customer: true
@@ -227,7 +253,7 @@ export class OrderService {
     // Determine Wompi checkout amount depending on COD or Full payment
     const totalToPayNow = method === 'WOMPI_COD' ? shippingCost : total;
     const amountInCents = Math.round(totalToPayNow * 100);
-    
+
     // Usar el order_reference para Wompi
     const reference = order.order_reference;
     const currency = 'COP';
@@ -451,11 +477,13 @@ export class OrderService {
           });
 
           if (order.shipping_cost > 0) {
+            // El envío también genera IVA ya que Two Six lo recauda
+            const shippingBase = Number((order.shipping_cost / 1.19).toFixed(2));
             invoiceLines.push({
               description: 'Servicio de Envío',
               quantity: 1,
-              unitPrice: order.shipping_cost,
-              taxPercent: 0,
+              unitPrice: shippingBase,
+              taxPercent: 19,
             });
           }
 
@@ -465,15 +493,15 @@ export class OrderService {
           invoiceLines.forEach(line => {
             line.unitPrice = Number(line.unitPrice.toFixed(2));
             const lineTotal = Number((line.quantity * line.unitPrice).toFixed(2));
-            
+
             const lineTaxPercent = line.taxPercent ?? 19;
             const unitTax = Number((line.unitPrice * (lineTaxPercent / 100)).toFixed(2));
             const lineTax = Number((unitTax * line.quantity).toFixed(2));
-            
+
             dianSubtotal += lineTotal;
             dianIva += lineTax;
           });
-          
+
           dianSubtotal = Number(dianSubtotal.toFixed(2));
           dianIva = Number(dianIva.toFixed(2));
           const dianTotal = Number((dianSubtotal + dianIva).toFixed(2));
@@ -483,9 +511,9 @@ export class OrderService {
             date: invoiceDate,
             time: '12:00:00-05:00',
             customerName: order.customer.name,
-            customerDoc: '222222222222', // Consumidor final since ID is not captured
+            customerDoc: order.customer.document_number || '222222222222',
             paymentMeansCode: order.payment_method === 'WOMPI_COD' ? '10' : '48',
-            customerDocType: '13', // Cédula (Consumidor final)
+            customerDocType: order.customer.identificationType?.code || '13',
             lines: invoiceLines,
             subtotal: dianSubtotal,
             taxTotal: dianIva,
@@ -537,8 +565,8 @@ export class OrderService {
           });
 
           if (savedInvoice.status === 'AUTHORIZED') {
-             // Producción dispara correo síncrono
-             this.dianEmailService.sendDianInvoiceEmail(savedInvoice.id).catch(err => console.error('Error enviando correo síncrono DIAN:', err));
+            // Producción dispara correo síncrono
+            this.dianEmailService.sendDianInvoiceEmail(savedInvoice.id).catch(err => console.error('Error enviando correo síncrono DIAN:', err));
           }
 
           invoiceData = { id: savedInvoice.id, cufe, qrBase64, invoiceNumber, cufeUrl: `https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=${cufe}` };
@@ -650,10 +678,11 @@ export class OrderService {
                   </table>
 
                   <div style="background-color: #f8f9fa; padding: 15px; margin-top: 30px; border-radius: 5px;">
-                    <h4 style="margin-top: 0;">Dirección de Envío:</h4>
+                    <h4 style="margin-top: 0;">${order.delivery_method === 'PICKUP' ? 'Punto de Retiro:' : 'Dirección de Envío:'}</h4>
                     <p style="margin-bottom: 0;">
-                      ${order.shipping_address}<br>
-                      Tel: ${order.customer.current_phone_number}
+                      ${order.delivery_method === 'PICKUP'
+                  ? 'CL 36D SUR #27D-39, APTO 1001, URB Guadalcanal Apartamentos, Envigado, Antioquia.<br><br><i>Nota: Este punto es solo para recoger pedidos ya pagos, no es tienda para medirse ropa 🤍<br>En un máximo de 4 horas hábiles (o antes) te estaremos avisando para que puedas pasar por tu pedido.<br><br>📞 310 877 7629</i>'
+                  : `${order.shipping_address}<br>Tel: ${order.customer.current_phone_number}`}
                     </p>
                   </div>
 
@@ -754,6 +783,81 @@ export class OrderService {
     }
   }
 
+  async markAsReadyForPickup(id: number) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: { customer: true }
+    });
+
+    if (!order) throw new NotFoundException('Orden no encontrada');
+    if (order.delivery_method !== 'PICKUP') throw new BadRequestException('Esta orden no es para recoger en punto físico');
+
+    const updated = await this.prisma.order.update({
+      where: { id },
+      data: { pickup_status: 'READY' }
+    });
+
+    try {
+      const storeEmail = this.configService.get<string>('EMAIL_TO');
+      await this.mailerService.sendMail({
+        to: order.customer.email,
+        ...(storeEmail ? { bcc: storeEmail } : {}),
+        subject: `¡Tu pedido ${order.order_reference} está listo para recoger! - Two Six`,
+        html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+          <div style="text-align: center; padding: 20px; background-color: #f8f9fa;">
+            <h1 style="color: #000; margin: 0;">TWO SIX</h1>
+            <p style="color: #666; font-size: 14px; letter-spacing: 2px;">ESTILO Y CONFORT</p>
+          </div>
+          <div style="padding: 20px;">
+            <h2 style="color: #333;">¡Hola ${order.customer.name}!</h2>
+            <p>Tu pedido <strong>${order.order_reference}</strong> ya está preparado y empacado.</p>
+            ${updated.pickup_pin ? `
+            <div style="background-color: #fef3c7; padding: 15px; border-radius: 5px; border-left: 4px solid #f59e0b; text-align: center;">
+              <h3 style="margin: 0; color: #b45309;">PIN de Seguridad Requerido</h3>
+              <p style="margin-bottom: 0;">Para la entrega de tu pedido en bodega, <strong>es obligatorio</strong> proveer este código PIN:</p>
+              <h2 style="font-size: 32px; letter-spacing: 6px; margin: 15px 0 5px 0; color: #000;">${updated.pickup_pin}</h2>
+            </div>
+            ` : ''}
+            <div style="background-color: #f8f9fa; padding: 15px; margin-top: 20px; border-radius: 5px; border-left: 4px solid #000;">
+              <h4 style="margin-top: 0;">📍 Punto de Retiro</h4>
+              <p style="margin-bottom: 0;">
+                <strong>Dirección:</strong> CL 36D SUR #27D-39, APTO 1001<br>
+                URB Guadalcanal Apartamentos, Envigado.<br>
+                <br>
+                <i>Recordatorio: Este punto es exclusivo para entrega de pedidos web ya pagados. No disponemos de probadores ni sala de exhibición aquí.</i>
+              </p>
+            </div>
+          </div>
+          <div style="text-align: center; padding: 20px; background-color: #f8f9fa; font-size: 12px; color: #999;">
+            <p>&copy; \${new Date().getFullYear()} Two Six. Todos los derechos reservados.</p>
+          </div>
+        </div>
+        `
+      });
+    } catch (error) {
+      console.error('Error enviando correo de recogida:', error);
+    }
+
+    return updated;
+  }
+
+  async markAsCollected(id: number) {
+    const order = await this.prisma.order.findUnique({
+      where: { id }
+    });
+
+    if (!order) throw new NotFoundException('Orden no encontrada');
+    if (order.delivery_method !== 'PICKUP') throw new BadRequestException('Esta orden no es para recoger en punto físico');
+
+    const updated = await this.prisma.order.update({
+      where: { id },
+      data: { pickup_status: 'COLLECTED', status: 'Entregado' }
+    });
+
+    return updated;
+  }
+
   create(createOrderDto: CreateOrderDto) {
     return this.prisma.order.create({
       data: createOrderDto,
@@ -803,10 +907,33 @@ export class OrderService {
     return order;
   }
 
-  findAll() {
+  findAll(deliveryMethod?: string, sort: 'asc' | 'desc' = 'desc') {
+    const whereClause: any = {};
+    if (deliveryMethod) {
+      whereClause.delivery_method = deliveryMethod;
+    }
+
     return this.prisma.order.findMany({
+      where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
       include: {
         customer: true,
+        orderItems: {
+          include: {
+            product: {
+              include: {
+                clothingSize: {
+                  include: {
+                    clothingColor: {
+                      include: {
+                        imageClothing: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
         payments: {
           include: {
             paymentMethod: true
@@ -814,7 +941,7 @@ export class OrderService {
         }
       },
       orderBy: {
-        order_date: 'desc',
+        order_date: sort,
       },
     });
   }

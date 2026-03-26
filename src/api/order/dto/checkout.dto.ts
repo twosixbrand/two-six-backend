@@ -12,6 +12,14 @@ import {
 class CustomerDto {
     @IsString()
     @IsNotEmpty()
+    document_type: string;
+
+    @IsString()
+    @IsNotEmpty()
+    document_number: string;
+
+    @IsString()
+    @IsNotEmpty()
     name: string;
 
     @IsEmail()
@@ -23,16 +31,16 @@ class CustomerDto {
     phone: string;
 
     @IsString()
-    @IsNotEmpty()
-    address: string;
+    @IsOptional()
+    address?: string;
 
     @IsString()
-    @IsNotEmpty()
-    city: string;
+    @IsOptional()
+    city?: string;
 
     @IsString()
-    @IsNotEmpty()
-    department: string; // State/Department
+    @IsOptional()
+    department?: string; // State/Department
 }
 
 class OrderItemDto {
@@ -92,4 +100,8 @@ export class CheckoutDto {
     @IsString()
     @IsOptional()
     paymentMethod?: string;
+
+    @IsString()
+    @IsOptional()
+    deliveryMethod?: string;
 }

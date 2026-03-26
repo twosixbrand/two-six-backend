@@ -33,10 +33,12 @@ async function verifyOrdersEndpoint() {
 
     // 1. Create a test customer and order
     const testEmail = `test-orders-${Date.now()}@example.com`;
+    const testDocNumber = `doc-${Date.now()}`;
     const customer = await prismaService.customer.create({
         data: {
             name: 'Test Customer Orders',
             email: testEmail,
+            document_number: testDocNumber,
             current_phone_number: '1234567890',
             shipping_address: 'Test Address',
             city: 'Test City',
@@ -82,7 +84,7 @@ async function verifyOrdersEndpoint() {
     } finally {
         // Cleanup
         await prismaService.order.delete({ where: { id: order.id } });
-        await prismaService.customer.delete({ where: { email: testEmail } });
+        await prismaService.customer.delete({ where: { document_number: testDocNumber } });
         await prismaService.$disconnect();
     }
 }

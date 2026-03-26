@@ -73,6 +73,7 @@ export class DianCronService {
               status: newStatus,
               dian_response: rawResponse,
               ...(xmlBase64Bytes ? { dian_zip_base64: xmlBase64Bytes } : {}),
+              ...(newStatus === 'AUTHORIZED' ? { dian_authorized_at: new Date() } : {}),
             },
           });
           this.logger.log(`Factura ${invoice.document_number} actualizada a ${newStatus} por Cron Job.`);

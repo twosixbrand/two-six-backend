@@ -6,9 +6,23 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 export class CustomerService {
     constructor(private readonly prisma: PrismaService) { }
 
+    async findAll() {
+        return this.prisma.customer.findMany({
+            include: {
+                customerType: true,
+                identificationType: true,
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+
     async findOne(id: number) {
         return this.prisma.customer.findUnique({
             where: { id },
+            include: {
+                customerType: true,
+                identificationType: true,
+            },
         });
     }
 

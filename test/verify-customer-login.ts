@@ -42,10 +42,12 @@ async function verifyCustomerLogin() {
 
     // 1. Create a test customer if not exists
     const testEmail = `test-customer-${Date.now()}@example.com`;
+    const testDocNumber = `doc-${Date.now()}`;
     await prismaService.customer.create({
         data: {
             name: 'Test Customer',
             email: testEmail,
+            document_number: testDocNumber,
             current_phone_number: '1234567890',
             shipping_address: 'Test Address',
             city: 'Test City',
@@ -61,7 +63,7 @@ async function verifyCustomerLogin() {
     try {
         // 2. Request OTP
         console.log('Requesting OTP...');
-        await authService.loginCustomer(testEmail);
+        await authService.loginCustomer(testDocNumber);
 
         // 3. Verify OTP
         const otp = process.env.TEST_OTP;
@@ -70,7 +72,7 @@ async function verifyCustomerLogin() {
         }
         console.log('Verifying OTP:', otp);
 
-        const result = await authService.verifyCustomerOtp(testEmail, otp);
+        const result = await authService.verifyCustomerOtp(testDocNumber, otp);
         console.log('Login Successful!');
         console.log('Access Token:', result.accessToken);
         console.log('Customer:', result.customer);
@@ -85,7 +87,7 @@ async function verifyCustomerLogin() {
         process.exit(1);
     } finally {
         // Cleanup
-        await prismaService.customer.delete({ where: { email: testEmail } });
+        await prismaService.customer.delete({ where: { document_number: testDocNumber } });
         await prismaService.$disconnect();
     }
 }

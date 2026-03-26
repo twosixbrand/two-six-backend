@@ -3,6 +3,8 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
+import { CustomerLoginDto } from './dto/customer-login.dto';
+import { VerifyCustomerOtpDto } from './dto/verify-customer-otp.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -22,14 +24,14 @@ export class AuthController {
 
   @Post('customer/login')
   @HttpCode(HttpStatus.OK)
-  async loginCustomer(@Body() loginDto: LoginDto) {
-    return this.authService.loginCustomer(loginDto.email);
+  async loginCustomer(@Body() loginDto: CustomerLoginDto) {
+    return this.authService.loginCustomer(loginDto.document_number);
   }
 
   @Post('customer/verify-otp')
   @HttpCode(HttpStatus.OK)
-  async verifyCustomerOtp(@Body() verifyOtpDto: VerifyOtpDto) {
-    return this.authService.verifyCustomerOtp(verifyOtpDto.email, verifyOtpDto.otp);
+  async verifyCustomerOtp(@Body() verifyOtpDto: VerifyCustomerOtpDto) {
+    return this.authService.verifyCustomerOtp(verifyOtpDto.document_number, verifyOtpDto.otp);
   }
 
   @Post('customer/register')

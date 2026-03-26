@@ -17,4 +17,7 @@ export class OrderEntity implements OrderModel {
   shipping_address: string;
   createdAt: Date;
   updatedAt: Date | null;
+  delivery_method: string;
+  pickup_status: string | null;
+  pickup_pin: string | null;
 }

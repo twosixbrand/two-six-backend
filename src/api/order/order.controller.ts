@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+  Query,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -64,14 +65,27 @@ export class OrderController {
     return this.orderService.trackOrder(trackOrderDto);
   }
 
+  @Post(':id/ready-for-pickup')
+  markReadyForPickup(@Param('id', ParseIntPipe) id: number) {
+    return this.orderService.markAsReadyForPickup(id);
+  }
+
+  @Post(':id/collected')
+  markCollected(@Param('id', ParseIntPipe) id: number) {
+    return this.orderService.markAsCollected(id);
+  }
+
   @Post()
   create(@Body() createOrderDto: CreateOrderDto) {
     return this.orderService.create(createOrderDto);
   }
 
   @Get()
-  findAll() {
-    return this.orderService.findAll();
+  findAll(
+    @Query('delivery_method') deliveryMethod?: string,
+    @Query('sort') sort?: 'asc' | 'desc'
+  ) {
+    return this.orderService.findAll(deliveryMethod, sort);
   }
 
   @Get('customer/:email')

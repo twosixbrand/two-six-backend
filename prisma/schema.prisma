@@ -60,15 +60,15 @@ model UserRole {
 }
 
 model Provider {
-  id              String              @id @map("nit")
-  email           String              @unique
-  account_number  String              @map("account_number")
-  account_type    String              @map("account_type")
-  bank_name       String              @map("bank_name")
-  company_name    String              @map("company_name")
-  createdAt       DateTime            @default(now()) @map("created_at")
+  id              String             @id @map("nit")
+  email           String             @unique
+  account_number  String             @map("account_number")
+  account_type    String             @map("account_type")
+  bank_name       String             @map("bank_name")
+  company_name    String             @map("company_name")
+  createdAt       DateTime           @default(now()) @map("created_at")
   phone           String
-  updatedAt       DateTime?           @updatedAt @map("updated_at")
+  updatedAt       DateTime?          @updatedAt @map("updated_at")
   designProviders DesignProvider[]
   documents       ProviderDocument[]
 
@@ -316,8 +316,9 @@ model Product {
 model Customer {
   id_customer_type       Int                @map("id_customer_type")
   id_identification_type Int                @map("id_identification_type")
+  document_number        String?            @unique
   name                   String
-  email                  String             @unique
+  email                  String
   current_phone_number   String
   responsable_for_vat    Boolean
   shipping_address       String
@@ -381,23 +382,26 @@ model IdentificationType {
 }
 
 model Order {
-  id               Int             @id @default(autoincrement()) @map("id_order")
-  order_reference  String?         @unique
-  id_customer      Int             @map("id_customer")
+  id               Int              @id @default(autoincrement()) @map("id_order")
+  order_reference  String?          @unique
+  id_customer      Int              @map("id_customer")
   order_date       DateTime
   status           String
   is_paid          Boolean
   shipping_address String
-  createdAt        DateTime        @default(now()) @map("created_at")
-  updatedAt        DateTime?       @updatedAt @map("updated_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime?        @updatedAt @map("updated_at")
   iva              Float
-  purchase_date    DateTime        @map("purchase_date")
-  shipping_cost    Float           @map("shipping_cost")
-  total_payment    Float           @map("total_payment")
-  payment_method   String          @default("WOMPI_FULL") @map("payment_method")
-  cod_amount       Float           @default(0) @map("cod_amount")
+  purchase_date    DateTime         @map("purchase_date")
+  shipping_cost    Float            @map("shipping_cost")
+  total_payment    Float            @map("total_payment")
+  payment_method   String           @default("WOMPI_FULL") @map("payment_method")
+  cod_amount       Float            @default(0) @map("cod_amount")
+  delivery_method  String           @default("SHIPPING") @map("delivery_method")
+  pickup_status    String?          @map("pickup_status")
+  pickup_pin       String?          @map("pickup_pin")
   dianEInvoicings  DianEInvoicing[]
-  customer         Customer        @relation(fields: [id_customer], references: [id])
+  customer         Customer         @relation(fields: [id_customer], references: [id])
   orderItems       OrderItem[]
   payments         Payments[]
   returns          Returns[]
@@ -504,9 +508,10 @@ model DianEInvoicing {
   url_pdf            String?
   url_xml            String?
   dian_response      String?         @db.Text
-  dian_zip_base64    String?         @db.Text @map("dian_zip_base64")
+  dian_zip_base64    String?         @map("dian_zip_base64") @db.Text
   environment        String          @default("TEST") // "TEST" o "PRODUCTION"
   email_sent         Boolean         @default(false) @map("email_sent")
+  dian_authorized_at DateTime?       @map("dian_authorized_at")
   createdAt          DateTime        @default(now()) @map("created_at")
   updatedAt          DateTime?       @updatedAt @map("updated_at")
   order              Order?          @relation(fields: [id_order], references: [id])
@@ -518,7 +523,7 @@ model DianEInvoicing {
 
 model DianResolution {
   id               Int       @id @default(autoincrement())
-  type             String    // 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'
+  type             String // 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE'
   prefix           String?
   resolutionNumber String    @map("resolution_number")
   startNumber      Int       @map("start_number")
@@ -533,33 +538,33 @@ model DianResolution {
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime? @updatedAt @map("updated_at")
 
-  dianInvoices     DianEInvoicing[]
+  dianInvoices DianEInvoicing[]
 
   @@map("dian_resolution")
 }
 
 model DianNote {
-  id               Int            @id @default(autoincrement())
-  id_dian_invoice  Int            @map("id_dian_invoice")
-  type             String         // "CREDIT" o "DEBIT"
-  note_number      String?        @unique @map("note_number") // Ej: NC1, ND1
-  cude             String?        @unique // Equivalente al CUFE para Notas
-  issue_date       DateTime?      @map("issue_date")
-  reason_code      String         @map("reason_code") // Catálogo DIAN
-  reason_desc      String?        @map("reason_desc")
-  amount           Float          // Valor de la nota
-  xml_url          String?        @map("xml_url")
-  pdf_url          String?        @map("pdf_url")
-  status           String         @default("PENDING") // PENDING, SENT, ERROR
-  status_message   String?        @db.Text @map("status_message")
-  dian_status_code String?        @map("dian_status_code")
-  dian_zip_base64  String?        @db.Text @map("dian_zip_base64")
-  
-  createdAt        DateTime       @default(now()) @map("created_at")
-  updatedAt        DateTime?      @updatedAt @map("updated_at")
+  id               Int       @id @default(autoincrement())
+  id_dian_invoice  Int       @map("id_dian_invoice")
+  type             String // "CREDIT" o "DEBIT"
+  note_number      String?   @unique @map("note_number") // Ej: NC1, ND1
+  cude             String?   @unique // Equivalente al CUFE para Notas
+  issue_date       DateTime? @map("issue_date")
+  reason_code      String    @map("reason_code") // Catálogo DIAN
+  reason_desc      String?   @map("reason_desc")
+  amount           Float // Valor de la nota
+  xml_url          String?   @map("xml_url")
+  pdf_url          String?   @map("pdf_url")
+  status           String    @default("PENDING") // PENDING, SENT, ERROR
+  status_message   String?   @map("status_message") @db.Text
+  dian_status_code String?   @map("dian_status_code")
+  dian_zip_base64  String?   @map("dian_zip_base64") @db.Text
 
-  dianEInvoicing   DianEInvoicing @relation(fields: [id_dian_invoice], references: [id])
-  
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+
+  dianEInvoicing DianEInvoicing @relation(fields: [id_dian_invoice], references: [id])
+
   @@map("dian_note")
 }
 
@@ -654,9 +659,9 @@ enum GenderEnum {
 }
 
 model Subscriber {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
-  registeredAt DateTime @default(now()) @map("registered_at")
+  id               Int      @id @default(autoincrement())
+  email            String   @unique
+  registeredAt     DateTime @default(now()) @map("registered_at")
   status           Boolean  @default(true)
   unsubscribed     Boolean  @default(false)
   discount_code    String?  @unique
@@ -666,30 +671,30 @@ model Subscriber {
 }
 
 model Pqr {
-  id             Int       @id @default(autoincrement())
-  radicado       String    @unique
-  customer_name  String
-  customer_id    String    // Cédula o NIT
-  customer_email String
-  order_number   String?
-  type           String    // Petición, Queja, Reclamo, Sugerencia
-  description    String    @db.Text
-  observation    String?   @db.Text
-  status         String    @default("Abierto") // Abierto, En Revisión, Resuelto, Cerrado
-  slaRiskAlertSent Boolean @default(false)
-  createdAt      DateTime   @default(now()) @map("created_at")
-  updatedAt      DateTime?  @updatedAt @map("updated_at")
-  images         PqrImage[]
+  id               Int        @id @default(autoincrement())
+  radicado         String     @unique
+  customer_name    String
+  customer_id      String // Cédula o NIT
+  customer_email   String
+  order_number     String?
+  type             String // Petición, Queja, Reclamo, Sugerencia
+  description      String     @db.Text
+  observation      String?    @db.Text
+  status           String     @default("Abierto") // Abierto, En Revisión, Resuelto, Cerrado
+  slaRiskAlertSent Boolean    @default(false)
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime?  @updatedAt @map("updated_at")
+  images           PqrImage[]
 
   @@map("pqr")
 }
 
 model PqrImage {
-  id        Int       @id @default(autoincrement())
-  id_pqr    Int       @map("id_pqr")
-  image_url String    @map("image_url")
-  createdAt DateTime  @default(now()) @map("created_at")
-  pqr       Pqr       @relation(fields: [id_pqr], references: [id], onDelete: Cascade)
+  id        Int      @id @default(autoincrement())
+  id_pqr    Int      @map("id_pqr")
+  image_url String   @map("image_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  pqr       Pqr      @relation(fields: [id_pqr], references: [id], onDelete: Cascade)
 
   @@map("pqr_image")
 }
