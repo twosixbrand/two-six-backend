@@ -47,6 +47,11 @@ export class DianCronService {
         const trackId = zipKeyMatch[1];
         const rawResponse = await this.soapService.getStatusZip(trackId);
 
+        if (!rawResponse || typeof rawResponse !== 'string') {
+          this.logger.warn(`Respuesta vacía de GetStatusZip para factura ${invoice.document_number}`);
+          continue;
+        }
+
         const xmlBase64Bytes = rawResponse.match(/<b:XmlBase64Bytes>(.*?)<\/b:XmlBase64Bytes>/s)?.[1];
         const isValid = rawResponse.match(/<b:IsValid>(.*?)<\/b:IsValid>/)?.[1] === 'true';
         const statusCode = rawResponse.match(/<b:StatusCode>(.*?)<\/b:StatusCode>/)?.[1] || 'UNKNOWN';

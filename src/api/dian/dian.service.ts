@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as forge from 'node-forge';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 
 @Injectable()
 export class DianService implements OnModuleInit {
@@ -11,12 +12,12 @@ export class DianService implements OnModuleInit {
 
   constructor(private configService: ConfigService) {}
 
-  onModuleInit() {
+  async onModuleInit() {
     this.logger.log('Inicializando DianService... cargando certificado');
-    this.loadCertificate();
+    await this.loadCertificate();
   }
 
-  private loadCertificate() {
+  private async loadCertificate() {
     try {
       const certPath = this.configService.get<string>('DIAN_CERT_PATH');
       const certPassword = this.configService.get<string>('DIAN_CERT_PASSWORD');
@@ -26,19 +27,26 @@ export class DianService implements OnModuleInit {
         return;
       }
 
-      if (!fs.existsSync(certPath)) {
-        this.logger.error(`No se encontró el certificado en la ruta: ${certPath}`);
-        return;
+      let p12Der: string;
+
+      if (certPath.startsWith('http://') || certPath.startsWith('https://')) {
+        // Descargar certificado desde DigitalOcean Spaces usando S3 SDK
+        p12Der = await this.downloadFromSpaces(certPath);
+      } else {
+        // Leer certificado desde archivo local
+        if (!fs.existsSync(certPath)) {
+          this.logger.error(`No se encontró el certificado en la ruta: ${certPath}`);
+          return;
+        }
+        p12Der = fs.readFileSync(certPath, 'binary');
       }
 
-      const p12Der = fs.readFileSync(certPath, 'binary');
       const p12Asn1 = forge.asn1.fromDer(p12Der);
       const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, false, certPassword);
 
       let privateKey: forge.pki.PrivateKey | null = null;
       let cert: forge.pki.Certificate | null = null;
 
-      // Extraer la llave privada y el certificado
       for (const safeContents of p12.safeContents) {
         for (const safeBag of safeContents.safeBags) {
           if (safeBag.type === forge.pki.oids.keyBag || safeBag.type === forge.pki.oids.pkcs8ShroudedKeyBag) {
@@ -55,11 +63,52 @@ export class DianService implements OnModuleInit {
 
       this.privateKeyPem = forge.pki.privateKeyToPem(privateKey);
       this.certificatePem = forge.pki.certificateToPem(cert);
-      
+
       this.logger.log('Certificado DIAN (GSE) cargado y descifrado exitosamente.');
     } catch (error) {
       this.logger.error(`Error al cargar el certificado DIAN: ${error.message}`);
     }
+  }
+
+  /**
+   * Descarga el certificado desde DigitalOcean Spaces usando credenciales S3
+   */
+  private async downloadFromSpaces(url: string): Promise<string> {
+    const bucket = this.configService.get<string>('DO_SPACES_BUCKET');
+    const region = this.configService.get<string>('DO_SPACES_REGION') || 'atl1';
+    const accessKey = this.configService.get<string>('DO_SPACES_KEY');
+    const secretKey = this.configService.get<string>('DO_SPACES_SECRET');
+
+    // Endpoint S3: https://{region}.digitaloceanspaces.com (sin bucket name)
+    const s3Endpoint = `https://${region}.digitaloceanspaces.com`;
+
+    // Extraer el key del archivo desde la URL
+    const urlObj = new URL(url);
+    const key = urlObj.pathname.startsWith('/') ? urlObj.pathname.slice(1) : urlObj.pathname;
+
+    this.logger.log(`Descargando certificado desde Spaces: bucket=${bucket}, key=${key}`);
+
+    const s3 = new S3Client({
+      endpoint: s3Endpoint,
+      region: region,
+      credentials: {
+        accessKeyId: accessKey!,
+        secretAccessKey: secretKey!,
+      },
+      forcePathStyle: false,
+    } as any);
+
+    const command = new GetObjectCommand({ Bucket: bucket, Key: key });
+    const response = await s3.send(command);
+
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of response.Body as any) {
+      chunks.push(chunk);
+    }
+    const buffer = Buffer.concat(chunks);
+
+    this.logger.log(`Certificado descargado: ${buffer.length} bytes`);
+    return buffer.toString('binary');
   }
 
   getCredentials() {
