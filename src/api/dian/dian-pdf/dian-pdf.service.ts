@@ -305,7 +305,6 @@ export class DianPdfService {
           <div class="obs-col">
             <div class="obs-title">Condiciones y Observaciones</div>
             <div class="obs-txt">
-              ${resText}<br><br>
               <b>Garantías y Cambios:</b> Para cambios de prendas, asegúrese de no haberlas lavado ni cortado las marquillas. Dispone de 30 días hábiles posteriores a esta emisión para reportar novedades al canal de WhatsApp <b>(+57 310 877-7629)</b>.
             </div>
             <div class="obs-contact">
@@ -338,6 +337,7 @@ export class DianPdfService {
           <span class="foot-cufe-label">CUFE/CUDE: </span>
           <span class="foot-cufe-val">${invoice.cufe_code || 'N/A'}</span>
         </div>
+        ${resText ? `<div class="foot-text" style="margin-bottom:4px;">${resText}</div>` : ''}
         <div class="foot-text">
           Proveedor Tecnológico: TWO SIX S.A.S. - NIT: ${nit}-${dv} &nbsp;|&nbsp; Identificador de Software: TWO SIX<br>
           Representación Gráfica de Factura Electrónica De Venta. Firma Digital Integrada en el XML adjunto.
@@ -346,17 +346,17 @@ export class DianPdfService {
 
     </body></html>`;
 
-    const htmlPdfNode = require('html-pdf-node');
-    const pdfBuffer = await htmlPdfNode.generatePdf(
-      { content: html },
-      {
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' },
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--single-process']
-      }
-    );
+    const puppeteer = require('puppeteer');
+    const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdfUint8 = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' },
+    });
+    await browser.close();
 
-    return pdfBuffer;
+    return Buffer.from(pdfUint8);
   }
 }

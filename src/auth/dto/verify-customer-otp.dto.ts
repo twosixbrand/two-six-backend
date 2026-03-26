@@ -1,9 +1,9 @@
-import { IsNotEmpty, IsString, Length } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, Length } from 'class-validator';
 
 export class VerifyCustomerOtpDto {
-  @IsString()
+  @IsEmail()
   @IsNotEmpty()
-  document_number: string;
+  email: string;
 
   @IsString()
   @IsNotEmpty()

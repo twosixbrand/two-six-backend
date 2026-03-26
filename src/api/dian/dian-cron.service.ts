@@ -21,8 +21,8 @@ export class DianCronService {
     const pendingInvoices = await this.prisma.dianEInvoicing.findMany({
       where: {
         OR: [
-          { status: 'SENT', environment: 'TEST' },
-          { status: 'AUTHORIZED', email_sent: false }
+          { status: 'SENT' },
+          { status: 'AUTHORIZED', email_sent: false },
         ]
       },
     });
@@ -67,11 +67,12 @@ export class DianCronService {
         }
 
         if (newStatus !== invoice.status) {
+          // No sobreescribir dian_response original (contiene el ZipKey)
+          // Solo actualizar status y campos adicionales
           await this.prisma.dianEInvoicing.update({
             where: { id: invoice.id },
             data: {
               status: newStatus,
-              dian_response: rawResponse,
               ...(xmlBase64Bytes ? { dian_zip_base64: xmlBase64Bytes } : {}),
               ...(newStatus === 'AUTHORIZED' ? { dian_authorized_at: new Date() } : {}),
             },

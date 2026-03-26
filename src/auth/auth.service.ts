@@ -124,11 +124,11 @@ export class AuthService {
   /**
    * Inicia el proceso de login para CLIENTES (Customer) generando, guardando y enviando un OTP por email.
    */
-  async loginCustomer(document_number: string): Promise<{ message: string }> {
-    const customer = await this.prisma.customer.findUnique({ where: { document_number } });
+  async loginCustomer(email: string): Promise<{ message: string }> {
+    const customer = await this.prisma.customer.findFirst({ where: { email: email.toLowerCase().trim() } });
 
     if (!customer) {
-      throw new NotFoundException(`Cliente con documento '${document_number}' no encontrado.`);
+      throw new NotFoundException(`No encontramos una cuenta con el correo '${email}'. Regístrate para continuar.`);
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Genera OTP de 6 dígitos
@@ -137,7 +137,7 @@ export class AuthService {
     const hashedOtp = await bcrypt.hash(otp, 10);
 
     await this.prisma.customer.update({
-      where: { document_number },
+      where: { id: customer.id },
       data: {
         otp: hashedOtp,
         otpExpiresAt,
@@ -172,11 +172,16 @@ export class AuthService {
    * Crea un nuevo CLIENTE (Customer) desde el registro web, generando y enviando un OTP.
    */
   async registerCustomer(dto: RegisterCustomerDto): Promise<{ message: string }> {
-    const existingCustomer = await this.prisma.customer.findUnique({ where: { document_number: dto.document_number } });
+    // Validar que el email no esté registrado
+    const existingByEmail = await this.prisma.customer.findFirst({ where: { email: dto.email.toLowerCase().trim() } });
+    if (existingByEmail) {
+      throw new UnauthorizedException(`Ya existe una cuenta con el correo '${dto.email}'. Por favor inicia sesión.`);
+    }
 
-    if (existingCustomer) {
-      // Si ya existe, simplemente disparamos el login normal para enviarle el código en lugar de fallar
-      return this.loginCustomer(dto.document_number);
+    // Validar que el documento no esté registrado
+    const existingByDoc = await this.prisma.customer.findUnique({ where: { document_number: dto.document_number } });
+    if (existingByDoc) {
+      throw new UnauthorizedException(`Ya existe una cuenta con el documento '${dto.document_number}'. Por favor inicia sesión con el correo asociado.`);
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -187,17 +192,17 @@ export class AuthService {
       data: {
         document_number: dto.document_number,
         name: dto.name,
-        email: dto.email,
+        email: dto.email.toLowerCase().trim(),
         current_phone_number: dto.phone,
-        shipping_address: dto.address,
-        city: dto.city,
-        state: dto.department,
-        postal_code: '000000', // Default
-        country: 'Colombia', // Default
+        shipping_address: dto.address || '',
+        city: dto.city || '',
+        state: dto.department || '',
+        postal_code: '000000',
+        country: 'Colombia',
         responsable_for_vat: false,
         id_customer_type: 1, // Natural
-        id_identification_type: 1, // CC
-        is_registered: false, // Se pondrá en true tras verificar el OTP
+        id_identification_type: dto.id_identification_type || 1, // CC por defecto
+        is_registered: false,
         otp: hashedOtp,
         otpExpiresAt,
       },
@@ -231,12 +236,12 @@ export class AuthService {
    * Verifica el OTP del CLIENTE y devuelve un JWT.
    */
   async verifyCustomerOtp(
-    document_number: string,
+    email: string,
     providedOtp: string,
   ): Promise<{ accessToken: string; customer: any }> {
-    const customer = await this.prisma.customer.findUnique({
-      where: { document_number },
-      include: { addresses: true }, // Include addresses
+    const customer = await this.prisma.customer.findFirst({
+      where: { email: email.toLowerCase().trim() },
+      include: { addresses: true },
     });
 
     if (!customer || !customer.otp || !customer.otpExpiresAt) {
@@ -245,7 +250,7 @@ export class AuthService {
 
     if (new Date() > customer.otpExpiresAt) {
       await this.prisma.customer.update({
-        where: { document_number },
+        where: { id: customer.id },
         data: { otp: null, otpExpiresAt: null },
       });
       throw new UnauthorizedException('El código ha expirado.');
@@ -259,7 +264,7 @@ export class AuthService {
 
     // Limpiar el OTP después de un uso exitoso y marcar como registrado
     await this.prisma.customer.update({
-      where: { document_number },
+      where: { id: customer.id },
       data: {
         otp: null,
         otpExpiresAt: null,

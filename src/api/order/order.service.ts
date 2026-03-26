@@ -685,6 +685,13 @@ export class OrderService {
                   : `${order.shipping_address}<br>Tel: ${order.customer.current_phone_number}`}
                     </p>
                   </div>
+                  ${order.delivery_method === 'PICKUP' && order.pickup_pin ? `
+                  <div style="background-color: #fef3c7; padding: 20px; margin-top: 15px; border-radius: 5px; border-left: 4px solid #f59e0b; text-align: center;">
+                    <h3 style="margin: 0 0 10px 0; color: #b45309;">🔐 Tu PIN de Retiro</h3>
+                    <p style="margin: 0 0 10px 0; font-size: 13px;">Presenta este código al momento de recoger tu pedido:</p>
+                    <h2 style="font-size: 36px; letter-spacing: 8px; margin: 10px 0; color: #000; font-family: monospace;">${order.pickup_pin}</h2>
+                    <p style="margin: 10px 0 0 0; font-size: 11px; color: #92400e;">Guarda este correo. Sin el PIN no se podrá hacer la entrega.</p>
+                  </div>` : ''}
 
                   <!-- Facturación viaja en flujo independiente async/sync -->
 
@@ -830,7 +837,7 @@ export class OrderService {
             </div>
           </div>
           <div style="text-align: center; padding: 20px; background-color: #f8f9fa; font-size: 12px; color: #999;">
-            <p>&copy; \${new Date().getFullYear()} Two Six. Todos los derechos reservados.</p>
+            <p>&copy; ${new Date().getFullYear()} Two Six. Todos los derechos reservados.</p>
           </div>
         </div>
         `

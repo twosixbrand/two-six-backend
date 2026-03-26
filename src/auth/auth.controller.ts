@@ -25,13 +25,13 @@ export class AuthController {
   @Post('customer/login')
   @HttpCode(HttpStatus.OK)
   async loginCustomer(@Body() loginDto: CustomerLoginDto) {
-    return this.authService.loginCustomer(loginDto.document_number);
+    return this.authService.loginCustomer(loginDto.email);
   }
 
   @Post('customer/verify-otp')
   @HttpCode(HttpStatus.OK)
   async verifyCustomerOtp(@Body() verifyOtpDto: VerifyCustomerOtpDto) {
-    return this.authService.verifyCustomerOtp(verifyOtpDto.document_number, verifyOtpDto.otp);
+    return this.authService.verifyCustomerOtp(verifyOtpDto.email, verifyOtpDto.otp);
   }
 
   @Post('customer/register')

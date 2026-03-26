@@ -1,13 +1,17 @@
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, IsInt, IsOptional } from 'class-validator';
 
 export class RegisterCustomerDto {
+    @IsEmail()
+    @IsNotEmpty()
+    email: string;
+
     @IsString()
     @IsNotEmpty()
     document_number: string;
 
-    @IsEmail()
+    @IsInt()
     @IsNotEmpty()
-    email: string;
+    id_identification_type: number; // 1=CC, 2=CE, 3=NIT, etc.
 
     @IsString()
     @IsNotEmpty()
@@ -18,14 +22,14 @@ export class RegisterCustomerDto {
     phone: string;
 
     @IsString()
-    @IsNotEmpty()
-    department: string;
+    @IsOptional()
+    department?: string;
 
     @IsString()
-    @IsNotEmpty()
-    city: string;
+    @IsOptional()
+    city?: string;
 
     @IsString()
-    @IsNotEmpty()
-    address: string;
+    @IsOptional()
+    address?: string;
 }
