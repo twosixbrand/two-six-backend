@@ -114,7 +114,30 @@ export class AuthService {
       throw new UnauthorizedException('Usuario no encontrado.');
     }
 
-    const payload = { sub: user.id, email: user.email };
+    // Query user roles and their permissions for the JWT payload
+    const userRoles = await this.prisma.userRole.findMany({
+      where: { id_user_app: user.id },
+      include: {
+        role: {
+          include: {
+            rolePermissions: {
+              include: { permission: true },
+            },
+          },
+        },
+      },
+    });
+
+    const roles = userRoles.map((ur) => ur.role.name);
+    const permissions = [
+      ...new Set(
+        userRoles.flatMap((ur) =>
+          ur.role.rolePermissions.map((rp) => rp.permission.code),
+        ),
+      ),
+    ];
+
+    const payload = { sub: user.id, email: user.email, roles, permissions };
     const accessToken = this.jwtService.sign(payload);
 
     return { accessToken };

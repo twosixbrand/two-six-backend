@@ -40,6 +40,7 @@ import { SizeGuideModule } from './api/size-guide/size-guide.module';
 import { ProviderDocumentModule } from './api/provider-document/provider-document.module';
 import { DianModule } from './api/dian/dian.module';
 import { AccountingModule } from './api/accounting/accounting.module';
+import { PermissionModule } from './api/permission/permission.module';
 
 @Module({
   imports: [
@@ -103,6 +104,7 @@ import { AccountingModule } from './api/accounting/accounting.module';
     ProviderDocumentModule,
     DianModule,
     AccountingModule,
+    PermissionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -42,9 +42,33 @@ model Role {
   description String?
   id          Int        @id @default(autoincrement()) @map("id_role")
   updatedAt   DateTime?  @updatedAt @map("updated_at")
-  userRoles   UserRole[]
+  userRoles        UserRole[]
+  rolePermissions  RolePermission[]
 
   @@map("role")
+}
+
+model Permission {
+  id          Int       @id @default(autoincrement())
+  code        String    @unique // e.g. "accounting.puc.view", "accounting.expenses.create"
+  name        String    // e.g. "Ver Plan de Cuentas"
+  group       String    // e.g. "Contabilidad", "Inventario", "Ventas", "Administración"
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+  rolePermissions RolePermission[]
+  @@map("permission")
+}
+
+model RolePermission {
+  id            Int       @id @default(autoincrement())
+  id_role       Int       @map("id_role")
+  id_permission Int       @map("id_permission")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  role          Role      @relation(fields: [id_role], references: [id], onDelete: Cascade)
+  permission    Permission @relation(fields: [id_permission], references: [id], onDelete: Cascade)
+  @@unique([id_role, id_permission])
+  @@map("role_permission")
 }
 
 model UserRole {
