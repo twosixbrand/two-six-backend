@@ -39,6 +39,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { SizeGuideModule } from './api/size-guide/size-guide.module';
 import { ProviderDocumentModule } from './api/provider-document/provider-document.module';
 import { DianModule } from './api/dian/dian.module';
+import { AccountingModule } from './api/accounting/accounting.module';
 
 @Module({
   imports: [
@@ -101,6 +102,7 @@ import { DianModule } from './api/dian/dian.module';
     SizeGuideModule,
     ProviderDocumentModule,
     DianModule,
+    AccountingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

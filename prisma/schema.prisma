@@ -69,8 +69,10 @@ model Provider {
   createdAt       DateTime           @default(now()) @map("created_at")
   phone           String
   updatedAt       DateTime?          @updatedAt @map("updated_at")
-  designProviders DesignProvider[]
-  documents       ProviderDocument[]
+  designProviders         DesignProvider[]
+  documents               ProviderDocument[]
+  expenses                Expense[]
+  withholdingCertificates WithholdingCertificate[]
 
   @@map("provider")
 }
@@ -697,4 +699,362 @@ model PqrImage {
   pqr       Pqr      @relation(fields: [id_pqr], references: [id], onDelete: Cascade)
 
   @@map("pqr_image")
+}
+
+// ═══════════════════════════════════════════════════════
+// MÓDULO CONTABLE - Plan Único de Cuentas (PUC)
+// ═══════════════════════════════════════════════════════
+
+model PucAccount {
+  id                Int       @id @default(autoincrement())
+  code              String    @unique @db.VarChar(10)
+  name              String
+  level             Int       // 1=Clase, 2=Grupo, 3=Cuenta, 4=Subcuenta, 5=Auxiliar
+  nature            String    @db.VarChar(10) // DEBITO o CREDITO
+  parent_code       String?   @map("parent_code") @db.VarChar(10)
+  is_active         Boolean   @default(true) @map("is_active")
+  accepts_movements Boolean   @default(false) @map("accepts_movements")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime? @updatedAt @map("updated_at")
+
+  parent            PucAccount?        @relation("PucHierarchy", fields: [parent_code], references: [code])
+  children          PucAccount[]       @relation("PucHierarchy")
+  journalEntryLines JournalEntryLine[]
+  expenses          Expense[]
+  budgets           Budget[]
+
+  @@map("puc_account")
+}
+
+// ═══════════════════════════════════════════════════════
+// PRESUPUESTO (Budget vs Execution)
+// ═══════════════════════════════════════════════════════
+
+model Budget {
+  id              Int       @id @default(autoincrement())
+  year            Int
+  month           Int
+  id_puc_account  Int       @map("id_puc_account")
+  budgeted_amount Float     @map("budgeted_amount")
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime? @updatedAt @map("updated_at")
+  pucAccount      PucAccount @relation(fields: [id_puc_account], references: [id])
+
+  @@unique([year, month, id_puc_account])
+  @@map("budget")
+}
+
+// ═══════════════════════════════════════════════════════
+// ACTIVOS FIJOS Y DEPRECIACIÓN
+// ═══════════════════════════════════════════════════════
+
+model FixedAsset {
+  id                    Int       @id @default(autoincrement())
+  name                  String
+  description           String?
+  acquisition_date      DateTime  @map("acquisition_date")
+  acquisition_cost      Float     @map("acquisition_cost")
+  useful_life_months    Int       @map("useful_life_months")
+  salvage_value         Float     @default(0) @map("salvage_value")
+  depreciation_method   String    @default("STRAIGHT_LINE") @map("depreciation_method")
+  id_puc_asset          Int       @map("id_puc_asset")
+  id_puc_depreciation   Int       @map("id_puc_depreciation")
+  id_puc_accumulated    Int       @map("id_puc_accumulated")
+  is_active             Boolean   @default(true) @map("is_active")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime? @updatedAt @map("updated_at")
+  depreciationEntries   DepreciationEntry[]
+
+  @@map("fixed_asset")
+}
+
+model DepreciationEntry {
+  id              Int       @id @default(autoincrement())
+  id_fixed_asset  Int       @map("id_fixed_asset")
+  year            Int
+  month           Int
+  amount          Float
+  accumulated     Float
+  book_value      Float     @map("book_value")
+  journal_entry_id Int?     @map("journal_entry_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  fixedAsset      FixedAsset @relation(fields: [id_fixed_asset], references: [id])
+
+  @@unique([id_fixed_asset, year, month])
+  @@map("depreciation_entry")
+}
+
+// ═══════════════════════════════════════════════════════
+// ASIENTOS CONTABLES (Partida Doble)
+// ═══════════════════════════════════════════════════════
+
+model JournalEntry {
+  id           Int       @id @default(autoincrement())
+  entry_number String    @unique @map("entry_number")
+  entry_date   DateTime  @map("entry_date")
+  description  String
+  source_type  String    @map("source_type") // SALE, EXPENSE, ADJUSTMENT, BANK_RECONCILIATION
+  source_id    Int?      @map("source_id")
+  status       String    @default("POSTED") // DRAFT, POSTED, VOIDED
+  total_debit  Float     @map("total_debit")
+  total_credit Float     @map("total_credit")
+  created_by   Int?      @map("created_by")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime? @updatedAt @map("updated_at")
+
+  lines        JournalEntryLine[]
+
+  @@map("journal_entry")
+}
+
+model JournalEntryLine {
+  id               Int       @id @default(autoincrement())
+  id_journal_entry Int       @map("id_journal_entry")
+  id_puc_account   Int       @map("id_puc_account")
+  description      String?
+  debit            Float     @default(0)
+  credit           Float     @default(0)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime? @updatedAt @map("updated_at")
+
+  journalEntry     JournalEntry @relation(fields: [id_journal_entry], references: [id], onDelete: Cascade)
+  pucAccount       PucAccount   @relation(fields: [id_puc_account], references: [id])
+
+  @@map("journal_entry_line")
+}
+
+// ═══════════════════════════════════════════════════════
+// GASTOS Y COMPRAS
+// ═══════════════════════════════════════════════════════
+
+model ExpenseCategory {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+  expenses    Expense[]
+
+  @@map("expense_category")
+}
+
+model Expense {
+  id                  Int       @id @default(autoincrement())
+  expense_number      String    @unique @map("expense_number")
+  id_expense_category Int       @map("id_expense_category")
+  id_puc_account      Int       @map("id_puc_account")
+  id_provider         String?   @map("id_provider")
+  invoice_number      String?   @map("invoice_number")
+  description         String
+  subtotal            Float
+  tax_amount          Float     @default(0) @map("tax_amount")
+  retention_amount    Float     @default(0) @map("retention_amount")
+  total               Float
+  expense_date        DateTime  @map("expense_date")
+  due_date            DateTime? @map("due_date")
+  payment_status      String    @default("PENDING") @map("payment_status") // PENDING, PAID, PARTIAL
+  payment_date        DateTime? @map("payment_date")
+  payment_method      String?   @map("payment_method")
+  attachment_url      String?   @map("attachment_url")
+  notes               String?
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime? @updatedAt @map("updated_at")
+
+  expenseCategory     ExpenseCategory @relation(fields: [id_expense_category], references: [id])
+  pucAccount          PucAccount      @relation(fields: [id_puc_account], references: [id])
+  provider            Provider?       @relation(fields: [id_provider], references: [id])
+
+  @@map("expense")
+}
+
+// ═══════════════════════════════════════════════════════
+// CONCILIACIÓN BANCARIA
+// ═══════════════════════════════════════════════════════
+
+model BankAccount {
+  id             Int       @id @default(autoincrement())
+  name           String
+  bank_name      String    @map("bank_name")
+  account_number String    @map("account_number")
+  account_type   String    @map("account_type") // AHORROS, CORRIENTE
+  id_puc_account Int       @map("id_puc_account")
+  is_active      Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime? @updatedAt @map("updated_at")
+
+  statements     BankStatement[]
+
+  @@map("bank_account")
+}
+
+model BankStatement {
+  id              Int       @id @default(autoincrement())
+  id_bank_account Int       @map("id_bank_account")
+  upload_date     DateTime  @default(now()) @map("upload_date")
+  file_name       String    @map("file_name")
+  period_start    DateTime  @map("period_start")
+  period_end      DateTime  @map("period_end")
+  status          String    @default("PENDING") // PENDING, RECONCILED, PARTIAL
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime? @updatedAt @map("updated_at")
+
+  bankAccount     BankAccount       @relation(fields: [id_bank_account], references: [id])
+  transactions    BankTransaction[]
+
+  @@map("bank_statement")
+}
+
+model BankTransaction {
+  id                  Int       @id @default(autoincrement())
+  id_bank_statement   Int       @map("id_bank_statement")
+  transaction_date    DateTime  @map("transaction_date")
+  description         String
+  reference           String?
+  debit               Float     @default(0)
+  credit              Float     @default(0)
+  balance             Float?
+  matched             Boolean   @default(false)
+  matched_source_type String?   @map("matched_source_type")
+  matched_source_id   Int?      @map("matched_source_id")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime? @updatedAt @map("updated_at")
+
+  bankStatement       BankStatement @relation(fields: [id_bank_statement], references: [id], onDelete: Cascade)
+
+  @@map("bank_transaction")
+}
+
+// ═══════════════════════════════════════════════════════
+// CERTIFICADOS DE RETENCIÓN
+// ═══════════════════════════════════════════════════════
+
+model WithholdingCertificate {
+  id                 Int       @id @default(autoincrement())
+  certificate_number String    @unique @map("certificate_number")
+  id_provider        String    @map("id_provider")
+  year               Int
+  concept            String    // RETEFUENTE, RETEICA, RETEIVA
+  base_amount        Float     @map("base_amount")
+  rate               Float
+  withheld_amount    Float     @map("withheld_amount")
+  issue_date         DateTime  @map("issue_date")
+  pdf_url            String?   @map("pdf_url")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime? @updatedAt @map("updated_at")
+
+  provider           Provider  @relation(fields: [id_provider], references: [id])
+
+  @@map("withholding_certificate")
+}
+
+// ═══════════════════════════════════════════════════════
+// AUDIT LOG CONTABLE
+// ═══════════════════════════════════════════════════════
+
+model AccountingAuditLog {
+  id          Int       @id @default(autoincrement())
+  action      String    // CREATE, UPDATE, DELETE, VOID
+  entity_type String    @map("entity_type") // JOURNAL_ENTRY, EXPENSE, BANK_RECONCILIATION, WITHHOLDING
+  entity_id   Int       @map("entity_id")
+  user_id     Int?      @map("user_id")
+  user_name   String?   @map("user_name")
+  details     String?   @db.Text // JSON string with old/new values
+  ip_address  String?   @map("ip_address")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("accounting_audit_log")
+}
+
+// ═══════════════════════════════════════════════════════
+// CIERRE CONTABLE (Period Closing)
+// ═══════════════════════════════════════════════════════
+
+model AccountingClosing {
+  id               Int       @id @default(autoincrement())
+  year             Int
+  month            Int?      // null for annual closing
+  closing_type     String    @map("closing_type") // MONTHLY, ANNUAL
+  journal_entry_id Int?      @map("journal_entry_id")
+  profit_loss      Float     @map("profit_loss")
+  status           String    @default("CLOSED") // CLOSED, REVERSED
+  closed_by        String?   @map("closed_by")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  @@unique([year, month, closing_type])
+  @@map("accounting_closing")
+}
+
+// ═══════════════════════════════════════════════════════
+// NÓMINA COLOMBIANA
+// ═══════════════════════════════════════════════════════
+
+model Employee {
+  id                  Int       @id @default(autoincrement())
+  document_number     String    @unique @map("document_number")
+  id_identification_type Int    @map("id_identification_type")
+  name                String
+  position            String
+  department          String?
+  hire_date           DateTime  @map("hire_date")
+  base_salary         Float     @map("base_salary")
+  transport_allowance Float     @default(0) @map("transport_allowance")
+  is_active           Boolean   @default(true) @map("is_active")
+  eps_entity          String?   @map("eps_entity")
+  pension_fund        String?   @map("pension_fund")
+  arl_risk_level      Int       @default(1) @map("arl_risk_level")
+  bank_name           String?   @map("bank_name")
+  bank_account        String?   @map("bank_account")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime? @updatedAt @map("updated_at")
+  payrollEntries      PayrollEntry[]
+  @@map("employee")
+}
+
+model PayrollPeriod {
+  id          Int       @id @default(autoincrement())
+  year        Int
+  month       Int
+  period_type String    @map("period_type")
+  start_date  DateTime  @map("start_date")
+  end_date    DateTime  @map("end_date")
+  status      String    @default("DRAFT")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+  entries     PayrollEntry[]
+  @@map("payroll_period")
+}
+
+model PayrollEntry {
+  id                  Int       @id @default(autoincrement())
+  id_payroll_period   Int       @map("id_payroll_period")
+  id_employee         Int       @map("id_employee")
+  base_salary         Float     @map("base_salary")
+  transport_allowance Float     @default(0) @map("transport_allowance")
+  worked_days         Int       @default(30) @map("worked_days")
+  overtime_hours      Float     @default(0) @map("overtime_hours")
+  overtime_amount     Float     @default(0) @map("overtime_amount")
+  commissions         Float     @default(0)
+  bonuses             Float     @default(0)
+  gross_salary        Float     @map("gross_salary")
+  health_employee     Float     @default(0) @map("health_employee")
+  pension_employee    Float     @default(0) @map("pension_employee")
+  health_employer     Float     @default(0) @map("health_employer")
+  pension_employer    Float     @default(0) @map("pension_employer")
+  arl_employer        Float     @default(0) @map("arl_employer")
+  sena_employer       Float     @default(0) @map("sena_employer")
+  icbf_employer       Float     @default(0) @map("icbf_employer")
+  caja_employer       Float     @default(0) @map("caja_employer")
+  prima_provision     Float     @default(0) @map("prima_provision")
+  cesantias_provision Float     @default(0) @map("cesantias_provision")
+  int_cesantias_provision Float @default(0) @map("int_cesantias_provision")
+  vacaciones_provision Float    @default(0) @map("vacaciones_provision")
+  net_salary          Float     @map("net_salary")
+  total_employer_cost Float     @map("total_employer_cost")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime? @updatedAt @map("updated_at")
+
+  payrollPeriod       PayrollPeriod @relation(fields: [id_payroll_period], references: [id])
+  employee            Employee     @relation(fields: [id_employee], references: [id])
+  @@map("payroll_entry")
 }

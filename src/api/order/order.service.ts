@@ -13,6 +13,7 @@ import { DianCufeService } from '../dian/dian-cufe/dian-cufe.service';
 import { DianSoapService } from '../dian/dian-soap/dian-soap.service';
 import { DianPdfService } from '../dian/dian-pdf/dian-pdf.service';
 import { DianEmailService } from '../dian/dian-email.service';
+import { JournalAutoService } from '../accounting/journal/journal-auto.service';
 
 @Injectable()
 export class OrderService {
@@ -26,6 +27,7 @@ export class OrderService {
     private readonly soapService: DianSoapService,
     private readonly pdfService: DianPdfService,
     private readonly dianEmailService: DianEmailService,
+    private readonly journalAutoService: JournalAutoService,
   ) { }
 
   async validateDiscountCode(code: string, email: string) {
@@ -709,6 +711,22 @@ export class OrderService {
           } catch (error) {
             console.error('Error enviando correo:', error);
           }
+        }
+
+        // 6. Generar asiento contable automático
+        try {
+          await this.journalAutoService.onSaleCompleted(order.id);
+          console.log(`Asiento contable generado para orden ${order.order_reference}`);
+        } catch (accountingError) {
+          console.error('Error generando asiento contable (no bloquea el flujo):', accountingError.message);
+        }
+
+        // 7. Generar asiento de costo de mercancía vendida (COGS)
+        try {
+          await this.journalAutoService.onCostOfGoodsSold(order.id);
+          console.log(`Asiento de costo de mercancía vendida generado para orden ${order.order_reference}`);
+        } catch (cogsError) {
+          console.error('Error generando asiento COGS (no bloquea el flujo):', cogsError.message);
         }
 
         return {
