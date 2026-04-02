@@ -65,6 +65,11 @@ export class OrderController {
     return this.orderService.trackOrder(trackOrderDto);
   }
 
+  @Post(':id/preparing-for-pickup')
+  markPreparingForPickup(@Param('id', ParseIntPipe) id: number) {
+    return this.orderService.markAsPreparingForPickup(id);
+  }
+
   @Post(':id/ready-for-pickup')
   markReadyForPickup(@Param('id', ParseIntPipe) id: number) {
     return this.orderService.markAsReadyForPickup(id);
@@ -73,6 +78,11 @@ export class OrderController {
   @Post(':id/collected')
   markCollected(@Param('id', ParseIntPipe) id: number) {
     return this.orderService.markAsCollected(id);
+  }
+
+  @Post(':id/unclaimed-pickup')
+  markUnclaimedForPickup(@Param('id', ParseIntPipe) id: number) {
+    return this.orderService.markAsUnclaimedForPickup(id);
   }
 
   @Post()

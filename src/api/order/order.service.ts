@@ -808,6 +808,30 @@ export class OrderService {
     }
   }
 
+  async markAsPreparingForPickup(id: number) {
+    const order = await this.prisma.order.findUnique({ where: { id } });
+    if (!order) throw new NotFoundException('Orden no encontrada');
+    if (order.delivery_method !== 'PICKUP') throw new BadRequestException('Esta orden no es para recoger en punto físico');
+
+    const updated = await this.prisma.order.update({
+      where: { id },
+      data: { pickup_status: 'PREPARING', status: 'Preparando Pedido' }
+    });
+    return updated;
+  }
+
+  async markAsUnclaimedForPickup(id: number) {
+    const order = await this.prisma.order.findUnique({ where: { id } });
+    if (!order) throw new NotFoundException('Orden no encontrada');
+    if (order.delivery_method !== 'PICKUP') throw new BadRequestException('Esta orden no es para recoger en punto físico');
+
+    const updated = await this.prisma.order.update({
+      where: { id },
+      data: { pickup_status: 'UNCLAIMED', status: 'No Reclamado' }
+    });
+    return updated;
+  }
+
   async markAsReadyForPickup(id: number) {
     const order = await this.prisma.order.findUnique({
       where: { id },
@@ -819,7 +843,7 @@ export class OrderService {
 
     const updated = await this.prisma.order.update({
       where: { id },
-      data: { pickup_status: 'READY' }
+      data: { pickup_status: 'READY', status: 'Listo para Recoger' }
     });
 
     try {
