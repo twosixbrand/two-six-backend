@@ -21,7 +21,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed:puc": "ts-node prisma/seed-puc.ts",
-    "seed:permissions": "ts-node prisma/seed-permissions.ts"
+    "seed:permissions": "ts-node prisma/seed-permissions.ts",
+    "postinstall": "npx puppeteer browsers install chrome"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.956.0",
