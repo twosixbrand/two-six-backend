@@ -347,9 +347,19 @@ export class DianPdfService {
     </body></html>`;
 
     const puppeteer = require('puppeteer');
+    const fs = require('fs');
+    const executablePath = this.configService.get<string>('PUPPETEER_EXECUTABLE_PATH') || puppeteer.executablePath();
+    
+    this.logger.log(`Lanzando Puppeteer. ExecutablePath: ${executablePath}`);
+    if (fs.existsSync(executablePath)) {
+      this.logger.log(`El binario de Chrome EXISTE en: ${executablePath}`);
+    } else {
+      this.logger.error(`¡ERROR! El binario de Chrome NO EXISTE en: ${executablePath}`);
+    }
+
     const browser = await puppeteer.launch({
       headless: 'new',
-      executablePath: this.configService.get<string>('PUPPETEER_EXECUTABLE_PATH') || undefined,
+      executablePath,
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
     });
     const page = await browser.newPage();
