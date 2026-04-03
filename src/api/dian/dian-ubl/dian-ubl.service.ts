@@ -7,6 +7,7 @@ export interface InvoiceLineDto {
   quantity: number;
   unitPrice: number;
   taxPercent?: number; // default 19%
+  discountPercentage?: number; // Descuento comercial (ej: 10 = 10%)
 }
 
 export interface InvoiceDto {
@@ -229,24 +230,33 @@ export class DianUblService {
 
     let subtotal = 0;
     let taxTotal = 0;
+    let totalAllowance = 0;
     const taxSubtotals: Record<string, { taxableAmount: number, taxAmount: number }> = {};
     
     const processedLines = lines.map(l => {
-      const unitPrice = Number(l.unitPrice.toFixed(2));
-      const lineTotal = Number((l.quantity * unitPrice).toFixed(2));
+      const originalUnitPrice = Number(l.unitPrice.toFixed(2));
+      const discountRate = l.discountPercentage || 0;
+      const unitDiscountAmount = Number((originalUnitPrice * (discountRate / 100)).toFixed(2));
+      const discountedUnitPrice = Number((originalUnitPrice - unitDiscountAmount).toFixed(2));
+
+      const lineGrossTotal = Number((l.quantity * originalUnitPrice).toFixed(2));
+      const lineTotal = Number((l.quantity * discountedUnitPrice).toFixed(2));
+      const lineAllowanceTotal = Number((lineGrossTotal - lineTotal).toFixed(2));
+
       const lineTaxPercent = l.taxPercent ?? 19;
-      const unitTax = Number((unitPrice * (lineTaxPercent / 100)).toFixed(2));
+      const unitTax = Number((discountedUnitPrice * (lineTaxPercent / 100)).toFixed(2));
       const lineTax = Number((unitTax * l.quantity).toFixed(2));
       
       subtotal += lineTotal;
       taxTotal += lineTax;
+      totalAllowance += lineAllowanceTotal;
       
       const percentStr = Number(lineTaxPercent).toFixed(2);
       if (!taxSubtotals[percentStr]) taxSubtotals[percentStr] = { taxableAmount: 0, taxAmount: 0 };
       taxSubtotals[percentStr].taxableAmount += lineTotal;
       taxSubtotals[percentStr].taxAmount += lineTax;
       
-      return { ...l, unitPrice, lineTotal, lineTaxPercent, lineTax };
+      return { ...l, unitPrice: originalUnitPrice, discountedUnitPrice, lineGrossTotal, lineTotal, lineAllowanceTotal, discountRate, lineTaxPercent, lineTax };
     });
 
     subtotal = invoiceObj.subtotal ?? Number(subtotal.toFixed(2));
@@ -318,23 +328,40 @@ export class DianUblService {
     taxTotalNode.up();
 
     // Totales monetarios
-    doc.ele('cac:LegalMonetaryTotal')
+    const legalMonetary = doc.ele('cac:LegalMonetaryTotal')
       .ele('cbc:LineExtensionAmount', { currencyID: 'COP' }).txt(subtotal.toFixed(2)).up()
       .ele('cbc:TaxExclusiveAmount', { currencyID: 'COP' }).txt(subtotal.toFixed(2)).up()
-      .ele('cbc:TaxInclusiveAmount', { currencyID: 'COP' }).txt(total.toFixed(2)).up()
-      .ele('cbc:PayableAmount', { currencyID: 'COP' }).txt(total.toFixed(2)).up()
+      .ele('cbc:TaxInclusiveAmount', { currencyID: 'COP' }).txt(total.toFixed(2)).up();
+    if (totalAllowance > 0) {
+      legalMonetary.ele('cbc:AllowanceTotalAmount', { currencyID: 'COP' }).txt(totalAllowance.toFixed(2)).up();
+    }
+    legalMonetary.ele('cbc:PayableAmount', { currencyID: 'COP' }).txt(total.toFixed(2)).up()
     .up();
 
     // Líneas de la factura
     processedLines.forEach((line, index) => {
-      const { unitPrice, lineTotal, lineTaxPercent, lineTax } = line;
+      const { unitPrice, discountedUnitPrice, lineTotal, lineAllowanceTotal, lineGrossTotal, discountRate, lineTaxPercent, lineTax } = line;
       const taxPercentStr = Number(lineTaxPercent).toFixed(2); // '19.00'
 
-      doc.ele('cac:InvoiceLine')
+      const invLine = doc.ele('cac:InvoiceLine')
         .ele('cbc:ID').txt(String(index + 1)).up()
         .ele('cbc:InvoicedQuantity', { unitCode: '94' }).txt(String(line.quantity)).up()
-        .ele('cbc:LineExtensionAmount', { currencyID: 'COP' }).txt(lineTotal.toFixed(2)).up()
-        .ele('cac:TaxTotal')
+        .ele('cbc:LineExtensionAmount', { currencyID: 'COP' }).txt(lineTotal.toFixed(2)).up();
+
+      // Descuento comercial por línea (AllowanceCharge)
+      if (lineAllowanceTotal > 0) {
+        invLine.ele('cac:AllowanceCharge')
+          .ele('cbc:ID').txt('1').up()
+          .ele('cbc:ChargeIndicator').txt('false').up()
+          .ele('cbc:AllowanceChargeReasonCode').txt('00').up()
+          .ele('cbc:AllowanceChargeReason').txt('Descuento comercial').up()
+          .ele('cbc:MultiplierFactorNumeric').txt(discountRate.toFixed(2)).up()
+          .ele('cbc:Amount', { currencyID: 'COP' }).txt(lineAllowanceTotal.toFixed(2)).up()
+          .ele('cbc:BaseAmount', { currencyID: 'COP' }).txt(lineGrossTotal.toFixed(2)).up()
+        .up();
+      }
+
+      invLine.ele('cac:TaxTotal')
           .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(lineTax.toFixed(2)).up()
           .ele('cac:TaxSubtotal')
             .ele('cbc:TaxableAmount', { currencyID: 'COP' }).txt(lineTotal.toFixed(2)).up()
@@ -362,7 +389,7 @@ export class DianUblService {
           .up()
         .up()
         .ele('cac:Price')
-          .ele('cbc:PriceAmount', { currencyID: 'COP' }).txt(line.unitPrice.toFixed(2)).up()
+          .ele('cbc:PriceAmount', { currencyID: 'COP' }).txt(unitPrice.toFixed(2)).up()
           .ele('cbc:BaseQuantity', { unitCode: '94' }).txt('1').up()
         .up()
       .up();
@@ -387,24 +414,33 @@ export class DianUblService {
 
     let subtotal = 0;
     let taxTotal = 0;
+    let totalAllowance = 0;
     const taxSubtotals: Record<string, { taxableAmount: number, taxAmount: number }> = {};
     
     const processedLines = lines.map(l => {
-      const unitPrice = Number(l.unitPrice.toFixed(2));
-      const lineTotal = Number((l.quantity * unitPrice).toFixed(2));
+      const originalUnitPrice = Number(l.unitPrice.toFixed(2));
+      const discountRate = l.discountPercentage || 0;
+      const unitDiscountAmount = Number((originalUnitPrice * (discountRate / 100)).toFixed(2));
+      const discountedUnitPrice = Number((originalUnitPrice - unitDiscountAmount).toFixed(2));
+
+      const lineGrossTotal = Number((l.quantity * originalUnitPrice).toFixed(2));
+      const lineTotal = Number((l.quantity * discountedUnitPrice).toFixed(2));
+      const lineAllowanceTotal = Number((lineGrossTotal - lineTotal).toFixed(2));
+
       const lineTaxPercent = l.taxPercent ?? 19;
-      const unitTax = Number((unitPrice * (lineTaxPercent / 100)).toFixed(2));
+      const unitTax = Number((discountedUnitPrice * (lineTaxPercent / 100)).toFixed(2));
       const lineTax = Number((unitTax * l.quantity).toFixed(2));
       
       subtotal += lineTotal;
       taxTotal += lineTax;
+      totalAllowance += lineAllowanceTotal;
       
       const percentStr = Number(lineTaxPercent).toFixed(2);
       if (!taxSubtotals[percentStr]) taxSubtotals[percentStr] = { taxableAmount: 0, taxAmount: 0 };
       taxSubtotals[percentStr].taxableAmount += lineTotal;
       taxSubtotals[percentStr].taxAmount += lineTax;
       
-      return { ...l, unitPrice, lineTotal, lineTaxPercent, lineTax };
+      return { ...l, unitPrice: originalUnitPrice, discountedUnitPrice, lineGrossTotal, lineTotal, lineAllowanceTotal, discountRate, lineTaxPercent, lineTax };
     });
 
     subtotal = noteObj.subtotal ?? Number(subtotal.toFixed(2));
@@ -481,22 +517,38 @@ export class DianUblService {
     }
     taxTotalNode.up();
 
-    doc.ele('cac:LegalMonetaryTotal')
+    const legalMonetary = doc.ele('cac:LegalMonetaryTotal')
       .ele('cbc:LineExtensionAmount', { currencyID: 'COP' }).txt(subtotal.toFixed(2)).up()
       .ele('cbc:TaxExclusiveAmount', { currencyID: 'COP' }).txt(subtotal.toFixed(2)).up()
-      .ele('cbc:TaxInclusiveAmount', { currencyID: 'COP' }).txt(total.toFixed(2)).up()
-      .ele('cbc:PayableAmount', { currencyID: 'COP' }).txt(total.toFixed(2)).up()
+      .ele('cbc:TaxInclusiveAmount', { currencyID: 'COP' }).txt(total.toFixed(2)).up();
+    if (totalAllowance > 0) {
+      legalMonetary.ele('cbc:AllowanceTotalAmount', { currencyID: 'COP' }).txt(totalAllowance.toFixed(2)).up();
+    }
+    legalMonetary.ele('cbc:PayableAmount', { currencyID: 'COP' }).txt(total.toFixed(2)).up()
     .up();
 
     processedLines.forEach((line, index) => {
-      const { unitPrice, lineTotal, lineTaxPercent, lineTax } = line;
+      const { unitPrice, discountedUnitPrice, lineTotal, lineAllowanceTotal, lineGrossTotal, discountRate, lineTaxPercent, lineTax } = line;
       const taxPercentStr = Number(lineTaxPercent).toFixed(2);
 
-      doc.ele('cac:CreditNoteLine')
+      const noteLine = doc.ele('cac:CreditNoteLine')
         .ele('cbc:ID').txt(String(index + 1)).up()
         .ele('cbc:CreditedQuantity', { unitCode: '94' }).txt(String(line.quantity)).up()
-        .ele('cbc:LineExtensionAmount', { currencyID: 'COP' }).txt(lineTotal.toFixed(2)).up()
-        .ele('cac:TaxTotal')
+        .ele('cbc:LineExtensionAmount', { currencyID: 'COP' }).txt(lineTotal.toFixed(2)).up();
+
+      if (lineAllowanceTotal > 0) {
+        noteLine.ele('cac:AllowanceCharge')
+          .ele('cbc:ID').txt('1').up()
+          .ele('cbc:ChargeIndicator').txt('false').up()
+          .ele('cbc:AllowanceChargeReasonCode').txt('00').up()
+          .ele('cbc:AllowanceChargeReason').txt('Descuento comercial').up()
+          .ele('cbc:MultiplierFactorNumeric').txt(discountRate.toFixed(2)).up()
+          .ele('cbc:Amount', { currencyID: 'COP' }).txt(lineAllowanceTotal.toFixed(2)).up()
+          .ele('cbc:BaseAmount', { currencyID: 'COP' }).txt(lineGrossTotal.toFixed(2)).up()
+        .up();
+      }
+
+      noteLine.ele('cac:TaxTotal')
           .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(lineTax.toFixed(2)).up()
           .ele('cac:TaxSubtotal')
             .ele('cbc:TaxableAmount', { currencyID: 'COP' }).txt(lineTotal.toFixed(2)).up()
@@ -524,7 +576,7 @@ export class DianUblService {
           .up()
         .up()
         .ele('cac:Price')
-          .ele('cbc:PriceAmount', { currencyID: 'COP' }).txt(line.unitPrice.toFixed(2)).up()
+          .ele('cbc:PriceAmount', { currencyID: 'COP' }).txt(unitPrice.toFixed(2)).up()
           .ele('cbc:BaseQuantity', { unitCode: '94' }).txt('1').up()
         .up()
       .up();
@@ -549,24 +601,33 @@ export class DianUblService {
 
     let subtotal = 0;
     let taxTotal = 0;
+    let totalAllowance = 0;
     const taxSubtotals: Record<string, { taxableAmount: number, taxAmount: number }> = {};
     
     const processedLines = lines.map(l => {
-      const unitPrice = Number(l.unitPrice.toFixed(2));
-      const lineTotal = Number((l.quantity * unitPrice).toFixed(2));
+      const originalUnitPrice = Number(l.unitPrice.toFixed(2));
+      const discountRate = l.discountPercentage || 0;
+      const unitDiscountAmount = Number((originalUnitPrice * (discountRate / 100)).toFixed(2));
+      const discountedUnitPrice = Number((originalUnitPrice - unitDiscountAmount).toFixed(2));
+
+      const lineGrossTotal = Number((l.quantity * originalUnitPrice).toFixed(2));
+      const lineTotal = Number((l.quantity * discountedUnitPrice).toFixed(2));
+      const lineAllowanceTotal = Number((lineGrossTotal - lineTotal).toFixed(2));
+
       const lineTaxPercent = l.taxPercent ?? 19;
-      const unitTax = Number((unitPrice * (lineTaxPercent / 100)).toFixed(2));
+      const unitTax = Number((discountedUnitPrice * (lineTaxPercent / 100)).toFixed(2));
       const lineTax = Number((unitTax * l.quantity).toFixed(2));
       
       subtotal += lineTotal;
       taxTotal += lineTax;
+      totalAllowance += lineAllowanceTotal;
       
       const percentStr = Number(lineTaxPercent).toFixed(2);
       if (!taxSubtotals[percentStr]) taxSubtotals[percentStr] = { taxableAmount: 0, taxAmount: 0 };
       taxSubtotals[percentStr].taxableAmount += lineTotal;
       taxSubtotals[percentStr].taxAmount += lineTax;
       
-      return { ...l, unitPrice, lineTotal, lineTaxPercent, lineTax };
+      return { ...l, unitPrice: originalUnitPrice, discountedUnitPrice, lineGrossTotal, lineTotal, lineAllowanceTotal, discountRate, lineTaxPercent, lineTax };
     });
 
     subtotal = noteObj.subtotal ?? Number(subtotal.toFixed(2));
@@ -641,22 +702,38 @@ export class DianUblService {
     }
     taxTotalNode.up();
 
-    doc.ele('cac:RequestedMonetaryTotal')
+    const requestedMonetary = doc.ele('cac:RequestedMonetaryTotal')
       .ele('cbc:LineExtensionAmount', { currencyID: 'COP' }).txt(subtotal.toFixed(2)).up()
       .ele('cbc:TaxExclusiveAmount', { currencyID: 'COP' }).txt(subtotal.toFixed(2)).up()
-      .ele('cbc:TaxInclusiveAmount', { currencyID: 'COP' }).txt(total.toFixed(2)).up()
-      .ele('cbc:PayableAmount', { currencyID: 'COP' }).txt(total.toFixed(2)).up()
+      .ele('cbc:TaxInclusiveAmount', { currencyID: 'COP' }).txt(total.toFixed(2)).up();
+    if (totalAllowance > 0) {
+      requestedMonetary.ele('cbc:AllowanceTotalAmount', { currencyID: 'COP' }).txt(totalAllowance.toFixed(2)).up();
+    }
+    requestedMonetary.ele('cbc:PayableAmount', { currencyID: 'COP' }).txt(total.toFixed(2)).up()
     .up();
 
     processedLines.forEach((line, index) => {
-      const { unitPrice, lineTotal, lineTaxPercent, lineTax } = line;
+      const { unitPrice, discountedUnitPrice, lineTotal, lineAllowanceTotal, lineGrossTotal, discountRate, lineTaxPercent, lineTax } = line;
       const taxPercentStr = Number(lineTaxPercent).toFixed(2);
 
-      doc.ele('cac:DebitNoteLine')
+      const noteLine = doc.ele('cac:DebitNoteLine')
         .ele('cbc:ID').txt(String(index + 1)).up()
         .ele('cbc:DebitedQuantity', { unitCode: '94' }).txt(String(line.quantity)).up()
-        .ele('cbc:LineExtensionAmount', { currencyID: 'COP' }).txt(lineTotal.toFixed(2)).up()
-        .ele('cac:TaxTotal')
+        .ele('cbc:LineExtensionAmount', { currencyID: 'COP' }).txt(lineTotal.toFixed(2)).up();
+
+      if (lineAllowanceTotal > 0) {
+        noteLine.ele('cac:AllowanceCharge')
+          .ele('cbc:ID').txt('1').up()
+          .ele('cbc:ChargeIndicator').txt('false').up()
+          .ele('cbc:AllowanceChargeReasonCode').txt('00').up()
+          .ele('cbc:AllowanceChargeReason').txt('Descuento comercial').up()
+          .ele('cbc:MultiplierFactorNumeric').txt(discountRate.toFixed(2)).up()
+          .ele('cbc:Amount', { currencyID: 'COP' }).txt(lineAllowanceTotal.toFixed(2)).up()
+          .ele('cbc:BaseAmount', { currencyID: 'COP' }).txt(lineGrossTotal.toFixed(2)).up()
+        .up();
+      }
+
+      noteLine.ele('cac:TaxTotal')
           .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(lineTax.toFixed(2)).up()
           .ele('cac:TaxSubtotal')
             .ele('cbc:TaxableAmount', { currencyID: 'COP' }).txt(lineTotal.toFixed(2)).up()
@@ -684,7 +761,7 @@ export class DianUblService {
           .up()
         .up()
         .ele('cac:Price')
-          .ele('cbc:PriceAmount', { currencyID: 'COP' }).txt(line.unitPrice.toFixed(2)).up()
+          .ele('cbc:PriceAmount', { currencyID: 'COP' }).txt(unitPrice.toFixed(2)).up()
           .ele('cbc:BaseQuantity', { unitCode: '94' }).txt('1').up()
         .up()
       .up();

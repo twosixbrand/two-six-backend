@@ -468,6 +468,20 @@ export class OrderService {
           const invoiceNumber = `${resolution.prefix}${nextNum}`;
           const claveTecnica = resolution.technicalKey || this.configService.get<string>('DIAN_TECHNICAL_KEY') || '';
           const invoiceDate = new Date().toISOString().split('T')[0];
+
+          // Calcular descuento comercial (si aplica)
+          // unit_price ya incluye IVA. Sumamos el subtotal bruto de items.
+          const orderItemsGrossTotal = order.orderItems.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
+          const expectedGrossTotal = orderItemsGrossTotal + order.shipping_cost;
+          const actualPaid = order.total_payment;
+          // El descuento se aplica solo a los productos (no al envío)
+          const totalDiscountAmount = expectedGrossTotal - actualPaid;
+          const discountPercentage = (totalDiscountAmount > 1 && orderItemsGrossTotal > 0)
+            ? Number(((totalDiscountAmount / orderItemsGrossTotal) * 100).toFixed(2))
+            : 0;
+
+          console.log(`[DIAN Invoice] Bruto items: ${orderItemsGrossTotal}, Envío: ${order.shipping_cost}, Total pagado: ${actualPaid}, Descuento: ${discountPercentage}%`);
+
           const invoiceLines: any[] = order.orderItems.map(item => {
             const basePrice = item.unit_price / 1.19;
             return {
@@ -475,6 +489,7 @@ export class OrderService {
               quantity: item.quantity,
               unitPrice: basePrice,
               taxPercent: 19,
+              discountPercentage: discountPercentage, // Descuento comercial por línea
             };
           });
 
@@ -486,18 +501,23 @@ export class OrderService {
               quantity: 1,
               unitPrice: shippingBase,
               taxPercent: 19,
+              discountPercentage: 0, // No se descuenta el envío
             });
           }
 
           // Generate exact DIAN totals (Must strictly match UBL engine logic: unit tax first)
+          // Now incorporates discount in the calculation
           let dianSubtotal = 0;
           let dianIva = 0;
           invoiceLines.forEach(line => {
             line.unitPrice = Number(line.unitPrice.toFixed(2));
-            const lineTotal = Number((line.quantity * line.unitPrice).toFixed(2));
+            const discRate = line.discountPercentage || 0;
+            const unitDiscount = Number((line.unitPrice * (discRate / 100)).toFixed(2));
+            const discountedPrice = Number((line.unitPrice - unitDiscount).toFixed(2));
+            const lineTotal = Number((line.quantity * discountedPrice).toFixed(2));
 
             const lineTaxPercent = line.taxPercent ?? 19;
-            const unitTax = Number((line.unitPrice * (lineTaxPercent / 100)).toFixed(2));
+            const unitTax = Number((discountedPrice * (lineTaxPercent / 100)).toFixed(2));
             const lineTax = Number((unitTax * line.quantity).toFixed(2));
 
             dianSubtotal += lineTotal;
