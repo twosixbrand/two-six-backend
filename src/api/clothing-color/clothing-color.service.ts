@@ -102,6 +102,7 @@ export class ClothingColorService {
         color: {
           select: {
             name: true,
+            hex: true,
           },
         },
         clothingSizes: {
@@ -134,6 +135,7 @@ export class ClothingColorService {
         color: {
           select: {
             name: true,
+            hex: true,
           },
         },
         clothingSizes: {
