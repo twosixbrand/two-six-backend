@@ -37,18 +37,20 @@ export class ClothingColorController {
       properties: {
         id_design: { type: 'integer' },
         id_color: { type: 'integer' },
+        slug: { type: 'string' },
         sizes: { type: 'string', description: 'JSON string of sizes array' },
       },
     },
   })
   async createContextual(
-    @Body() body: { id_design: string; id_color: string; sizes: string },
+    @Body() body: { id_design: string; id_color: string; slug?: string; sizes: string },
   ) {
     try {
       console.log('Controller createContextual received body:', body);
 
       const id_design = parseInt(body.id_design, 10);
       const id_color = parseInt(body.id_color, 10);
+      const slug = body.slug;
       let sizes;
 
       try {
@@ -61,7 +63,7 @@ export class ClothingColorController {
         throw new BadRequestException('Sizes must be a valid array');
       }
 
-      return await this.clothingColorService.createContextual(id_design, id_color, sizes);
+      return await this.clothingColorService.createContextual(id_design, id_color, slug, sizes);
     } catch (error) {
       console.error('Controller Error in createContextual:', error);
       if (error instanceof BadRequestException || error instanceof InternalServerErrorException) {

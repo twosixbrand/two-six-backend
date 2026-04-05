@@ -55,6 +55,13 @@ export class ProductController {
     return this.productService.findByDesignReference(reference);
   }
 
+  @Get('by-slug/:slug')
+  findByClothingColorSlug(
+    @Param('slug') slug: string,
+  ): Promise<{ products: (Product & { clothingSize: any })[], colorId: number | null }> {
+    return this.productService.findByClothingColorSlug(slug);
+  }
+
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,

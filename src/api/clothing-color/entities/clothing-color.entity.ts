@@ -10,6 +10,7 @@ export class ClothingColorEntity implements ClothingColorModel {
   id_size: number;
   id_design: number;
   id_gender: number;
+  slug: string | null;
   quantity_produced: number;
   quantity_available: number;
   quantity_sold: number;

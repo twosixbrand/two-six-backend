@@ -282,6 +282,7 @@ model ClothingColor {
   id            Int             @id @default(autoincrement())
   id_color      Int             @map("id_color")
   id_design     Int             @map("id_design")
+  slug          String?         @unique
   createdAt     DateTime        @default(now()) @map("created_at")
   updatedAt     DateTime?       @updatedAt @map("updated_at")
   color         Color           @relation(fields: [id_color], references: [id])

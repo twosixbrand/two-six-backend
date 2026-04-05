@@ -22,6 +22,7 @@ class ClothingColorEntity implements ClothingColorModel {
   id_design: number;
   id_color: number;
   id_gender: number;
+  slug: string | null;
   createdAt: Date;
   updatedAt: Date | null;
   design: DesignWithRelations;

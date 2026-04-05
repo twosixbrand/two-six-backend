@@ -193,6 +193,7 @@ export class ProductService {
       // Flatten all products from all colors/sizes to find a representative one
       let validProduct: any = null;
       let validImage: string | null = null;
+      let validClothingColor: any = null;
 
       for (const cc of design.clothingColors) {
         for (const cs of cc.clothingSizes) {
@@ -201,6 +202,7 @@ export class ProductService {
             // Sort by position asc, take first
             const images = [...(cc.imageClothing || [])].sort((a, b) => (a.position || 0) - (b.position || 0));
             validImage = images.length > 0 ? images[0].image_url : null;
+            validClothingColor = cc;
             break;
           }
         }
@@ -216,6 +218,7 @@ export class ProductService {
               validProduct = cs.product;
               const images = [...(cc.imageClothing || [])].sort((a, b) => (a.position || 0) - (b.position || 0));
               validImage = images.length > 0 ? images[0].image_url : null;
+              validClothingColor = cc;
               break;
             }
           }
@@ -230,6 +233,7 @@ export class ProductService {
         description: design.description,
         // We return the ID of the product so the card can link to /product/:id
         id_product: validProduct?.id,
+        slug: validClothingColor?.slug,
         price: validProduct?.price,
         image_url: design.image_url || validImage,
         is_outlet: validProduct?.is_outlet,
@@ -351,6 +355,49 @@ export class ProductService {
       );
     }
     return products.map(p => this._mapProduct(p));
+  }
+
+  async findByClothingColorSlug(
+    slug: string,
+  ): Promise<{ products: (Product & { clothingSize: any })[], colorId: number | null }> {
+    const clothingColor = await this.prisma.clothingColor.findUnique({
+      where: { slug: slug },
+      include: {
+        design: true
+      }
+    });
+
+    if (!clothingColor) {
+        throw new NotFoundException(`No se encontró un color de variante con el slug '${slug}'.`);
+    }
+
+    const reference = clothingColor.design.reference;
+
+    // Get all products from the same design (so the user can switch sizes and other colors in frontend)
+    const products = await this.prisma.product.findMany({
+      where: {
+        clothingSize: {
+          clothingColor: {
+            design: {
+              reference: reference
+            }
+          }
+        },
+        active: true,
+      },
+      include: this.getProductWithDetails(),
+    });
+
+    if (!products || products.length === 0) {
+      throw new NotFoundException(
+        `No se encontraron productos activos para la referencia de diseño '${reference}'.`,
+      );
+    }
+
+    return {
+       products: products.map(p => this._mapProduct(p)),
+       colorId: clothingColor.id_color
+    };
   }
 
   async findOne(id: number) {

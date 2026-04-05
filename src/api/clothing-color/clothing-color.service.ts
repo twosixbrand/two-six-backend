@@ -16,6 +16,7 @@ export class ClothingColorService {
   async createContextual(
     id_design: number,
     id_color: number,
+    slug: string | undefined,
     sizes: { id_size: number; quantity_produced: number; quantity_available: number }[]
   ) {
     try {
@@ -49,6 +50,7 @@ export class ClothingColorService {
           data: {
             id_design,
             id_color,
+            slug,
           },
         });
 
