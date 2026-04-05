@@ -23,6 +23,10 @@ class ClothingColorEntity implements ClothingColorModel {
   id_color: number;
   id_gender: number;
   slug: string | null;
+  seo_title: string | null;
+  seo_desc: string | null;
+  seo_h1: string | null;
+  seo_alt: string | null;
   createdAt: Date;
   updatedAt: Date | null;
   design: DesignWithRelations;
