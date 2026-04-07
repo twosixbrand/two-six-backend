@@ -45,6 +45,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     xdg-utils \
     openssl \
+    chromium \
     && rm -rf /var/lib/apt/lists/*
 
 
@@ -57,6 +58,10 @@ WORKDIR /app
 # Aprovechar caché copiando archivos de dependencia primero
 COPY package*.json ./
 COPY tsconfig*.json ./
+
+# Prevenir que versiones viejas de Puppeteer mueran al no hallar binarios ARM64 en Mac M1/M2/M3
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Instalar dependencias puras y dependencias de desarrollo para poder compilar
 RUN npm ci
