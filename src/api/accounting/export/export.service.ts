@@ -3,6 +3,7 @@ import { AccountingReportService } from '../reports/accounting-report.service';
 import { ExpenseService } from '../expense/expense.service';
 import { PayrollService } from '../payroll/payroll.service';
 import { JournalService } from '../journal/journal.service';
+import { AgingService } from '../reports/aging.service';
 import * as XLSX from 'xlsx';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class ExportService {
     private readonly expenseService: ExpenseService,
     private readonly payrollService: PayrollService,
     private readonly journalService: JournalService,
+    private readonly agingService: AgingService,
   ) {}
 
   private companyHeader(reportName: string, period: string): string[][] {
@@ -294,6 +296,170 @@ export class ExportService {
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Nómina');
+
+    return Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
+  }
+
+  // ── Aging Reports Excel Exports ───────────────────────────────
+
+  async generateReceivablesAging(): Promise<Buffer> {
+    const data = await this.agingService.getAgingReport();
+    const date = new Date().toLocaleDateString('es-CO');
+
+    const rows: any[][] = [
+      ...this.companyHeader('Cartera por Edades - Cuentas por Cobrar (CxC)', `Generado: ${date}`),
+      ['Referencia', 'Cliente', 'Fecha Pedido', 'Estado', 'Dias Vencidos', 'Monto'],
+    ];
+
+    const bucketKeys = ['current', 'days31_60', 'days61_90', 'over90'] as const;
+    const bucketLabels = { current: '0-30 Dias', days31_60: '31-60 Dias', days61_90: '61-90 Dias', over90: 'Mas de 90 Dias' };
+
+    for (const key of bucketKeys) {
+      const orders = data.detail[key] || [];
+      if (orders.length > 0) {
+        rows.push([]);
+        rows.push([bucketLabels[key]]);
+        for (const o of orders) {
+          rows.push([
+            o.orderReference || `#${o.orderId}`,
+            o.customerName,
+            o.orderDate ? new Date(o.orderDate).toLocaleDateString('es-CO') : '',
+            o.status,
+            o.daysOutstanding,
+            o.amount,
+          ]);
+        }
+        rows.push(['', '', '', '', `Subtotal ${bucketLabels[key]}:`, data.summary[key]?.total || 0]);
+      }
+    }
+
+    rows.push([]);
+    rows.push(['', '', '', '', 'TOTAL CARTERA:', data.totalOutstanding]);
+    rows.push(['', '', '', '', 'Total Pedidos:', data.totalOrders]);
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 18 }, { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 18 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'CxC Cartera');
+
+    return Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
+  }
+
+  async generatePayablesAging(): Promise<Buffer> {
+    const data = await this.agingService.getPayablesAging();
+    const date = new Date().toLocaleDateString('es-CO');
+
+    const rows: any[][] = [
+      ...this.companyHeader('Cartera por Edades - Cuentas por Pagar (CxP)', `Generado: ${date}`),
+      ['Nro Gasto', 'Proveedor', 'NIT', 'Factura', 'Categoría', 'Fecha Gasto', 'Fecha Vencimiento', 'Dias Vencidos', 'Monto'],
+    ];
+
+    const bucketKeys = ['current', 'days31_60', 'days61_90', 'over90'] as const;
+    const bucketLabels = { current: '0-30 Dias', days31_60: '31-60 Dias', days61_90: '61-90 Dias', over90: 'Mas de 90 Dias' };
+
+    for (const key of bucketKeys) {
+      const items = data.detail[key] || [];
+      if (items.length > 0) {
+        rows.push([]);
+        rows.push([bucketLabels[key]]);
+        for (const item of items) {
+          rows.push([
+            item.expenseNumber,
+            item.providerName,
+            item.providerNit,
+            item.invoiceNumber,
+            item.category,
+            item.expenseDate ? new Date(item.expenseDate).toLocaleDateString('es-CO') : '',
+            item.dueDate ? new Date(item.dueDate).toLocaleDateString('es-CO') : 'Sin fecha',
+            item.daysOutstanding,
+            item.amount,
+          ]);
+        }
+        rows.push(['', '', '', '', '', '', '', `Subtotal ${bucketLabels[key]}:`, data.summary[key]?.total || 0]);
+      }
+    }
+
+    rows.push([]);
+    rows.push(['', '', '', '', '', '', '', 'TOTAL POR PAGAR:', data.totalOutstanding]);
+    rows.push(['', '', '', '', '', '', '', 'Total Gastos:', data.totalExpenses]);
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [
+      { wch: 14 }, { wch: 30 }, { wch: 16 }, { wch: 16 }, { wch: 18 },
+      { wch: 16 }, { wch: 18 }, { wch: 16 }, { wch: 18 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'CxP Cartera');
+
+    return Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
+  }
+
+  async generateInventoryValuation(): Promise<Buffer> {
+    const data = await this.agingService.getInventoryValuation();
+    const date = new Date().toLocaleDateString('es-CO');
+
+    const rows: any[][] = [
+      ...this.companyHeader('Valoración de Inventario (NIC 2 - Costo de Producción)', `Generado: ${date}`),
+    ];
+
+    // Summary section
+    rows.push(['RESUMEN']);
+    rows.push(['Productos Activos:', data.summary.totalActiveProducts]);
+    rows.push(['Total Unidades:', data.summary.totalUnits]);
+    rows.push(['Valor Total (Costo Producción):', data.summary.totalCostValue]);
+    rows.push(['Valor Total (Precio Venta):', data.summary.totalSaleValue]);
+    rows.push(['Margen Potencial:', data.summary.potentialMargin]);
+    rows.push([]);
+
+    // Detail by category
+    rows.push(['DETALLE POR CATEGORÍA']);
+    rows.push([]);
+    rows.push([
+      'Categoría', 'SKU', 'Producto', 'Tipo', 'Color', 'Talla',
+      'Cantidad', 'Costo Unitario', 'Precio Venta', 'Valor Costo Total', 'Valor Venta Total', 'Outlet',
+    ]);
+
+    for (const cat of data.categories) {
+      rows.push([]);
+      rows.push([`── ${cat.categoryName} ──`]);
+      for (const item of cat.items) {
+        rows.push([
+          cat.categoryName,
+          item.sku,
+          item.productName,
+          item.typeName,
+          item.colorName,
+          item.sizeName,
+          item.quantityAvailable,
+          item.unitCost,
+          item.unitSalePrice,
+          item.lineCostValue,
+          item.lineSaleValue,
+          item.isOutlet ? 'Sí' : 'No',
+        ]);
+      }
+      rows.push([
+        '', '', '', '', '', `Subtotal ${cat.categoryName}:`,
+        cat.totalUnits, '', '', cat.totalCostValue, cat.totalSaleValue, '',
+      ]);
+    }
+
+    rows.push([]);
+    rows.push([
+      '', '', '', '', '', 'TOTAL GENERAL:',
+      data.summary.totalUnits, '', '', data.summary.totalCostValue, data.summary.totalSaleValue, '',
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [
+      { wch: 18 }, { wch: 14 }, { wch: 30 }, { wch: 14 }, { wch: 14 }, { wch: 10 },
+      { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 18 }, { wch: 8 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
 
     return Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
   }

@@ -102,4 +102,39 @@ export class ExportController {
     });
     res.send(buffer);
   }
+
+  // ── Aging Reports Excel Exports ───────────────────────────────
+
+  @Get('aging-receivables')
+  async exportReceivablesAging(@Res() res: Response) {
+    const buffer = await this.exportService.generateReceivablesAging();
+    const date = new Date().toISOString().split('T')[0];
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="CxC_Cartera_${date}.xlsx"`,
+    });
+    res.send(buffer);
+  }
+
+  @Get('aging-payables')
+  async exportPayablesAging(@Res() res: Response) {
+    const buffer = await this.exportService.generatePayablesAging();
+    const date = new Date().toISOString().split('T')[0];
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="CxP_Cartera_${date}.xlsx"`,
+    });
+    res.send(buffer);
+  }
+
+  @Get('inventory-valuation')
+  async exportInventoryValuation(@Res() res: Response) {
+    const buffer = await this.exportService.generateInventoryValuation();
+    const date = new Date().toISOString().split('T')[0];
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="Inventario_Valoracion_${date}.xlsx"`,
+    });
+    res.send(buffer);
+  }
 }

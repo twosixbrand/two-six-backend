@@ -12,4 +12,14 @@ export class AgingController {
   getAgingReport() {
     return this.agingService.getAgingReport();
   }
+
+  @Get('aging/payables')
+  getPayablesAging() {
+    return this.agingService.getPayablesAging();
+  }
+
+  @Get('aging/inventory')
+  getInventoryValuation() {
+    return this.agingService.getInventoryValuation();
+  }
 }
