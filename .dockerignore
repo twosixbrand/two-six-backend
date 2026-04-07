@@ -14,3 +14,4 @@ Aptfile
 *.sql
 *.js
 *.dump
+secrets

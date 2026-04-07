@@ -19,26 +19,35 @@ export class DianService implements OnModuleInit {
 
   private async loadCertificate() {
     try {
-      const certPath = this.configService.get<string>('DIAN_CERT_PATH');
       const certPassword = this.configService.get<string>('DIAN_CERT_PASSWORD');
+      const certBase64 = this.configService.get<string>('DIAN_CERT_BASE64');
+      const certPath = this.configService.get<string>('DIAN_CERT_PATH');
 
-      if (!certPath || !certPassword) {
-        this.logger.warn('Faltan credenciales DIAN_CERT_PATH o DIAN_CERT_PASSWORD en .env');
+      if (!certPassword) {
+        this.logger.warn('Falta la variable DIAN_CERT_PASSWORD en .env');
         return;
       }
 
       let p12Der: string;
 
-      if (certPath.startsWith('http://') || certPath.startsWith('https://')) {
-        // Descargar certificado desde DigitalOcean Spaces usando S3 SDK
+      if (certBase64) {
+        // PRIORIDAD 1: Certificado embebido como Base64 en variable de entorno
+        this.logger.log('Cargando certificado DIAN desde variable de entorno Base64...');
+        const buffer = Buffer.from(certBase64, 'base64');
+        p12Der = buffer.toString('binary');
+      } else if (certPath && (certPath.startsWith('http://') || certPath.startsWith('https://'))) {
+        // PRIORIDAD 2: Descargar certificado desde DigitalOcean Spaces usando S3 SDK
         p12Der = await this.downloadFromSpaces(certPath);
-      } else {
-        // Leer certificado desde archivo local
+      } else if (certPath) {
+        // PRIORIDAD 3: Leer certificado desde archivo local
         if (!fs.existsSync(certPath)) {
           this.logger.error(`No se encontró el certificado en la ruta: ${certPath}`);
           return;
         }
         p12Der = fs.readFileSync(certPath, 'binary');
+      } else {
+        this.logger.warn('No se configuró ninguna fuente para el certificado DIAN (DIAN_CERT_BASE64 o DIAN_CERT_PATH)');
+        return;
       }
 
       const p12Asn1 = forge.asn1.fromDer(p12Der);

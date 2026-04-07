@@ -97,9 +97,7 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./
 # El schema de prisma usualmente es requerido por algun runtime o comando deploy
-COPY --from=builder /app/prisma ./prisma 
-# Asegurar que el certificado P12 de la DIAN viaje al contenedor final
-COPY secrets ./secrets
+COPY --from=builder /app/prisma ./prisma
 
 # Exponer el puerto por el que entra tráfico desde App Platform
 EXPOSE 3050
