@@ -29,6 +29,11 @@ export class ProductController {
     return this.productService.findAll(query.gender, query.is_outlet);
   }
 
+  @Get('feed')
+  findAllForGoogleFeed() {
+    return this.productService.findAllForGoogleFeed();
+  }
+
   @Get('store/designs')
   findDesignsForStore(
     @Query('gender') gender?: any,

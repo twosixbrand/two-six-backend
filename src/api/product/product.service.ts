@@ -254,6 +254,74 @@ export class ProductService {
     };
   }
 
+  /**
+   * Returns all active, non-outlet products in a flat structure
+   * optimized for Google Merchant Center feed generation.
+   */
+  async findAllForGoogleFeed() {
+    const products = await this.prisma.product.findMany({
+      where: {
+        active: true,
+        is_outlet: false,
+      },
+      include: {
+        clothingSize: {
+          include: {
+            size: true,
+            clothingColor: {
+              include: {
+                color: true,
+                imageClothing: {
+                  orderBy: { position: 'asc' },
+                },
+                design: {
+                  include: {
+                    clothing: {
+                      include: {
+                        gender: true,
+                        typeClothing: true,
+                        category: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return products.map((product) => {
+      const cs = product.clothingSize;
+      const cc = cs?.clothingColor;
+      const design = cc?.design;
+      const clothing = design?.clothing;
+      const images = cc?.imageClothing || [];
+
+      return {
+        id: product.id,
+        sku: product.sku || `TS-${product.id}`,
+        price: product.price,
+        discount_price: product.discount_price,
+        discount_percentage: product.discount_percentage,
+        active: product.active,
+        quantity_available: cs?.quantity_available || 0,
+        slug: cc?.slug || null,
+        color_name: cc?.color?.name || null,
+        size_name: cs?.size?.name || null,
+        design_reference: design?.reference || null,
+        design_description: design?.description || null,
+        clothing_name: clothing?.name || 'Producto Two Six',
+        gender_name: clothing?.gender?.name || 'Unisex',
+        type_clothing_name: clothing?.typeClothing?.name || null,
+        category_name: clothing?.category?.name || null,
+        image_url: images[0]?.image_url || design?.image_url || null,
+        additional_images: images.slice(1, 11).map((img) => img.image_url).filter(Boolean),
+      };
+    });
+  }
+
   async findAll(gender?: string, is_outlet?: boolean) {
     const where: Prisma.ProductWhereInput = {
       active: true,
