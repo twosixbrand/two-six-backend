@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+dist
+.env
+.env.*
+.git
+.gitignore
+.prettierrc
+README.md
+nest-cli.json
+eslint.config.mjs
+scripts
+Aptfile
+*.sql
+*.js
+*.dump
