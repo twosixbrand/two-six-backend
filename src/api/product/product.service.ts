@@ -362,6 +362,9 @@ export class ProductService {
             clothingColor: {
               include: {
                 color: true,
+                imageClothing: {
+                  orderBy: { position: 'asc' },
+                },
                 design: {
                   include: {
                     clothing: {
@@ -386,8 +389,13 @@ export class ProductService {
     return products.map((product) => {
       const { clothingSize, ...restOfProduct } = product;
       const clothingColor = clothingSize?.clothingColor;
+      
+      const images = clothingColor?.imageClothing || [];
+      const image_url = images.length > 0 ? images[0].image_url : (clothingColor?.design?.image_url || null);
+
       return {
         ...restOfProduct,
+        image_url: image_url,
         name: clothingColor?.design?.clothing?.name || "Producto sin nombre",
         clothing_name: clothingColor?.design?.clothing?.name ?? null,
         color_name: clothingColor?.color?.name ?? null,
