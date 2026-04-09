@@ -369,6 +369,107 @@ export class DianController {
     }
   }
 
+  @Post('support-document/:expenseId')
+  @ApiOperation({ summary: 'Generar y enviar Documento Soporte Electrónico para un Gasto' })
+  async createSupportDocument(@Param('expenseId') expenseId: string, @Body() body: any) {
+    try {
+      const expense = await this.prisma.expense.findUnique({
+        where: { id: parseInt(expenseId, 10) },
+        include: { provider: true }
+      });
+
+      if (!expense) throw new Error('El gasto no existe');
+
+      const env = this.configService.get<string>('DIAN_ENVIRONMENT', 'TEST');
+      const resolution = await this.prisma.dianResolution.findFirst({
+        where: { isActive: true, environment: env, type: 'SUPPORT_DOCUMENT' },
+      });
+
+      if (!resolution) throw new Error('No hay resolución configurada para Documento Soporte');
+
+      const nextNumber = resolution.currentNumber + 1;
+      await this.prisma.dianResolution.update({
+        where: { id: resolution.id },
+        data: { currentNumber: nextNumber },
+      });
+
+      const docNumber = `${resolution.prefix}${nextNumber}`;
+
+      const docDto: InvoiceDto = {
+        number: docNumber,
+        date: new Date().toISOString().split('T')[0],
+        time: '12:00:00-05:00',
+        // @ts-ignore
+        customerName: expense.provider?.company_name || 'Proveedor',
+        // @ts-ignore
+        customerDoc: expense.provider?.id || '222222222222',
+        customerDocType: '13', // Cédula/NIT
+        paymentMeansCode: '10', // Efectivo
+        lines: [{ 
+          description: expense.description || 'Compra de bienes/servicios', 
+          quantity: 1, 
+          unitPrice: expense.subtotal 
+        }],
+        subtotal: expense.subtotal,
+        taxTotal: expense.tax_amount,
+        total: expense.total,
+        // Resolution data
+        resolutionPrefix: resolution.prefix,
+        resolutionNumber: resolution.resolutionNumber,
+        resolutionStartDate: resolution.startDate.toISOString().split('T')[0],
+        resolutionEndDate: resolution.endDate.toISOString().split('T')[0],
+        resolutionStartNumber: resolution.startNumber,
+        resolutionEndNumber: resolution.endNumber,
+      };
+
+      const nit = this.configService.get<string>('DIAN_COMPANY_NIT') || '';
+      const claveTecnica = resolution.technicalKey || '';
+
+      // 1. Generar CUDS (Código Único de Documento Soporte)
+      const cuds = this.cufeService.generateCufe({
+        NumFac: docDto.number, FecFac: docDto.date, HorFac: docDto.time,
+        ValFac: docDto.subtotal!.toFixed(2), CodImp1: '01', ValImp1: docDto.taxTotal!.toFixed(2),
+        CodImp2: '04', ValImp2: '0.00', CodImp3: '03', ValImp3: '0.00',
+        ValTot: docDto.total!.toFixed(2), NitOfe: nit, NumAdq: docDto.customerDoc,
+        ClTec: claveTecnica, TipoAmb: env === 'TEST' ? '2' : '1'
+      });
+
+      // 2. Generar XML Documento Soporte (Tipo 05), luego firmar
+      const xmlBase = this.ublService.generateSupportDocumentXml(docDto);
+      const xmlWithCuds = xmlBase.replace(/CUDS_PLACEHOLDER/g, cuds);
+      const signedXml = this.signerService.signXml(xmlWithCuds);
+
+      // 3. Enviar a DIAN
+      const soapResponse = await this.soapService.sendInvoice(Buffer.from(signedXml), docDto.number);
+
+      // 4. Persistir en base de datos
+      const saved = await this.prisma.dianEInvoicing.create({
+        data: {
+          document_number: docDto.number,
+          cufe_code: cuds,
+          issue_date: new Date(),
+          due_date: new Date(),
+          status: 'SENT',
+          dian_response: typeof soapResponse === 'string' ? soapResponse : JSON.stringify(soapResponse),
+          environment: env,
+          id_expense: expense.id,
+          id_dian_resolution: resolution.id,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Documento Soporte enviado a la DIAN',
+        docId: saved.id,
+        cuds,
+        dianResponse: soapResponse,
+      };
+    } catch (error) {
+      this.logger.error('Error generando Documento Soporte', error);
+      throw new HttpException({ error: error.message }, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
   @Post('invoices/retry/:orderId')
   @ApiOperation({ summary: 'Reintenta generar y enviar una factura para una orden fallida' })
   @HttpCode(HttpStatus.OK)

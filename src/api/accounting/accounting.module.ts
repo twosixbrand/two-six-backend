@@ -24,6 +24,8 @@ import { ClosingController } from './closing/closing.controller';
 import { ClosingService } from './closing/closing.service';
 import { TaxReportController } from './tax/tax-report.controller';
 import { TaxReportService } from './tax/tax-report.service';
+import { TaxConfigController } from './tax-config/tax-config.controller';
+import { TaxConfigService } from './tax-config/tax-config.service';
 import { CashFlowController } from './reports/cash-flow.controller';
 import { CashFlowService } from './reports/cash-flow.service';
 import { AgingController } from './reports/aging.controller';
@@ -38,6 +40,8 @@ import { ExportController } from './export/export.controller';
 import { ExportService } from './export/export.service';
 import { ExogenaController } from './exogena/exogena.controller';
 import { ExogenaService } from './exogena/exogena.service';
+import { ProfitabilityController } from './reports/profitability.controller';
+import { ProfitabilityService } from './reports/profitability.service';
 
 @Module({
   imports: [PrismaModule, ConfigModule],
@@ -53,6 +57,7 @@ import { ExogenaService } from './exogena/exogena.service';
     PayrollController,
     ClosingController,
     TaxReportController,
+    TaxConfigController,
     CashFlowController,
     AgingController,
     BudgetController,
@@ -60,6 +65,7 @@ import { ExogenaService } from './exogena/exogena.service';
     FinancialIndicatorsController,
     ExportController,
     ExogenaController,
+    ProfitabilityController,
   ],
   providers: [
     PucService,
@@ -74,6 +80,7 @@ import { ExogenaService } from './exogena/exogena.service';
     PayrollService,
     ClosingService,
     TaxReportService,
+    TaxConfigService,
     CashFlowService,
     AgingService,
     BudgetService,
@@ -81,7 +88,8 @@ import { ExogenaService } from './exogena/exogena.service';
     FinancialIndicatorsService,
     ExportService,
     ExogenaService,
+    ProfitabilityService,
   ],
-  exports: [JournalAutoService, AuditService],
+  exports: [JournalAutoService, AuditService, TaxConfigService],
 })
 export class AccountingModule { }

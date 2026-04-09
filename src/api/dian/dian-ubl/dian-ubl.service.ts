@@ -769,4 +769,86 @@ export class DianUblService {
 
     return doc.end({ prettyPrint: true });
   }
+
+  generateSupportDocumentXml(docObj: InvoiceDto): string {
+    const env = this.config.get<string>('DIAN_ENVIRONMENT', 'TEST');
+    const softwareId = this.config.get<string>('DIAN_SOFTWARE_ID') || '';
+    const softwarePin = this.config.get<string>('DIAN_SOFTWARE_PIN') || '';
+
+    const crypto = require('crypto');
+    const softwareSecurityCode = crypto.createHash('sha384')
+      .update(softwareId + softwarePin + docObj.number)
+      .digest('hex');
+
+    const lines = docObj.lines || [];
+    let subtotal = docObj.subtotal || 0;
+    let taxTotal = docObj.taxTotal || 0;
+    const total = docObj.total || (subtotal + taxTotal);
+
+    const doc = create({ version: '1.0', encoding: 'UTF-8', standalone: false })
+      .ele('Invoice', {
+        'xmlns': 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2',
+        'xmlns:cac': 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+        'xmlns:cbc': 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+        'xmlns:ext': 'urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2',
+        'xmlns:sts': 'dian:gov:co:facturaelectronica:Structures-2-1',
+        'xmlns:ds': 'http://www.w3.org/2000/09/xmldsig#',
+        'xmlns:xades': 'http://uri.etsi.org/01903/v1.3.2#',
+        'xmlns:xades141': 'http://uri.etsi.org/01903/v1.4.1#',
+        'Id': '_0',
+      });
+
+    this.getDianExtensionsObj(doc, docObj, softwareSecurityCode, false);
+
+    doc.ele('cbc:UBLVersionID').txt('UBL 2.1').up();
+    doc.ele('cbc:CustomizationID').txt('11').up();
+    doc.ele('cbc:ProfileID').txt('DIAN 2.1: Documento Soporte en adquisiciones efectuadas a sujetos no obligados a expedir factura de venta').up();
+    doc.ele('cbc:ProfileExecutionID').txt(env === 'TEST' ? '2' : '1').up();
+    doc.ele('cbc:ID').txt(docObj.number).up();
+    doc.ele('cbc:UUID', { schemeID: env === 'TEST' ? '2' : '1', schemeName: 'CUDS-SHA384' }).txt('CUDS_PLACEHOLDER').up();
+    doc.ele('cbc:IssueDate').txt(docObj.date).up();
+    doc.ele('cbc:IssueTime').txt(docObj.time).up();
+    doc.ele('cbc:InvoiceTypeCode').txt('05').up(); // 05 = Documento Soporte
+    doc.ele('cbc:Note').txt('Documento soporte en adquisiciones efectuadas a no obligados a facturar').up();
+    doc.ele('cbc:DocumentCurrencyCode').txt('COP').up();
+    doc.ele('cbc:LineCountNumeric').txt(String(lines.length)).up();
+
+    this.buildSupplierAndCustomer(doc, docObj);
+
+    // Medios de pago
+    doc.ele('cac:PaymentMeans')
+      .ele('cbc:ID').txt('1').up()
+      .ele('cbc:PaymentMeansCode').txt(docObj.paymentMeansCode || '10').up()
+      .ele('cbc:PaymentDueDate').txt(docObj.date).up()
+    .up();
+
+    // Totales
+    doc.ele('cac:TaxTotal')
+      .ele('cbc:TaxAmount', { currencyID: 'COP' }).txt(taxTotal.toFixed(2)).up()
+    .up();
+
+    doc.ele('cac:LegalMonetaryTotal')
+      .ele('cbc:LineExtensionAmount', { currencyID: 'COP' }).txt(subtotal.toFixed(2)).up()
+      .ele('cbc:TaxExclusiveAmount', { currencyID: 'COP' }).txt(subtotal.toFixed(2)).up()
+      .ele('cbc:TaxInclusiveAmount', { currencyID: 'COP' }).txt(total.toFixed(2)).up()
+      .ele('cbc:PayableAmount', { currencyID: 'COP' }).txt(total.toFixed(2)).up()
+    .up();
+
+    // Líneas
+    lines.forEach((line, index) => {
+      doc.ele('cac:InvoiceLine')
+        .ele('cbc:ID').txt(String(index + 1)).up()
+        .ele('cbc:InvoicedQuantity', { unitCode: '94' }).txt(String(line.quantity)).up()
+        .ele('cbc:LineExtensionAmount', { currencyID: 'COP' }).txt((line.quantity * line.unitPrice).toFixed(2)).up()
+        .ele('cac:Item')
+          .ele('cbc:Description').txt(line.description).up()
+        .up()
+        .ele('cac:Price')
+          .ele('cbc:PriceAmount', { currencyID: 'COP' }).txt(line.unitPrice.toFixed(2)).up()
+        .up()
+      .up();
+    });
+
+    return doc.end({ prettyPrint: true });
+  }
 }

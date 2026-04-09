@@ -45,58 +45,70 @@ export class WithholdingService {
   }
 
   async generateFromExpenses(year: number) {
-    // Query all expenses with retention_amount > 0 for the given year
     const startDate = new Date(`${year}-01-01T00:00:00.000Z`);
     const endDate = new Date(`${year}-12-31T23:59:59.999Z`);
 
-    const expenses = await this.prisma.expense.findMany({
+    // Buscamos líneas de asientos contables que afecten cuentas de retención
+    // 2365: Retefuente, 2367: ReteIVA, 2368: ReteICA
+    const entries = await (this.prisma.journalEntryLine as any).findMany({
       where: {
-        retention_amount: { gt: 0 },
-        expense_date: { gte: startDate, lte: endDate },
-        id_provider: { not: null },
+        journalEntry: {
+          entry_date: { gte: startDate, lte: endDate },
+          status: 'POSTED',
+        },
+        pucAccount: {
+          code: { startsWith: '23' }, // Cuentas de pasivos/retenciones
+        },
       },
-      include: { provider: true },
+      include: {
+        journalEntry: {
+          include: { 
+            // @ts-ignore
+            expense: { include: { provider: true } } 
+          }
+        },
+        pucAccount: true
+      }
     });
 
-    if (expenses.length === 0) {
-      return { message: 'No se encontraron gastos con retenciones para el año indicado', created: 0 };
-    }
+    // Agrupación compleja: Proveedor -> Concepto -> { base, withheld }
+    const results = new Map<string, any>();
 
-    // Group by provider + concept (RETEFUENTE as default since expenses only have retention_amount)
-    const grouped = new Map<string, { id_provider: string; concept: string; base_amount: number; withheld_amount: number }>();
+    for (const line of entries) {
+      const expense = line.journalEntry.expense;
+      if (!expense || !expense.provider) continue;
 
-    for (const exp of expenses) {
-      const key = `${exp.id_provider}_RETEFUENTE`;
-      const existing = grouped.get(key);
-      if (existing) {
-        existing.base_amount += exp.subtotal;
-        existing.withheld_amount += exp.retention_amount;
-      } else {
-        grouped.set(key, {
-          id_provider: exp.id_provider!,
-          concept: 'RETEFUENTE',
-          base_amount: exp.subtotal,
-          withheld_amount: exp.retention_amount,
+      const providerId = expense.provider.id;
+      let concept = 'RETEFUENTE';
+      if (line.pucAccount.code.startsWith('2367')) concept = 'RETEIVA';
+      if (line.pucAccount.code.startsWith('2368')) concept = 'RETEICA';
+      
+      const key = `${providerId}_${concept}`;
+      if (!results.has(key)) {
+        results.set(key, {
+          id_provider: providerId,
+          concept,
+          base_amount: 0,
+          withheld_amount: 0,
         });
       }
+
+      const res = results.get(key);
+      res.withheld_amount += line.credit; // Las retenciones se registran al crédito
+      // La base la estimamos del gasto asociado si no está en la línea
+      res.base_amount += expense.subtotal; 
     }
 
-    // Delete existing certificates for this year to regenerate
-    await this.prisma.withholdingCertificate.deleteMany({
-      where: { year },
-    });
-
-    // Get sequential numbering: CR-YYYY-0001
+    // Limpiar y guardar
+    await this.prisma.withholdingCertificate.deleteMany({ where: { year } });
+    
     let seq = 1;
-    const created: any[] = [];
-
-    for (const [, data] of grouped) {
-      const certNumber = `CR-${year}-${String(seq).padStart(4, '0')}`;
+    const created = [];
+    for (const data of results.values()) {
       const rate = data.base_amount > 0 ? (data.withheld_amount / data.base_amount) * 100 : 0;
-
       const cert = await this.prisma.withholdingCertificate.create({
         data: {
-          certificate_number: certNumber,
+          certificate_number: `CR-${year}-${String(seq).padStart(4, '0')}`,
           id_provider: data.id_provider,
           year,
           concept: data.concept,
@@ -104,15 +116,13 @@ export class WithholdingService {
           rate: Math.round(rate * 100) / 100,
           withheld_amount: Math.round(data.withheld_amount),
           issue_date: new Date(),
-        },
-        include: { provider: true },
+        }
       });
-
       created.push(cert);
       seq++;
     }
 
-    return { message: `Se generaron ${created.length} certificados para el año ${year}`, created: created.length, certificates: created };
+    return { created: created.length };
   }
 
   async generatePdf(id: number): Promise<Buffer> {

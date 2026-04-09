@@ -41,6 +41,7 @@ import { ProviderDocumentModule } from './api/provider-document/provider-documen
 import { DianModule } from './api/dian/dian.module';
 import { AccountingModule } from './api/accounting/accounting.module';
 import { PermissionModule } from './api/permission/permission.module';
+import { InventoryModule } from './api/inventory/inventory.module';
 
 @Module({
   imports: [
@@ -105,6 +106,7 @@ import { PermissionModule } from './api/permission/permission.module';
     DianModule,
     AccountingModule,
     PermissionModule,
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

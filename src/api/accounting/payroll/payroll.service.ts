@@ -14,6 +14,16 @@ const ARL_RATES: Record<number, number> = {
   5: 0.06960,
 };
 
+// Overtime & Surcharge rates (Colombian law)
+const RATES = {
+  HED: 1.25,  // Hora Extra Diurna
+  HEN: 1.75,  // Hora Extra Nocturna
+  HEDF: 2.00, // Hora Extra Diurna Festiva
+  HENF: 2.50, // Hora Extra Nocturna Festiva
+  RN: 0.35,   // Recargo Nocturno
+  RF: 0.75,   // Recargo Festivo
+};
+
 @Injectable()
 export class PayrollService {
   constructor(
@@ -142,49 +152,48 @@ export class PayrollService {
     const entries: any[] = [];
 
     for (const emp of employees) {
-      const workedDays = 30; // Default full period
+      const workedDays = 30; // standard
       const baseSalaryProrated = (emp.base_salary / 30) * workedDays;
-      const grossSalary = baseSalaryProrated + emp.transport_allowance;
+      
+      // In a real system, these would come from another table 'Novedades'
+      const overtimeAmount = 0; 
+      const commissions = 0;
+      const bonuses = 0;
 
-      // Base for social security (without transport allowance if salary <= 2 SMLMV)
-      const ibc = baseSalaryProrated;
+      const grossSalary = baseSalaryProrated + emp.transport_allowance + overtimeAmount + commissions + bonuses;
 
-      // Employee deductions
-      const healthEmployee = Math.round(ibc * 0.04 * 100) / 100;
-      const pensionEmployee = Math.round(ibc * 0.04 * 100) / 100;
+      // IBC (Base for social security)
+      const ibc = baseSalaryProrated + overtimeAmount + commissions; 
+
+      // Employee deductions (4% Salud, 4% Pensión)
+      const healthEmployee = Math.round(ibc * 0.04);
+      const pensionEmployee = Math.round(ibc * 0.04);
 
       // Employer contributions
-      const healthEmployer = Math.round(ibc * 0.085 * 100) / 100;
-      const pensionEmployer = Math.round(ibc * 0.12 * 100) / 100;
+      // LEY 1607: Exoneration if salary < 10 SMLMV
+      const isExonerated = emp.is_exonerated && emp.base_salary < 13000000;
+      
+      const healthEmployer = isExonerated ? 0 : Math.round(ibc * 0.085);
+      const senaEmployer = isExonerated ? 0 : Math.round(ibc * 0.02);
+      const icbfEmployer = isExonerated ? 0 : Math.round(ibc * 0.03);
+      
+      const pensionEmployer = Math.round(ibc * 0.12);
       const arlRate = ARL_RATES[emp.arl_risk_level] || ARL_RATES[1];
-      const arlEmployer = Math.round(ibc * arlRate * 100) / 100;
-      const senaEmployer = Math.round(ibc * 0.02 * 100) / 100;
-      const icbfEmployer = Math.round(ibc * 0.03 * 100) / 100;
-      const cajaEmployer = Math.round(ibc * 0.04 * 100) / 100;
+      const arlEmployer = Math.round(ibc * arlRate);
+      const cajaEmployer = Math.round(ibc * 0.04);
 
       // Provisions
-      const primaProvision = Math.round(grossSalary * 0.0833 * 100) / 100;
-      const cesantiasProvision = Math.round(grossSalary * 0.0833 * 100) / 100;
-      const intCesantiasProvision = Math.round((cesantiasProvision * 0.12) / 12 * 100) / 100;
-      const vacacionesProvision = Math.round(baseSalaryProrated * 0.0417 * 100) / 100;
+      const primaProvision = Math.round(grossSalary * 0.0833);
+      const cesantiasProvision = Math.round(grossSalary * 0.0833);
+      const intCesantiasProvision = Math.round((cesantiasProvision * 0.12) / 12);
+      const vacacionesProvision = Math.round(baseSalaryProrated * 0.0417);
 
-      // Net salary
-      const netSalary = Math.round((grossSalary - healthEmployee - pensionEmployee) * 100) / 100;
+      const netSalary = grossSalary - healthEmployee - pensionEmployee;
 
-      // Total employer cost
-      const totalEmployerCost = Math.round(
-        (grossSalary +
-          healthEmployer +
-          pensionEmployer +
-          arlEmployer +
-          senaEmployer +
-          icbfEmployer +
-          cajaEmployer +
-          primaProvision +
-          cesantiasProvision +
-          intCesantiasProvision +
-          vacacionesProvision) * 100,
-      ) / 100;
+      const totalEmployerCost = grossSalary + healthEmployer + pensionEmployer + 
+                                arlEmployer + senaEmployer + icbfEmployer + 
+                                cajaEmployer + primaProvision + cesantiasProvision + 
+                                intCesantiasProvision + vacacionesProvision;
 
       const entry = await this.prisma.payrollEntry.create({
         data: {
@@ -193,11 +202,8 @@ export class PayrollService {
           base_salary: emp.base_salary,
           transport_allowance: emp.transport_allowance,
           worked_days: workedDays,
-          overtime_hours: 0,
-          overtime_amount: 0,
-          commissions: 0,
-          bonuses: 0,
-          gross_salary: Math.round(grossSalary * 100) / 100,
+          gross_salary: grossSalary,
+          ibc: ibc,
           health_employee: healthEmployee,
           pension_employee: pensionEmployee,
           health_employer: healthEmployer,

@@ -324,6 +324,8 @@ model ClothingSize {
   clothingColor           ClothingColor @relation(fields: [id_clothing_color], references: [id])
   size                    Size          @relation(fields: [id_size], references: [id])
   product                 Product?
+  kardexEntries           InventoryKardex[]
+  adjustmentItems         InventoryAdjustmentItem[]
 
   @@map("clothing_size")
 }
@@ -531,6 +533,7 @@ model Payments {
 model DianEInvoicing {
   id                 Int             @id @default(autoincrement())
   id_order           Int?            @map("id_order")
+  id_expense         Int?            @map("id_expense")
   cufe_code          String?
   qr_code            String?
   document_number    String
@@ -549,6 +552,7 @@ model DianEInvoicing {
   dian_authorized_at DateTime?       @map("dian_authorized_at")
   dianResolution     DianResolution? @relation(fields: [id_dian_resolution], references: [id])
   order              Order?          @relation(fields: [id_order], references: [id])
+  expense            Expense?        @relation(fields: [id_expense], references: [id])
   dianNotes          DianNote[]
 
   @@map("dian_e_invoicing")
@@ -678,6 +682,7 @@ model City {
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime?  @updatedAt @map("updated_at")
   department    Department @relation(fields: [id_department], references: [id])
+  taxConfigurations TaxConfiguration[]
 
   @@map("city")
 }
@@ -739,6 +744,8 @@ model PucAccount {
   journalEntryLines JournalEntryLine[]
   parent            PucAccount?        @relation("PucHierarchy", fields: [parent_code], references: [code])
   children          PucAccount[]       @relation("PucHierarchy")
+  debitTaxes        TaxConfiguration[] @relation("DebitTax")
+  creditTaxes       TaxConfiguration[] @relation("CreditTax")
 
   @@map("puc_account")
 }
@@ -808,6 +815,8 @@ model JournalEntry {
   createdAt    DateTime           @default(now()) @map("created_at")
   updatedAt    DateTime?          @updatedAt @map("updated_at")
   lines        JournalEntryLine[]
+  taxTransactions TaxTransaction[]
+  inventoryAdjustments InventoryAdjustment[]
 
   @@map("journal_entry")
 }
@@ -825,6 +834,38 @@ model JournalEntryLine {
   pucAccount       PucAccount   @relation(fields: [id_puc_account], references: [id])
 
   @@map("journal_entry_line")
+}
+
+model TaxConfiguration {
+  id                  Int      @id @default(autoincrement())
+  name                String
+  type                String   // "ICA", "AUTORETENCION_RENTA"
+  city_id             Int?     @map("city_id")
+  rate                Decimal  @db.Decimal(10, 4)
+  puc_account_debit   Int?     @map("puc_account_debit")
+  puc_account_credit  Int?     @map("puc_account_credit")
+  is_active           Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime? @updatedAt @map("updated_at")
+  city                City?    @relation(fields: [city_id], references: [id])
+  pucAccountDebit     PucAccount? @relation("DebitTax", fields: [puc_account_debit], references: [id])
+  pucAccountCredit    PucAccount? @relation("CreditTax", fields: [puc_account_credit], references: [id])
+
+  @@map("tax_configuration")
+}
+
+model TaxTransaction {
+  id               Int      @id @default(autoincrement())
+  id_journal_entry Int      @map("id_journal_entry")
+  tax_type         String   // "ICA", "AUTORETENCION"
+  base_amount      Float    @map("base_amount")
+  rate             Float
+  tax_amount       Float    @map("tax_amount")
+  city_name        String?  @map("city_name")
+  createdAt        DateTime @default(now()) @map("created_at")
+  journalEntry     JournalEntry @relation(fields: [id_journal_entry], references: [id])
+
+  @@map("tax_transaction")
 }
 
 model ExpenseCategory {
@@ -862,6 +903,7 @@ model Expense {
   expenseCategory     ExpenseCategory @relation(fields: [id_expense_category], references: [id])
   provider            Provider?       @relation(fields: [id_provider], references: [id])
   pucAccount          PucAccount      @relation(fields: [id_puc_account], references: [id])
+  dianEInvoicing      DianEInvoicing[]
 
   @@map("expense")
 }
@@ -977,6 +1019,8 @@ model Employee {
   eps_entity             String?        @map("eps_entity")
   pension_fund           String?        @map("pension_fund")
   arl_risk_level         Int            @default(1) @map("arl_risk_level")
+  is_exonerated          Boolean        @default(true) @map("is_exonerated") // Ley 1607
+  contract_type          String         @default("INDEFINIDO") @map("contract_type")
   bank_name              String?        @map("bank_name")
   bank_account           String?        @map("bank_account")
   createdAt              DateTime       @default(now()) @map("created_at")
@@ -1008,23 +1052,38 @@ model PayrollEntry {
   base_salary             Float         @map("base_salary")
   transport_allowance     Float         @default(0) @map("transport_allowance")
   worked_days             Int           @default(30) @map("worked_days")
-  overtime_hours          Float         @default(0) @map("overtime_hours")
+  
+  // Detalle de Horas Extras y Recargos
+  hed_qty                 Float         @default(0) @map("hed_qty")
+  hen_qty                 Float         @default(0) @map("hen_qty")
+  hedf_qty                Float         @default(0) @map("hedf_qty")
+  henf_qty                Float         @default(0) @map("henf_qty")
+  rn_qty                  Float         @default(0) @map("rn_qty")
+  rf_qty                  Float         @default(0) @map("rf_qty")
+  
   overtime_amount         Float         @default(0) @map("overtime_amount")
   commissions             Float         @default(0)
   bonuses                 Float         @default(0)
+  other_accruals          Float         @default(0) @map("other_accruals")
   gross_salary            Float         @map("gross_salary")
+  
+  ibc                     Float         @default(0) @map("ibc")
   health_employee         Float         @default(0) @map("health_employee")
   pension_employee        Float         @default(0) @map("pension_employee")
+  other_deductions        Float         @default(0) @map("other_deductions")
+  
   health_employer         Float         @default(0) @map("health_employer")
   pension_employer        Float         @default(0) @map("pension_employer")
   arl_employer            Float         @default(0) @map("arl_employer")
   sena_employer           Float         @default(0) @map("sena_employer")
   icbf_employer           Float         @default(0) @map("icbf_employer")
   caja_employer           Float         @default(0) @map("caja_employer")
+  
   prima_provision         Float         @default(0) @map("prima_provision")
   cesantias_provision     Float         @default(0) @map("cesantias_provision")
   int_cesantias_provision Float         @default(0) @map("int_cesantias_provision")
   vacaciones_provision    Float         @default(0) @map("vacaciones_provision")
+  
   net_salary              Float         @map("net_salary")
   total_employer_cost     Float         @map("total_employer_cost")
   createdAt               DateTime      @default(now()) @map("created_at")
@@ -1039,4 +1098,50 @@ enum GenderEnum {
   MASCULINO
   FEMENINO
   UNISEX
+}
+
+model InventoryKardex {
+  id               Int      @id @default(autoincrement())
+  id_clothing_size Int      @map("id_clothing_size")
+  date             DateTime @default(now())
+  type             String   // "IN", "OUT"
+  source_type      String   // "SALE", "PURCHASE", "ADJUSTMENT", "RETURN"
+  source_id        Int?     @map("source_id")
+  quantity         Int
+  balance_before   Int      @map("balance_before")
+  balance_after    Int      @map("balance_after")
+  unit_cost        Float?   @map("unit_cost")
+  description      String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  clothingSize     ClothingSize @relation(fields: [id_clothing_size], references: [id])
+
+  @@map("inventory_kardex")
+}
+
+model InventoryAdjustment {
+  id               Int                       @id @default(autoincrement())
+  adjustment_date  DateTime                  @default(now()) @map("adjustment_date")
+  reason           String                    // "MERMA", "REGALO", "SOBRANTE", "ERROR_CONTEO"
+  description      String?
+  status           String                    @default("COMPLETED")
+  id_user          Int?                      @map("id_user")
+  id_journal_entry Int?                      @map("id_journal_entry")
+  createdAt        DateTime                  @default(now()) @map("created_at")
+  updatedAt        DateTime?                 @updatedAt @map("updated_at")
+  items            InventoryAdjustmentItem[]
+  journalEntry     JournalEntry?             @relation(fields: [id_journal_entry], references: [id])
+
+  @@map("inventory_adjustment")
+}
+
+model InventoryAdjustmentItem {
+  id                     Int                 @id @default(autoincrement())
+  id_inventory_adjustment Int                 @map("id_inventory_adjustment")
+  id_clothing_size       Int                 @map("id_clothing_size")
+  quantity               Int                 // Positivo para entrada, negativo para salida
+  unit_cost              Float               @map("unit_cost")
+  adjustment             InventoryAdjustment @relation(fields: [id_inventory_adjustment], references: [id], onDelete: Cascade)
+  clothingSize           ClothingSize        @relation(fields: [id_clothing_size], references: [id])
+
+  @@map("inventory_adjustment_item")
 }

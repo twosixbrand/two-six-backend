@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { TaxConfigService } from '../tax-config/tax-config.service';
 
 @Injectable()
 export class JournalAutoService {
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
+    private taxConfigService: TaxConfigService,
   ) { }
 
   /**
@@ -49,10 +51,16 @@ export class JournalAutoService {
    * - Debit 111005 (Bancos) = total_payment
    * - Credit 240801 (IVA generado) = iva
    * - Credit 413535 (Ingresos) = total_payment - iva
+   * - Auto-calculate ICA and Autoretención if configured
    */
   async onSaleCompleted(orderId: number) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
+      include: { 
+        customer: {
+          include: { addresses: { where: { is_default: true } } }
+        }
+      }
     });
 
     if (!order) {
@@ -70,8 +78,70 @@ export class JournalAutoService {
       const iva = order.iva;
       const ingresos = totalPayment - iva;
 
-      const totalDebit = totalPayment;
-      const totalCredit = iva + ingresos;
+      const lines: any[] = [
+        {
+          id_puc_account: bancosAccount.id,
+          description: 'Ingreso por venta',
+          debit: totalPayment,
+          credit: 0,
+        },
+        {
+          id_puc_account: ivaAccount.id,
+          description: 'IVA generado por venta',
+          debit: 0,
+          credit: iva,
+        },
+        {
+          id_puc_account: ingresosAccount.id,
+          description: 'Ingresos por venta',
+          debit: 0,
+          credit: ingresos,
+        },
+      ];
+
+      let totalDebit = totalPayment;
+      let totalCredit = iva + ingresos;
+
+      // --- Cálculo de Impuestos Adicionales (ICA, Autorretención) ---
+      // Determinamos la ciudad para el ICA (usamos la dirección de envío o la del cliente)
+      // Nota: En un sistema real, el ICA depende de donde se realiza la actividad económica
+      let cityId: number | undefined = undefined;
+      if (order.customer?.addresses?.length > 0) {
+        const city = await prisma.city.findFirst({
+          where: { name: order.customer.addresses[0].city }
+        });
+        cityId = city?.id;
+      }
+
+      const calculatedTaxes: any[] = await this.taxConfigService.calculateTaxes(ingresos, cityId);
+      const taxTransactionsData: any[] = [];
+
+      for (const tax of calculatedTaxes) {
+        if (tax.config.puc_account_debit && tax.config.puc_account_credit) {
+          lines.push({
+            id_puc_account: tax.config.puc_account_debit,
+            description: `${tax.config.name} (Gasto)`,
+            debit: tax.amount,
+            credit: 0,
+          });
+          lines.push({
+            id_puc_account: tax.config.puc_account_credit,
+            description: `${tax.config.name} (Pasivo/Anticipo)`,
+            debit: 0,
+            credit: tax.amount,
+          });
+          totalDebit += tax.amount;
+          totalCredit += tax.amount;
+
+          taxTransactionsData.push({
+            tax_type: tax.type,
+            base_amount: tax.base,
+            rate: Number(tax.config.rate),
+            tax_amount: tax.amount,
+            city_name: tax.config.city?.name || 'GLOBAL',
+          });
+        }
+      }
 
       const entry = await prisma.journalEntry.create({
         data: {
@@ -84,26 +154,10 @@ export class JournalAutoService {
           total_debit: totalDebit,
           total_credit: totalCredit,
           lines: {
-            create: [
-              {
-                id_puc_account: bancosAccount.id,
-                description: 'Ingreso por venta',
-                debit: totalPayment,
-                credit: 0,
-              },
-              {
-                id_puc_account: ivaAccount.id,
-                description: 'IVA generado por venta',
-                debit: 0,
-                credit: iva,
-              },
-              {
-                id_puc_account: ingresosAccount.id,
-                description: 'Ingresos por venta',
-                debit: 0,
-                credit: ingresos,
-              },
-            ],
+            create: lines,
+          },
+          taxTransactions: {
+            create: taxTransactionsData,
           },
         },
         include: {
@@ -112,6 +166,7 @@ export class JournalAutoService {
               pucAccount: true,
             },
           },
+          taxTransactions: true,
         },
       });
 
