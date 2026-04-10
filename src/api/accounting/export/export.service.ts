@@ -485,7 +485,7 @@ export class ExportService {
     ];
 
     for (const item of data.items) {
-      const row = [item.code, item.name];
+      const row: any[] = [item.code, item.name];
       for (const m of item.months) {
         row.push(m.budgeted, m.executed, m.variance);
       }
@@ -494,7 +494,7 @@ export class ExportService {
     }
 
     // Grand Totals row
-    const totalsRow = ['', 'TOTAL GENERAL'];
+    const totalsRow: any[] = ['', 'TOTAL GENERAL'];
     for (let m = 0; m < 12; m++) {
       const monthBudgeted = data.items.reduce((s, i) => s + i.months[m].budgeted, 0);
       const monthExecuted = data.items.reduce((s, i) => s + i.months[m].executed, 0);
