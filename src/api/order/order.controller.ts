@@ -8,11 +8,13 @@ import {
   Delete,
   ParseIntPipe,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { CheckoutDto } from './dto/checkout.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @Controller('order')
 export class OrderController {
@@ -65,31 +67,37 @@ export class OrderController {
     return this.orderService.trackOrder(trackOrderDto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post(':id/preparing-for-pickup')
   markPreparingForPickup(@Param('id', ParseIntPipe) id: number) {
     return this.orderService.markAsPreparingForPickup(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post(':id/ready-for-pickup')
   markReadyForPickup(@Param('id', ParseIntPipe) id: number) {
     return this.orderService.markAsReadyForPickup(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post(':id/collected')
   markCollected(@Param('id', ParseIntPipe) id: number) {
     return this.orderService.markAsCollected(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post(':id/unclaimed-pickup')
   markUnclaimedForPickup(@Param('id', ParseIntPipe) id: number) {
     return this.orderService.markAsUnclaimedForPickup(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() createOrderDto: CreateOrderDto) {
     return this.orderService.create(createOrderDto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   findAll(
     @Query('delivery_method') deliveryMethod?: string,
@@ -98,22 +106,26 @@ export class OrderController {
     return this.orderService.findAll(deliveryMethod, sort);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('customer/:email')
   getOrdersByCustomer(@Param('email') email: string) {
     return this.orderService.findByCustomerEmail(email);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('by-reference/:reference')
   findByReference(@Param('reference') reference: string) {
     return this.orderService.findByReference(reference);
   }
 
 
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.orderService.findOne(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -122,6 +134,7 @@ export class OrderController {
     return this.orderService.update(id, updateOrderDto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.orderService.remove(id);
