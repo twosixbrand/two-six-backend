@@ -73,11 +73,9 @@ export class OrderService {
     };
     const idIdentType = mapDianCodeToId(customer.document_type || "13");
 
-    // Validate Payment Method
-    const method = paymentMethod === 'WOMPI_COD' ? 'WOMPI_COD' : 'WOMPI_FULL';
-    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    // If COD, the amount to collect is the subtotal (products), otherwise 0
-    const codAmount = method === 'WOMPI_COD' ? subtotal : 0;
+    // We will override these later after validating with the DB
+    let method = paymentMethod === 'WOMPI_COD' ? 'WOMPI_COD' : 'WOMPI_FULL';
+    let codAmount = 0;
 
 
     const order = await this.prisma.$transaction(async (prisma) => {
@@ -119,10 +117,40 @@ export class OrderService {
         });
       }
 
-      // 2. Calculate Totals
+      // 2. Calculate Totals securely from Database
       const ivaRate = 0.19;
-      const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      const iva = subtotal * ivaRate; // Approximation
+      let dbSubtotal = 0;
+      const validatedItems: any[] = [];
+
+      for (const item of items) {
+        const product = await prisma.product.findUnique({
+          where: { id: item.productId }
+        });
+        if (!product) throw new BadRequestException(`Producto con ID ${item.productId} no encontrado`);
+        
+        dbSubtotal += product.price * item.quantity;
+        
+        // Override the frontend price with the real database price
+        validatedItems.push({
+          ...item,
+          price: product.price
+        });
+      }
+
+      const iva = dbSubtotal * ivaRate;
+
+      // Validate Shipping
+      let dbShippingCost = shippingCost;
+      if (deliveryMethod === 'PICKUP' || dbSubtotal >= 150000) {
+        dbShippingCost = 0;
+      } else if (shippingCost === 0) {
+        // If frontend said 0 but it's not free shipping and not pickup
+        const cityObj = await prisma.city.findFirst({ where: { name: customer.city }});
+        if (cityObj) dbShippingCost = cityObj.shipping_cost;
+        else dbShippingCost = 8000; // Fallback
+      }
+
+      let dbTotal = dbSubtotal + dbShippingCost;
 
       // Validate Discount if provided
       if (checkoutDto.discountCode) {
@@ -133,7 +161,12 @@ export class OrderService {
         if (!subscriber || subscriber.is_discount_used || subscriber.email.toLowerCase() !== customer.email.toLowerCase()) {
           throw new BadRequestException('El código de descuento no es válido o ya fue usado');
         }
+
+        // Apply 10% discount to products
+        dbTotal = (dbSubtotal * 0.9) + dbShippingCost;
       }
+      
+      codAmount = method === 'WOMPI_COD' ? dbSubtotal : 0;
 
       // 3. Create Order Reference
       let referencedGenerated = false;
@@ -175,8 +208,8 @@ export class OrderService {
           order_date: new Date(),
           status: 'Pendiente',
           iva: iva,
-          shipping_cost: deliveryMethod === 'PICKUP' ? 0 : shippingCost,
-          total_payment: total,
+          shipping_cost: dbShippingCost,
+          total_payment: dbTotal,
           payment_method: method,
           cod_amount: codAmount,
           purchase_date: new Date(),
@@ -193,7 +226,7 @@ export class OrderService {
       });
 
       // 5. Create Order Items and Update Stock
-      for (const item of items) {
+      for (const item of validatedItems) {
         // Create Order Item
         await prisma.orderItem.create({
           data: {
@@ -253,7 +286,7 @@ export class OrderService {
     }
 
     // Determine Wompi checkout amount depending on COD or Full payment
-    const totalToPayNow = method === 'WOMPI_COD' ? shippingCost : total;
+    const totalToPayNow = order.payment_method === 'WOMPI_COD' ? order.shipping_cost : order.total_payment;
     const amountInCents = Math.round(totalToPayNow * 100);
 
     // Usar el order_reference para Wompi
