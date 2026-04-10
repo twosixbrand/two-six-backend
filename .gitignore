@@ -60,3 +60,28 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Secretos (Certificado DIAN, etc)
 secrets/
+
+# Scripts de debug/test/migración temporal (raíz)
+debug.js
+check-db.js
+check-roles.ts
+clone-prod-to-local.js
+deploy-prod-db.js
+run_sql*.js
+sync-locales.js
+add-seo-columns.js
+migrate-seo.js
+update-image-urls.js
+compare-db-schemas.js
+test-*.ts
+
+# Scripts temporales en subdirectorios
+scripts/debug_*
+scripts/migrate-*
+test/verify-*
+
+# Backups y dumps de BD
+*.sql
+!prisma/**/*.sql
+backup_*
+seed.sql
