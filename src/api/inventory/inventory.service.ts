@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { JournalAutoService } from '../accounting/journal/journal-auto.service';
 
 @Injectable()
 export class InventoryService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly journalAuto: JournalAutoService,
+  ) {}
 
   /**
    * Registra un movimiento en el Kardex y actualiza las cantidades disponibles.
@@ -112,9 +116,10 @@ export class InventoryService {
         });
       }
 
-      // TODO: Generar Asiento Contable Automático basado en la razón
-      // - MERMA: 5199 (Gasto) vs 1435 (Inventario)
-      // - REGALO: 5235 (Publicidad) vs 1435 (Inventario)
+      // Generar Asiento Contable Automático basado en la razón
+      // Se realiza fuera de la transaccion de inventario o dentro si se desea integridad total
+      // Aqui lo hacemos al final para asegurar que el ajuste ya existe.
+      await this.journalAuto.onInventoryAdjustment(adjustment.id);
       
       return adjustment;
     });

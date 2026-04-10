@@ -42,4 +42,9 @@ export class BudgetController {
   ) {
     return this.budgetService.getComparison(parseInt(year, 10), parseInt(month, 10));
   }
+
+  @Get('comparison/annual')
+  getAnnualComparison(@Query('year') year: string) {
+    return this.budgetService.getAnnualComparison(parseInt(year, 10));
+  }
 }

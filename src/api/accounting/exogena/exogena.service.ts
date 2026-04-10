@@ -106,45 +106,37 @@ export class ExogenaService {
 
     // ── Format 1007: Ingresos por cliente ──────────────────────
     // Aggregate revenue from orders
-    let format1007: any[] = [];
-    try {
-      const orders = await (this.prisma as any).order.findMany({
-        where: {
-          created_at: { gte: startDate, lte: endDate },
-          status: { notIn: ['CANCELLED', 'RETURNED'] },
-        },
-        include: {
-          customer: true,
-        },
-      });
+    const orders = await this.prisma.order.findMany({
+      where: {
+        purchase_date: { gte: startDate, lte: endDate },
+        status: { notIn: ['CANCELADO', 'DEVUELTO', 'CANCELLED', 'RETURNED'] },
+      },
+      include: {
+        customer: true,
+      },
+    });
 
-      const customerMap: Record<number, {
-        nit: string;
-        name: string;
-        total_revenue: number;
-      }> = {};
+    const customerMap: Record<number, {
+      nit: string;
+      name: string;
+      total_revenue: number;
+    }> = {};
 
-      for (const order of orders) {
-        const custId = order.id_customer || 0;
-        if (!customerMap[custId]) {
-          customerMap[custId] = {
-            nit: order.customer?.document_number || 'Sin NIT',
-            name: order.customer?.name || order.customer?.first_name
-              ? `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim()
-              : 'Consumidor final',
-            total_revenue: 0,
-          };
-        }
-        customerMap[custId].total_revenue += order.total || order.total_amount || 0;
+    for (const order of orders) {
+      const custId = order.id_customer || 0;
+      if (!customerMap[custId]) {
+        customerMap[custId] = {
+          nit: order.customer?.document_number || 'Sin NIT',
+          name: order.customer?.name || 'Consumidor final',
+          total_revenue: 0,
+        };
       }
-
-      format1007 = Object.values(customerMap)
-        .filter(c => c.total_revenue > THRESHOLD)
-        .sort((a, b) => b.total_revenue - a.total_revenue);
-    } catch {
-      // Order model may not exist, return empty
-      format1007 = [];
+      customerMap[custId].total_revenue += order.total_payment || 0;
     }
+
+    const format1007 = Object.values(customerMap)
+      .filter(c => c.total_revenue > THRESHOLD)
+      .sort((a, b) => b.total_revenue - a.total_revenue);
 
     // Summary
     const totalProviders = format1001.length;
@@ -271,5 +263,78 @@ export class ExogenaService {
     XLSX.utils.book_append_sheet(wb, ws1007, '1007-Ingresos');
 
     return Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
+  }
+
+  /**
+   * Detailed report of movements for a specific third party (NIT).
+   * This is used to audit the figures reported in Exogena formats.
+   */
+  async getThirdPartyMovements(year: number, nit: string) {
+    const startDate = new Date(year, 0, 1);
+    const endDate = new Date(year, 11, 31, 23, 59, 59);
+
+    // Find all journal entry lines that might be linked to this NIT
+    // We look into Expenses and Orders linked via source_id to find the NIT
+    // because JournalEntryLine doesn't have a direct third_party_id field in this schema.
+    
+    // 1. Get Expenses for this provider
+    const expenses = await this.prisma.expense.findMany({
+      where: { id_provider: nit, expense_date: { gte: startDate, lte: endDate } },
+      select: { id: true }
+    });
+    const expenseIds = expenses.map(e => e.id);
+
+    // 2. Get Orders for this customer
+    const orders = await this.prisma.order.findMany({
+      where: { 
+        customer: { document_number: nit },
+        purchase_date: { gte: startDate, lte: endDate }
+      },
+      select: { id: true }
+    });
+    const orderIds = orders.map(o => o.id);
+
+    // 3. Find related journal entries
+    const entries = await this.prisma.journalEntry.findMany({
+      where: {
+        OR: [
+          { source_type: 'EXPENSE', source_id: { in: expenseIds } },
+          { source_type: 'SALE', source_id: { in: orderIds } },
+          { source_type: 'COGS', source_id: { in: orderIds } }
+        ],
+        entry_date: { gte: startDate, lte: endDate },
+        status: 'POSTED'
+      },
+      include: {
+        lines: {
+          include: { pucAccount: true }
+        }
+      },
+      orderBy: { entry_date: 'asc' }
+    });
+
+    // Flatten lines for the report
+    const movements = entries.flatMap(entry => 
+      entry.lines.map(line => ({
+        date: entry.entry_date,
+        entry_number: entry.entry_number,
+        source_type: entry.source_type,
+        description: line.description || entry.description,
+        puc_code: line.pucAccount.code,
+        puc_name: line.pucAccount.name,
+        debit: line.debit,
+        credit: line.credit
+      }))
+    );
+
+    return {
+      year,
+      nit,
+      movements,
+      totals: {
+        debit: movements.reduce((s, m) => s + m.debit, 0),
+        credit: movements.reduce((s, m) => s + m.credit, 0)
+      }
+    };
   }
 }

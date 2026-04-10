@@ -48,62 +48,68 @@ export class WithholdingService {
     const startDate = new Date(`${year}-01-01T00:00:00.000Z`);
     const endDate = new Date(`${year}-12-31T23:59:59.999Z`);
 
-    // Buscamos líneas de asientos contables que afecten cuentas de retención
-    // 2365: Retefuente, 2367: ReteIVA, 2368: ReteICA
-    const entries = await (this.prisma.journalEntryLine as any).findMany({
+    // Get all posted expenses for the year
+    const expenses = await this.prisma.expense.findMany({
       where: {
-        journalEntry: {
-          entry_date: { gte: startDate, lte: endDate },
-          status: 'POSTED',
-        },
-        pucAccount: {
-          code: { startsWith: '23' }, // Cuentas de pasivos/retenciones
-        },
+        expense_date: { gte: startDate, lte: endDate },
       },
-      include: {
-        journalEntry: {
-          include: { 
-            // @ts-ignore
-            expense: { include: { provider: true } } 
-          }
-        },
-        pucAccount: true
-      }
+      include: { provider: true, pucAccount: true },
     });
 
-    // Agrupación compleja: Proveedor -> Concepto -> { base, withheld }
     const results = new Map<string, any>();
 
-    for (const line of entries) {
-      const expense = line.journalEntry.expense;
-      if (!expense || !expense.provider) continue;
+    for (const expense of expenses) {
+      if (!expense.provider) continue;
 
-      const providerId = expense.provider.id;
-      let concept = 'RETEFUENTE';
-      if (line.pucAccount.code.startsWith('2367')) concept = 'RETEIVA';
-      if (line.pucAccount.code.startsWith('2368')) concept = 'RETEICA';
-      
-      const key = `${providerId}_${concept}`;
-      if (!results.has(key)) {
-        results.set(key, {
-          id_provider: providerId,
-          concept,
-          base_amount: 0,
-          withheld_amount: 0,
-        });
+      // Find the related journal entry
+      const journalEntry = await this.prisma.journalEntry.findFirst({
+        where: {
+          source_type: 'EXPENSE',
+          source_id: expense.id,
+          status: 'POSTED',
+        },
+        include: {
+          lines: {
+            where: {
+              pucAccount: {
+                code: { startsWith: '23' }, // Withholding accounts
+              },
+            },
+            include: { pucAccount: true },
+          },
+        },
+      });
+
+      if (!journalEntry || journalEntry.lines.length === 0) continue;
+
+      for (const line of journalEntry.lines) {
+        let concept = 'RETEFUENTE';
+        if (line.pucAccount.code.startsWith('2367')) concept = 'RETEIVA';
+        if (line.pucAccount.code.startsWith('2368')) concept = 'RETEICA';
+
+        const providerId = expense.provider.id;
+        const key = `${providerId}_${concept}`;
+
+        if (!results.has(key)) {
+          results.set(key, {
+            id_provider: providerId,
+            concept,
+            base_amount: 0,
+            withheld_amount: 0,
+          });
+        }
+
+        const res = results.get(key);
+        res.withheld_amount += line.credit; // Retention is a credit in passive accounts
+        res.base_amount += expense.subtotal;
       }
-
-      const res = results.get(key);
-      res.withheld_amount += line.credit; // Las retenciones se registran al crédito
-      // La base la estimamos del gasto asociado si no está en la línea
-      res.base_amount += expense.subtotal; 
     }
 
-    // Limpiar y guardar
+    // Clear and save
     await this.prisma.withholdingCertificate.deleteMany({ where: { year } });
     
     let seq = 1;
-    const created = [];
+    const created: any[] = [];
     for (const data of results.values()) {
       const rate = data.base_amount > 0 ? (data.withheld_amount / data.base_amount) * 100 : 0;
       const cert = await this.prisma.withholdingCertificate.create({

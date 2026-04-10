@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { JournalAutoService } from '../journal/journal-auto.service';
 import { AuditService } from '../audit/audit.service';
+import { ClosingService } from '../closing/closing.service';
 
 @Injectable()
 export class ExpenseService {
@@ -11,6 +12,7 @@ export class ExpenseService {
     private prisma: PrismaService,
     private readonly journalAutoService: JournalAutoService,
     private readonly auditService: AuditService,
+    private readonly closingService: ClosingService,
   ) { }
 
   async findAll(query: {
@@ -74,6 +76,16 @@ export class ExpenseService {
   }
 
   async create(dto: CreateExpenseDto) {
+    const expenseDate = new Date(dto.expense_date);
+
+    // Validate if period is closed
+    const isClosed = await this.closingService.isPeriodClosed(expenseDate);
+    if (isClosed) {
+      throw new ForbiddenException(
+        `No se puede registrar el gasto. El periodo contable ${expenseDate.getFullYear()}-${expenseDate.getMonth() + 1} ya se encuentra cerrado.`,
+      );
+    }
+
     // Generate sequential expense_number
     const lastExpense = await this.prisma.expense.findFirst({
       orderBy: { id: 'desc' },
@@ -147,6 +159,14 @@ export class ExpenseService {
 
     if (!expense) {
       throw new NotFoundException(`Gasto con ID ${id} no encontrado`);
+    }
+
+    // Validate if period is closed
+    const isClosed = await this.closingService.isPeriodClosed(expense.expense_date);
+    if (isClosed) {
+      throw new ForbiddenException(
+        `No se puede modificar el gasto. El periodo contable ya se encuentra cerrado.`,
+      );
     }
 
     return this.prisma.expense.update({

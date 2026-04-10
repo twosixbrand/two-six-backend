@@ -100,4 +100,124 @@ export class BudgetService {
       },
     };
   }
+
+  async getAnnualComparison(year: number) {
+    const startDate = new Date(year, 0, 1);
+    const endDate = new Date(year, 11, 31, 23, 59, 59);
+
+    // Get all budgets for the year
+    const budgets = await this.prisma.budget.findMany({
+      where: { year },
+      include: { pucAccount: true },
+    });
+
+    // Get all journal entries (posted) for the year
+    const journalLines = await this.prisma.journalEntryLine.findMany({
+      where: {
+        journalEntry: {
+          status: 'POSTED',
+          entry_date: { gte: startDate, lte: endDate },
+        },
+      },
+      include: {
+        pucAccount: true,
+        journalEntry: true,
+      },
+    });
+
+    // Map budgets by account and month
+    const budgetMap: Record<number, Record<number, number>> = {};
+    const accountInfo: Record<number, { code: string; name: string; nature: string }> = {};
+
+    for (const b of budgets) {
+      if (!budgetMap[b.id_puc_account]) {
+        budgetMap[b.id_puc_account] = {};
+        accountInfo[b.id_puc_account] = {
+          code: b.pucAccount.code,
+          name: b.pucAccount.name,
+          nature: b.pucAccount.nature,
+        };
+      }
+      budgetMap[b.id_puc_account][b.month] = b.budgeted_amount;
+    }
+
+    // Aggregate execution by account and month
+    const executionMap: Record<number, Record<number, { debit: number; credit: number }>> = {};
+    for (const line of journalLines) {
+      const month = new Date(line.journalEntry.entry_date).getMonth() + 1;
+      if (!executionMap[line.id_puc_account]) {
+        executionMap[line.id_puc_account] = {};
+      }
+      if (!executionMap[line.id_puc_account][month]) {
+        executionMap[line.id_puc_account][month] = { debit: 0, credit: 0 };
+      }
+      executionMap[line.id_puc_account][month].debit += line.debit;
+      executionMap[line.id_puc_account][month].credit += line.credit;
+
+      // Ensure account info is available even if no budget exists
+      if (!accountInfo[line.id_puc_account]) {
+        accountInfo[line.id_puc_account] = {
+          code: line.pucAccount.code,
+          name: line.pucAccount.name,
+          nature: line.pucAccount.nature,
+        };
+      }
+    }
+
+    const accountIds = Array.from(new Set([...Object.keys(budgetMap), ...Object.keys(executionMap)])).map(Number);
+
+    const items = accountIds.map((id) => {
+      const info = accountInfo[id];
+      const months: { month: number; budgeted: number; executed: number; variance: number }[] = [];
+      let annualBudgeted = 0;
+      let annualExecuted = 0;
+
+      for (let m = 1; m <= 12; m++) {
+        const budgeted = budgetMap[id]?.[m] || 0;
+        const actual = executionMap[id]?.[m];
+        let executed = 0;
+        if (actual) {
+          executed = info.nature === 'DEBITO'
+            ? actual.debit - actual.credit
+            : actual.credit - actual.debit;
+        }
+
+        const variance = executed - budgeted;
+        months.push({
+          month: m,
+          budgeted,
+          executed,
+          variance,
+        });
+
+        annualBudgeted += budgeted;
+        annualExecuted += executed;
+      }
+
+      return {
+        id_puc_account: id,
+        code: info.code,
+        name: info.name,
+        months,
+        totals: {
+          budgeted: annualBudgeted,
+          executed: annualExecuted,
+          variance: annualExecuted - annualBudgeted,
+          variancePercentage: annualBudgeted !== 0
+            ? Math.round(((annualExecuted - annualBudgeted) / annualBudgeted) * 10000) / 100
+            : 0,
+        },
+      };
+    }).sort((a, b) => a.code.localeCompare(b.code));
+
+    return {
+      year,
+      items,
+      grandTotals: {
+        budgeted: items.reduce((s, i) => s + i.totals.budgeted, 0),
+        executed: items.reduce((s, i) => s + i.totals.executed, 0),
+        variance: items.reduce((s, i) => s + i.totals.variance, 0),
+      },
+    };
+  }
 }

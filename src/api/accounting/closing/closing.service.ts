@@ -389,4 +389,25 @@ export class ClosingService {
       orderBy: [{ year: 'desc' }, { month: 'desc' }],
     });
   }
+
+  /**
+   * Checks if a specific date belongs to a closed period.
+   */
+  async isPeriodClosed(date: Date): Promise<boolean> {
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+
+    const closing = await this.prisma.accountingClosing.findFirst({
+      where: {
+        year,
+        OR: [
+          { month, closing_type: 'MONTHLY' },
+          { closing_type: 'ANNUAL' }
+        ],
+        status: 'CLOSED'
+      }
+    });
+
+    return !!closing;
+  }
 }

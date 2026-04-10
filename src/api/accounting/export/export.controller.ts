@@ -137,4 +137,17 @@ export class ExportController {
     });
     res.send(buffer);
   }
+
+  @Get('budget-comparison')
+  async exportBudgetComparison(
+    @Query('year') year: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.exportService.generateAnnualBudgetComparison(parseInt(year, 10));
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="ComparativoPresupuesto_${year}.xlsx"`,
+    });
+    res.send(buffer);
+  }
 }

@@ -1,13 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateJournalEntryDto } from './dto/create-journal-entry.dto';
 import { AuditService } from '../audit/audit.service';
+import { ClosingService } from '../closing/closing.service';
 
 @Injectable()
 export class JournalService {
   constructor(
     private prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly closingService: ClosingService,
   ) { }
 
   async findAll(query: { startDate?: string; endDate?: string; source_type?: string }) {
@@ -60,6 +62,16 @@ export class JournalService {
   }
 
   async create(dto: CreateJournalEntryDto) {
+    const entryDate = new Date(dto.entry_date);
+    
+    // Validate if period is closed
+    const isClosed = await this.closingService.isPeriodClosed(entryDate);
+    if (isClosed) {
+      throw new ForbiddenException(
+        `No se puede registrar el asiento. El periodo contable ${entryDate.getFullYear()}-${entryDate.getMonth() + 1} ya se encuentra cerrado.`,
+      );
+    }
+
     // Validate SUM(debit) == SUM(credit)
     const totalDebit = dto.lines.reduce((sum, line) => sum + line.debit, 0);
     const totalCredit = dto.lines.reduce((sum, line) => sum + line.credit, 0);
@@ -68,6 +80,25 @@ export class JournalService {
       throw new BadRequestException(
         `La partida doble no cuadra: Débitos (${totalDebit}) != Créditos (${totalCredit})`,
       );
+    }
+
+    // Validate that all accounts allow movements (leaf accounts)
+    const accountIds = dto.lines.map((l) => l.id_puc_account);
+    const accounts = await this.prisma.pucAccount.findMany({
+      where: { id: { in: accountIds } },
+    });
+
+    for (const account of accounts) {
+      if (!account.accepts_movements) {
+        throw new BadRequestException(
+          `La cuenta PUC ${account.code} - ${account.name} es una cuenta mayor y no acepta movimientos directos. Use una cuenta de detalle (auxiliar).`,
+        );
+      }
+      if (!account.is_active) {
+        throw new BadRequestException(
+          `La cuenta PUC ${account.code} - ${account.name} se encuentra inactiva.`,
+        );
+      }
     }
 
     // Generate sequential entry_number

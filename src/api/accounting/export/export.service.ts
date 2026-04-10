@@ -4,6 +4,7 @@ import { ExpenseService } from '../expense/expense.service';
 import { PayrollService } from '../payroll/payroll.service';
 import { JournalService } from '../journal/journal.service';
 import { AgingService } from '../reports/aging.service';
+import { BudgetService } from '../budget/budget.service';
 import * as XLSX from 'xlsx';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class ExportService {
     private readonly payrollService: PayrollService,
     private readonly journalService: JournalService,
     private readonly agingService: AgingService,
+    private readonly budgetService: BudgetService,
   ) {}
 
   private companyHeader(reportName: string, period: string): string[][] {
@@ -460,6 +462,59 @@ export class ExportService {
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
+
+    return Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
+  }
+
+  async generateAnnualBudgetComparison(year: number): Promise<Buffer> {
+    const data = await this.budgetService.getAnnualComparison(year);
+
+    const headers = ['Código', 'Cuenta'];
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+    for (const m of months) {
+      headers.push(`${m} Pres`);
+      headers.push(`${m} Ejec`);
+      headers.push(`${m} Var`);
+    }
+    headers.push('Total Pres', 'Total Ejec', 'Total Var', '% Var');
+
+    const rows: any[][] = [
+      ...this.companyHeader('Comparativo Presupuesto vs Ejecución ANUAL', `Año: ${year}`),
+      headers,
+    ];
+
+    for (const item of data.items) {
+      const row = [item.code, item.name];
+      for (const m of item.months) {
+        row.push(m.budgeted, m.executed, m.variance);
+      }
+      row.push(item.totals.budgeted, item.totals.executed, item.totals.variance, `${item.totals.variancePercentage}%`);
+      rows.push(row);
+    }
+
+    // Grand Totals row
+    const totalsRow = ['', 'TOTAL GENERAL'];
+    for (let m = 0; m < 12; m++) {
+      const monthBudgeted = data.items.reduce((s, i) => s + i.months[m].budgeted, 0);
+      const monthExecuted = data.items.reduce((s, i) => s + i.months[m].executed, 0);
+      totalsRow.push(monthBudgeted, monthExecuted, monthExecuted - monthBudgeted);
+    }
+    totalsRow.push(data.grandTotals.budgeted, data.grandTotals.executed, data.grandTotals.variance, '');
+    rows.push([]);
+    rows.push(totalsRow);
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+
+    // Column widths
+    const colWidths = [{ wch: 12 }, { wch: 35 }];
+    for (let i = 0; i < 12 * 3 + 4; i++) {
+      colWidths.push({ wch: 14 });
+    }
+    ws['!cols'] = colWidths;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Presupuesto Anual');
 
     return Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
   }

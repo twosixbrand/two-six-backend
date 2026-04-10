@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { JournalAutoService } from '../journal/journal-auto.service';
+import { ClosingService } from '../closing/closing.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { CreatePayrollPeriodDto } from './dto/create-payroll-period.dto';
@@ -29,6 +30,7 @@ export class PayrollService {
   constructor(
     private prisma: PrismaService,
     private journalAutoService: JournalAutoService,
+    private closingService: ClosingService,
   ) {}
 
   // ── Employee CRUD ──────────────────────────────────────────
@@ -250,6 +252,15 @@ export class PayrollService {
     if (!period) {
       throw new NotFoundException(`Período con ID ${periodId} no encontrado`);
     }
+
+    // Validate if period is closed
+    const isClosed = await this.closingService.isPeriodClosed(new Date(period.year, period.month - 1, 1));
+    if (isClosed) {
+      throw new ForbiddenException(
+        `No se puede aprobar la nómina. El periodo contable ${period.year}-${period.month} ya se encuentra cerrado.`,
+      );
+    }
+
     if (period.status !== 'CALCULATED') {
       throw new BadRequestException(
         `El período debe estar en estado CALCULATED para aprobar. Estado actual: "${period.status}"`,

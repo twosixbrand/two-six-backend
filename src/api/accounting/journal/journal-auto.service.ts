@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { TaxConfigService } from '../tax-config/tax-config.service';
+import { ClosingService } from '../closing/closing.service';
 
 @Injectable()
 export class JournalAutoService {
@@ -9,6 +10,7 @@ export class JournalAutoService {
     private prisma: PrismaService,
     private configService: ConfigService,
     private taxConfigService: TaxConfigService,
+    private closingService: ClosingService,
   ) { }
 
   /**
@@ -43,6 +45,14 @@ export class JournalAutoService {
       throw new NotFoundException(`Cuenta PUC ${code} no encontrada. Asegúrese de que el PUC esté configurado.`);
     }
 
+    if (!account.accepts_movements) {
+      throw new Error(`La cuenta PUC ${code} es una cuenta mayor y no acepta movimientos directos.`);
+    }
+
+    if (!account.is_active) {
+      throw new Error(`La cuenta PUC ${code} se encuentra inactiva.`);
+    }
+
     return account;
   }
 
@@ -67,6 +77,13 @@ export class JournalAutoService {
       throw new NotFoundException(`Orden con ID ${orderId} no encontrada`);
     }
 
+    const entryDate = new Date();
+    const isClosed = await this.closingService.isPeriodClosed(entryDate);
+    if (isClosed) {
+      console.error(`Cierre preventivo: No se puede generar asiento de venta para Orden ${orderId} porque el periodo actual ya está cerrado contablemente.`);
+      return null;
+    }
+
     return this.prisma.$transaction(async (prisma) => {
       const entryNumber = await this.getNextEntryNumber(prisma);
 
@@ -78,11 +95,25 @@ export class JournalAutoService {
       const iva = order.iva;
       const ingresos = totalPayment - iva;
 
+      // --- Wompi Commission Calculation ---
+      let netToBank = totalPayment;
+      let commissionExpense = 0;
+      let commissionIva = 0;
+
+      if (order.payment_method?.startsWith('WOMPI')) {
+        const feePercentage = 0.0285; // 2.85%
+        const fixedFee = 800; // $800 COP
+        
+        commissionExpense = Number((totalPayment * feePercentage + fixedFee).toFixed(2));
+        commissionIva = Number((commissionExpense * 0.19).toFixed(2));
+        netToBank = Number((totalPayment - (commissionExpense + commissionIva)).toFixed(2));
+      }
+
       const lines: any[] = [
         {
           id_puc_account: bancosAccount.id,
-          description: 'Ingreso por venta',
-          debit: totalPayment,
+          description: `Ingreso neto por venta ${order.payment_method?.startsWith('WOMPI') ? '(Neto Wompi)' : ''}`,
+          debit: netToBank,
           credit: 0,
         },
         {
@@ -99,7 +130,26 @@ export class JournalAutoService {
         },
       ];
 
-      let totalDebit = totalPayment;
+      // Add commission lines if applicable
+      if (commissionExpense > 0) {
+        const commissionAccount = await this.findAccountByCode(prisma, '529505');
+        const ivaDescontableAccount = await this.findAccountByCode(prisma, '240802');
+
+        lines.push({
+          id_puc_account: commissionAccount.id,
+          description: 'Gasto comisión pasarela Wompi',
+          debit: commissionExpense,
+          credit: 0,
+        });
+        lines.push({
+          id_puc_account: ivaDescontableAccount.id,
+          description: 'IVA descontable sobre comisión',
+          debit: commissionIva,
+          credit: 0,
+        });
+      }
+
+      let totalDebit = netToBank + commissionExpense + commissionIva;
       let totalCredit = iva + ingresos;
 
       // --- Cálculo de Impuestos Adicionales (ICA, Autorretención) ---
@@ -191,6 +241,13 @@ export class JournalAutoService {
       throw new NotFoundException(`Gasto con ID ${expenseId} no encontrado`);
     }
 
+    const entryDate = new Date();
+    const isClosed = await this.closingService.isPeriodClosed(entryDate);
+    if (isClosed) {
+      console.error(`Cierre preventivo: No se puede generar asiento de gasto para ID ${expenseId} porque el periodo actual ya está cerrado contablemente.`);
+      return null;
+    }
+
     return this.prisma.$transaction(async (prisma) => {
       const entryNumber = await this.getNextEntryNumber(prisma);
 
@@ -279,20 +336,53 @@ export class JournalAutoService {
   async onCostOfGoodsSold(orderId: number) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      include: { orderItems: true },
+      include: {
+        orderItems: {
+          include: {
+            product: {
+              include: {
+                clothingSize: {
+                  include: {
+                    clothingColor: {
+                      include: { design: true }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
     });
 
     if (!order) {
       throw new NotFoundException(`Orden con ID ${orderId} no encontrada`);
     }
 
-    // Calculate cost amount: sum of (unit_price * quantity) * costPercentage
-    const costPercentage = (this.configService.get<number>('COST_PERCENTAGE') || 60) / 100;
-    const salesTotal = order.orderItems.reduce(
-      (sum, item) => sum + item.unit_price * item.quantity,
-      0,
-    );
-    const costAmount = Number((salesTotal * costPercentage).toFixed(2));
+    const entryDate = new Date();
+    const isClosed = await this.closingService.isPeriodClosed(entryDate);
+    if (isClosed) {
+      console.error(`Cierre preventivo: No se puede generar asiento de costo para Orden ${orderId} porque el periodo actual ya está cerrado contablemente.`);
+      return null;
+    }
+
+    // Calculate actual cost amount from designs
+    let totalActualCost = 0;
+    let itemsWithMissingCost = 0;
+
+    for (const item of order.orderItems) {
+      const manufacturedCost = item.product?.clothingSize?.clothingColor?.design?.manufactured_cost;
+      if (manufacturedCost && manufacturedCost > 0) {
+        totalActualCost += manufacturedCost * item.quantity;
+      } else {
+        itemsWithMissingCost++;
+        // Fallback to estimated cost for this specific item if design cost is missing
+        const fallbackPercentage = (this.configService.get<number>('COST_PERCENTAGE') || 60) / 100;
+        totalActualCost += (item.unit_price * item.quantity) * fallbackPercentage;
+      }
+    }
+
+    const costAmount = Number(totalActualCost.toFixed(2));
 
     if (costAmount <= 0) {
       return null; // No COGS entry needed
@@ -357,6 +447,83 @@ export class JournalAutoService {
             },
           },
         },
+      });
+
+      return entry;
+    });
+  }
+
+  /**
+   * Auto-create journal entry for Inventory Adjustments:
+   * - MERMA: Debit 519995 (Otros Gastos - Merma) / Credit 143505 (Inventario)
+   * - REGALO: Debit 523560 (Publicidad/Promocion) / Credit 143505 (Inventario)
+   * - SOBRANTE: Debit 143505 (Inventario) / Credit 429581 (Otros Ingresos - Sobrantes)
+   */
+  async onInventoryAdjustment(adjustmentId: number) {
+    const adjustment = await this.prisma.inventoryAdjustment.findUnique({
+      where: { id: adjustmentId },
+      include: { items: true },
+    });
+
+    if (!adjustment || adjustment.items.length === 0) return null;
+
+    const entryDate = new Date();
+    const isClosed = await this.closingService.isPeriodClosed(entryDate);
+    if (isClosed) return null;
+
+    // Calculate total cost
+    const totalCost = adjustment.items.reduce((sum, item) => sum + (item.unit_cost * Math.abs(item.quantity)), 0);
+    if (totalCost <= 0) return null;
+
+    return this.prisma.$transaction(async (prisma) => {
+      const entryNumber = await this.getNextEntryNumber(prisma);
+      const inventoryAccount = await this.findAccountByCode(prisma, '143505');
+      
+      let debitAccountCode: string;
+      let creditAccountCode: string;
+      let isInventoryDebit = adjustment.reason === 'SOBRANTE' || adjustment.reason === 'ERROR_CONTEO';
+
+      if (adjustment.reason === 'REGALO') {
+        debitAccountCode = '523560'; // Publicidad
+        creditAccountCode = '143505'; // Inventario
+      } else if (adjustment.reason === 'MERMA') {
+        debitAccountCode = '519995'; // Otros Gastos
+        creditAccountCode = '143505'; // Inventario
+      } else if (adjustment.reason === 'SOBRANTE') {
+        debitAccountCode = '143505'; // Inventario
+        creditAccountCode = '429581'; // Otros Ingresos
+      } else {
+        // Fallback or generic error conteo
+        debitAccountCode = isInventoryDebit ? '143505' : '519995';
+        creditAccountCode = isInventoryDebit ? '429581' : '143505';
+      }
+
+      const dAcc = await this.findAccountByCode(prisma, debitAccountCode);
+      const cAcc = await this.findAccountByCode(prisma, creditAccountCode);
+
+      const entry = await prisma.journalEntry.create({
+        data: {
+          entry_number: entryNumber,
+          entry_date: entryDate,
+          description: `Ajuste Inventario (${adjustment.reason}) - Ref ${adjustment.id}`,
+          source_type: 'INVENTORY_ADJUSTMENT',
+          source_id: adjustment.id,
+          status: 'POSTED',
+          total_debit: Number(totalCost.toFixed(2)),
+          total_credit: Number(totalCost.toFixed(2)),
+          lines: {
+            create: [
+              { id_puc_account: dAcc.id, debit: totalCost, credit: 0, description: `Ajuste ${adjustment.reason}` },
+              { id_puc_account: cAcc.id, debit: 0, credit: totalCost, description: `Ajuste ${adjustment.reason}` },
+            ]
+          }
+        }
+      });
+
+      // Link adjustment to entry
+      await prisma.inventoryAdjustment.update({
+        where: { id: adjustmentId },
+        data: { id_journal_entry: entry.id }
       });
 
       return entry;

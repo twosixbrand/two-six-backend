@@ -90,6 +90,6 @@ import { ProfitabilityService } from './reports/profitability.service';
     ExogenaService,
     ProfitabilityService,
   ],
-  exports: [JournalAutoService, AuditService, TaxConfigService],
+  exports: [JournalAutoService, AuditService, TaxConfigService, BudgetService],
 })
 export class AccountingModule { }

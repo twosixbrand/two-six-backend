@@ -16,16 +16,21 @@ export class ExogenaController {
     return this.exogenaService.preview(parseInt(year, 10));
   }
 
-  @Get('generate')
-  async generate(
-    @Query('year') year: string,
-    @Res() res: Response,
-  ) {
+  @Get('export')
+  async export(@Query('year') year: string, @Res() res: Response) {
     const buffer = await this.exogenaService.generateExcel(parseInt(year, 10));
     res.set({
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="InformacionExogena_${year}.xlsx"`,
+      'Content-Disposition': `attachment; filename="Exogena_${year}.xlsx"`,
     });
     res.send(buffer);
+  }
+
+  @Get('movements')
+  async getThirdPartyMovements(
+    @Query('year') year: string,
+    @Query('nit') nit: string,
+  ) {
+    return this.exogenaService.getThirdPartyMovements(parseInt(year, 10), nit);
   }
 }
