@@ -42,6 +42,7 @@ import { DianModule } from './api/dian/dian.module';
 import { AccountingModule } from './api/accounting/accounting.module';
 import { PermissionModule } from './api/permission/permission.module';
 import { InventoryModule } from './api/inventory/inventory.module';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -56,6 +57,10 @@ import { InventoryModule } from './api/inventory/inventory.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ThrottlerModule.forRoot([{
+      ttl: 60000,
+      limit: 10,
+    }]),
     PrismaModule,
     ErrorLogModule,
     ProductModule,
