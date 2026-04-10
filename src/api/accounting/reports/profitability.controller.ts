@@ -1,8 +1,11 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query , UseGuards } from '@nestjs/common';
 import { ProfitabilityService } from './profitability.service';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
+
 
 @ApiTags('accounting/reports')
+@UseGuards(JwtAuthGuard)
 @Controller('accounting/reports/profitability')
 export class ProfitabilityController {
   constructor(private readonly profitabilityService: ProfitabilityService) {}

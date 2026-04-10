@@ -6,12 +6,14 @@ import {
   Patch,
   Param,
   Delete,
-  ParseIntPipe,
-} from '@nestjs/common';
+  ParseIntPipe, UseGuards } from '@nestjs/common';
 import { DesignProviderService } from './design-provider.service';
 import { CreateDesignProviderDto } from './dto/create-design-provider.dto';
 import { UpdateDesignProviderDto } from './dto/update-design-provider.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
+
+@UseGuards(JwtAuthGuard)
 @Controller('design-provider')
 export class DesignProviderController {
   constructor(private readonly designProviderService: DesignProviderService) {}

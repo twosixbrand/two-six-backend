@@ -1,6 +1,9 @@
-import { Controller, Post, Get, Body, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Get, Body, BadRequestException , UseGuards } from '@nestjs/common';
 import { ClosingService } from './closing.service';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 
+
+@UseGuards(JwtAuthGuard)
 @Controller('accounting/closing')
 export class ClosingController {
   constructor(private readonly closingService: ClosingService) {}

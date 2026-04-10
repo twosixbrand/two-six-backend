@@ -6,13 +6,15 @@ import {
   Patch,
   Param,
   ParseIntPipe,
-  Query,
-} from '@nestjs/common';
+  Query, UseGuards } from '@nestjs/common';
 import { PayrollService } from './payroll.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { CreatePayrollPeriodDto } from './dto/create-payroll-period.dto';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 
+
+@UseGuards(JwtAuthGuard)
 @Controller('accounting/payroll')
 export class PayrollController {
   constructor(private readonly payrollService: PayrollService) {}

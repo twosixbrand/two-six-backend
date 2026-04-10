@@ -1,10 +1,12 @@
 import {
   Controller,
   Get,
-  Query,
-} from '@nestjs/common';
+  Query, UseGuards } from '@nestjs/common';
 import { FinancialIndicatorsService } from './financial-indicators.service';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 
+
+@UseGuards(JwtAuthGuard)
 @Controller('accounting/reports')
 export class FinancialIndicatorsController {
   constructor(private readonly indicatorsService: FinancialIndicatorsService) { }

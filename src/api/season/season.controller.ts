@@ -1,3 +1,4 @@
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import {
   Controller,
   Get,
@@ -6,8 +7,7 @@ import {
   Patch,
   Param,
   Delete,
-  ParseIntPipe,
-} from '@nestjs/common';
+  ParseIntPipe, UseGuards } from '@nestjs/common';
 import { SeasonService } from './season.service';
 import { CreateSeasonDto } from './dto/create-season.dto';
 import { UpdateSeasonDto } from './dto/update-season.dto';
@@ -15,7 +15,7 @@ import { UpdateSeasonDto } from './dto/update-season.dto';
 @Controller('season')
 export class SeasonController {
   constructor(private readonly seasonService: SeasonService) {}
-
+  @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() createSeasonDto: CreateSeasonDto) {
     return this.seasonService.create(createSeasonDto);
@@ -30,7 +30,7 @@ export class SeasonController {
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.seasonService.findOne(id);
   }
-
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -38,7 +38,7 @@ export class SeasonController {
   ) {
     return this.seasonService.update(id, updateSeasonDto);
   }
-
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.seasonService.remove(id);

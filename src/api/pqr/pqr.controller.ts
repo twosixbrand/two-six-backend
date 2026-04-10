@@ -1,15 +1,15 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, UsePipes, ValidationPipe, ParseIntPipe, UseInterceptors, UploadedFiles, Patch, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, UsePipes, ValidationPipe, ParseIntPipe, UseInterceptors, UploadedFiles, Patch, BadRequestException, UseGuards } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
+import { multerImageConfig } from '../../common/utils/multer.config';
 import { PqrService } from './pqr.service';
 import { CreatePqrDto } from './dto/create-pqr.dto';
 import { UpdatePqrStatusDto } from './dto/update-pqr-status.dto';
-
-@Controller('pqr')
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 export class PqrController {
     constructor(private readonly pqrService: PqrService) { }
 
     @Post()
-    @UseInterceptors(FilesInterceptor('images'))
+    @UseInterceptors(FilesInterceptor('images', 5, multerImageConfig))
     create(
         @Body() createPqrDto: CreatePqrDto,
         @UploadedFiles() images: Express.Multer.File[]
@@ -17,16 +17,19 @@ export class PqrController {
         return this.pqrService.create(createPqrDto, images);
     }
 
+    @UseGuards(JwtAuthGuard)
     @Get()
     findAll() {
         return this.pqrService.findAll();
     }
 
+    @UseGuards(JwtAuthGuard)
     @Get(':id')
     findOne(@Param('id', ParseIntPipe) id: number) {
         return this.pqrService.findOne(id);
     }
 
+    @UseGuards(JwtAuthGuard)
     @Patch(':id/status')
     updateStatus(
         @Param('id') id: string,

@@ -1,8 +1,9 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Get, Put, Param, ParseIntPipe, Query, Res } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Get, Put, Param, ParseIntPipe, Query, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
 import { NewsletterService } from './newsletter.service';
 import { SubscribeDto } from './dto/subscribe.dto';
 import { UpdateSubscriberDto } from './dto/update-subscriber.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @Controller('newsletter')
 export class NewsletterController {
@@ -18,6 +19,7 @@ export class NewsletterController {
         };
     }
 
+    @UseGuards(JwtAuthGuard)
     @Get()
     findAll() {
         return this.newsletterService.findAll();
@@ -34,6 +36,7 @@ export class NewsletterController {
         return res.redirect(`${frontendUrl}/unsubscribe?status=success`);
     }
 
+    @UseGuards(JwtAuthGuard)
     @Put(':id')
     update(
         @Param('id', ParseIntPipe) id: number,

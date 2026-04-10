@@ -7,12 +7,14 @@ import {
   Param,
   Delete,
   ParseIntPipe,
-  Query,
-} from '@nestjs/common';
+  Query, UseGuards } from '@nestjs/common';
 import { PucService } from './puc.service';
 import { CreatePucAccountDto } from './dto/create-puc-account.dto';
 import { UpdatePucAccountDto } from './dto/update-puc-account.dto';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 
+
+@UseGuards(JwtAuthGuard)
 @Controller('accounting/puc')
 export class PucController {
   constructor(private readonly pucService: PucService) { }

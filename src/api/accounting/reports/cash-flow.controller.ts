@@ -1,10 +1,12 @@
 import {
   Controller,
   Get,
-  Query,
-} from '@nestjs/common';
+  Query, UseGuards } from '@nestjs/common';
 import { CashFlowService } from './cash-flow.service';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 
+
+@UseGuards(JwtAuthGuard)
 @Controller('accounting/reports')
 export class CashFlowController {
   constructor(private readonly cashFlowService: CashFlowService) {}

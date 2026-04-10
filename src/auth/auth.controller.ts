@@ -6,7 +6,9 @@ import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { CustomerLoginDto } from './dto/customer-login.dto';
 import { VerifyCustomerOtpDto } from './dto/verify-customer-otp.dto';
 import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
+import { Public } from './decorators/public.decorator';
 
+@Public()
 @UseGuards(ThrottlerGuard)
 @Throttle({ default: { limit: 5, ttl: 60000 } }) // Max 5 requests per 60 seconds
 @Controller('auth')

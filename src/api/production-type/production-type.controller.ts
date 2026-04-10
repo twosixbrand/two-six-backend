@@ -6,12 +6,14 @@ import {
   Patch,
   Param,
   Delete,
-  ParseIntPipe,
-} from '@nestjs/common';
+  ParseIntPipe, UseGuards } from '@nestjs/common';
 import { ProductionTypeService } from './production-type.service';
 import { CreateProductionTypeDto } from './dto/create-production-type.dto';
 import { UpdateProductionTypeDto } from './dto/update-production-type.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
+
+@UseGuards(JwtAuthGuard)
 @Controller('production-type')
 export class ProductionTypeController {
   constructor(private readonly productionTypeService: ProductionTypeService) {}

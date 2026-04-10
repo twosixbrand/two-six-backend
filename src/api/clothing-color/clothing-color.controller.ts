@@ -11,8 +11,7 @@ import {
   UploadedFile,
   UploadedFiles,
   InternalServerErrorException,
-  BadRequestException,
-} from '@nestjs/common';
+  BadRequestException, UseGuards } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ClothingColorService } from './clothing-color.service';
 import { CreateClothingColorDto } from './dto/create-clothing-color.dto';
@@ -20,7 +19,10 @@ import { UpdateClothingColorDto } from './dto/update-clothing-color.dto';
 import { ApiOkResponse, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { ClothingColorEntity } from './entities/clothing-color.entity';
 import { Express } from 'express';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
+
+@UseGuards(JwtAuthGuard)
 @Controller('clothing-color')
 export class ClothingColorController {
   constructor(private readonly clothingColorService: ClothingColorService) { }

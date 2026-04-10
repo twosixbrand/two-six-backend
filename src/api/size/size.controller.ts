@@ -1,3 +1,4 @@
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import {
   Controller,
   Get,
@@ -6,8 +7,7 @@ import {
   Patch,
   Param,
   Delete,
-  ParseIntPipe,
-} from '@nestjs/common';
+  ParseIntPipe, UseGuards } from '@nestjs/common';
 import { SizeService } from './size.service';
 import { CreateSizeDto } from './dto/create-size.dto';
 import { UpdateSizeDto } from './dto/update-size.dto';
@@ -15,7 +15,7 @@ import { UpdateSizeDto } from './dto/update-size.dto';
 @Controller('size')
 export class SizeController {
   constructor(private readonly sizeService: SizeService) {}
-
+  @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() createSizeDto: CreateSizeDto) {
     return this.sizeService.create(createSizeDto);
@@ -30,7 +30,7 @@ export class SizeController {
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.sizeService.findOne(id);
   }
-
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -38,7 +38,7 @@ export class SizeController {
   ) {
     return this.sizeService.update(id, updateSizeDto);
   }
-
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.sizeService.remove(id);

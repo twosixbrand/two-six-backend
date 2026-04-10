@@ -1,4 +1,5 @@
-import { Controller, Get, Param, ParseIntPipe, Patch, Body, Query } from '@nestjs/common';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { Controller, Get, Param, ParseIntPipe, Patch, Body, Query , UseGuards } from '@nestjs/common';
 import { LocationService } from './location.service';
 
 @Controller('locations')
@@ -18,16 +19,16 @@ export class LocationController {
         const isActive = active === 'true';
         return this.locationService.getCities(departmentId, isActive);
     }
-
-    @Patch('departments/:id')
+  @UseGuards(JwtAuthGuard)
+  @Patch('departments/:id')
     updateDepartment(
         @Param('id', ParseIntPipe) id: number,
         @Body() data: { name?: string },
     ) {
         return this.locationService.updateDepartment(id, data);
     }
-
-    @Patch('cities/:id')
+  @UseGuards(JwtAuthGuard)
+  @Patch('cities/:id')
     async updateCity(
         @Param('id', ParseIntPipe) id: number,
         @Body() data: { active?: boolean; shipping_cost?: number },
@@ -39,8 +40,8 @@ export class LocationController {
             throw error;
         }
     }
-
-    @Patch('departments/:id/bulk-cost')
+  @UseGuards(JwtAuthGuard)
+  @Patch('departments/:id/bulk-cost')
     async bulkUpdateCitiesCost(
         @Param('id', ParseIntPipe) departmentId: number,
         @Body() data: { shipping_cost: number },

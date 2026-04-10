@@ -1,3 +1,4 @@
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import {
   Controller,
   Get,
@@ -6,8 +7,7 @@ import {
   Patch,
   Param,
   Delete,
-  ParseIntPipe,
-} from '@nestjs/common';
+  ParseIntPipe, UseGuards } from '@nestjs/common';
 import { CollectionService } from './collection.service';
 import { CreateCollectionDto } from './dto/create-collection.dto';
 import { UpdateCollectionDto } from './dto/update-collection.dto';
@@ -15,7 +15,7 @@ import { UpdateCollectionDto } from './dto/update-collection.dto';
 @Controller('collection')
 export class CollectionController {
   constructor(private readonly collectionService: CollectionService) {}
-
+  @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() createCollectionDto: CreateCollectionDto) {
     return this.collectionService.create(createCollectionDto);
@@ -30,7 +30,7 @@ export class CollectionController {
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.collectionService.findOne(id);
   }
-
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -38,7 +38,7 @@ export class CollectionController {
   ) {
     return this.collectionService.update(id, updateCollectionDto);
   }
-
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.collectionService.remove(id);

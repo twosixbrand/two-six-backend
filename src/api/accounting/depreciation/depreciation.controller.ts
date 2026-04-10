@@ -4,10 +4,12 @@ import {
   Post,
   Body,
   Param,
-  ParseIntPipe,
-} from '@nestjs/common';
+  ParseIntPipe, UseGuards } from '@nestjs/common';
 import { DepreciationService } from './depreciation.service';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 
+
+@UseGuards(JwtAuthGuard)
 @Controller('accounting/assets')
 export class DepreciationController {
   constructor(private readonly depreciationService: DepreciationService) { }

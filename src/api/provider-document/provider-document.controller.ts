@@ -7,17 +7,20 @@ import {
     UploadedFile,
     UseInterceptors,
     Body,
-    ParseIntPipe,
-} from '@nestjs/common';
+    ParseIntPipe, UseGuards } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { multerDocumentConfig } from '../../common/utils/multer.config';
 import { ProviderDocumentService } from './provider-document.service';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
+
+@UseGuards(JwtAuthGuard)
 @Controller('provider-document')
 export class ProviderDocumentController {
     constructor(private readonly service: ProviderDocumentService) { }
 
     @Post('upload/:providerId')
-    @UseInterceptors(FileInterceptor('file'))
+    @UseInterceptors(FileInterceptor('file', { ...multerDocumentConfig }))
     async upload(
         @Param('providerId') providerId: string,
         @UploadedFile() file: Express.Multer.File,

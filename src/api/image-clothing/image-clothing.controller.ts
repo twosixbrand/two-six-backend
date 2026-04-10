@@ -1,14 +1,18 @@
-import { Controller, Post, Get, Delete, Param, UseInterceptors, UploadedFiles, ParseIntPipe, Body } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Param, UseInterceptors, UploadedFiles, ParseIntPipe, Body , UseGuards } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
+import { multerImageConfig } from '../../common/utils/multer.config';
 import { ImageClothingService } from './image-clothing.service';
 import { ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
+
+@UseGuards(JwtAuthGuard)
 @Controller('image-clothing')
 export class ImageClothingController {
     constructor(private readonly imageClothingService: ImageClothingService) { }
 
     @Post('upload/:id_clothing_color')
-    @UseInterceptors(FilesInterceptor('files'))
+    @UseInterceptors(FilesInterceptor('files', 10, multerImageConfig))
     @ApiConsumes('multipart/form-data')
     @ApiBody({
         schema: {

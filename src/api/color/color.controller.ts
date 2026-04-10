@@ -1,3 +1,4 @@
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import {
   Controller,
   Get,
@@ -6,8 +7,7 @@ import {
   Patch,
   Param,
   Delete,
-  ParseIntPipe,
-} from '@nestjs/common';
+  ParseIntPipe, UseGuards } from '@nestjs/common';
 import { ColorService } from './color.service';
 import { CreateColorDto } from './dto/create-color.dto';
 import { UpdateColorDto } from './dto/update-color.dto';
@@ -15,7 +15,7 @@ import { UpdateColorDto } from './dto/update-color.dto';
 @Controller('color')
 export class ColorController {
   constructor(private readonly colorService: ColorService) {}
-
+  @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() createColorDto: CreateColorDto) {
     return this.colorService.create(createColorDto);
@@ -30,7 +30,7 @@ export class ColorController {
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.colorService.findOne(id);
   }
-
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -38,7 +38,7 @@ export class ColorController {
   ) {
     return this.colorService.update(id, updateColorDto);
   }
-
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.colorService.remove(id);

@@ -1,8 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete , UseGuards } from '@nestjs/common';
 import { ClothingSizeService } from './clothing-size.service';
 import { CreateClothingSizeDto } from './dto/create-clothing-size.dto';
 import { UpdateClothingSizeDto } from './dto/update-clothing-size.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
+
+@UseGuards(JwtAuthGuard)
 @Controller('clothing-size')
 export class ClothingSizeController {
     constructor(private readonly clothingSizeService: ClothingSizeService) { }

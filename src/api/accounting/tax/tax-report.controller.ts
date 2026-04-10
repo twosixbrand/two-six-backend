@@ -1,10 +1,12 @@
 import {
   Controller,
   Get,
-  Query,
-} from '@nestjs/common';
+  Query, UseGuards } from '@nestjs/common';
 import { TaxReportService } from './tax-report.service';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 
+
+@UseGuards(JwtAuthGuard)
 @Controller('accounting/tax')
 export class TaxReportController {
   constructor(private readonly taxReportService: TaxReportService) {}

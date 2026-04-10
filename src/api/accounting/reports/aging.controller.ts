@@ -1,9 +1,11 @@
 import {
   Controller,
-  Get,
-} from '@nestjs/common';
+  Get, UseGuards } from '@nestjs/common';
 import { AgingService } from './aging.service';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 
+
+@UseGuards(JwtAuthGuard)
 @Controller('accounting/reports')
 export class AgingController {
   constructor(private readonly agingService: AgingService) {}

@@ -7,12 +7,14 @@ import {
   Param,
   Delete,
   ParseIntPipe,
-  Query,
-} from '@nestjs/common';
+  Query, UseGuards } from '@nestjs/common';
 import { ExpenseService } from './expense.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 
+
+@UseGuards(JwtAuthGuard)
 @Controller('accounting/expenses')
 export class ExpenseController {
   constructor(private readonly expenseService: ExpenseService) { }

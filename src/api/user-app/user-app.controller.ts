@@ -6,13 +6,15 @@ import {
   Patch,
   Param,
   Delete,
-  ParseIntPipe,
-} from '@nestjs/common';
+  ParseIntPipe, UseGuards } from '@nestjs/common';
 import { UserAppService } from './user-app.service';
 import { CreateUserAppDto, createUserAppSchema } from './dto/create-user-app.schema';
 import { UpdateUserAppDto } from './dto/update-user-app.dto';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
+
+@UseGuards(JwtAuthGuard)
 @Controller('user-app')
 export class UserAppController {
   constructor(private readonly userAppService: UserAppService) {}
