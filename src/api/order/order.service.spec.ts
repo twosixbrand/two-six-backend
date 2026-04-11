@@ -9,6 +9,7 @@ import { DianCufeService } from '../dian/dian-cufe/dian-cufe.service';
 import { DianSoapService } from '../dian/dian-soap/dian-soap.service';
 import { DianPdfService } from '../dian/dian-pdf/dian-pdf.service';
 import { DianEmailService } from '../dian/dian-email.service';
+import { JournalAutoService } from '../accounting/journal/journal-auto.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('OrderService', () => {
@@ -99,6 +100,7 @@ describe('OrderService', () => {
         { provide: DianSoapService, useValue: mockSoapService },
         { provide: DianPdfService, useValue: mockPdfService },
         { provide: DianEmailService, useValue: mockDianEmailService },
+        { provide: JournalAutoService, useValue: { logSalesInvoice: jest.fn() } },
       ],
     }).compile();
 
