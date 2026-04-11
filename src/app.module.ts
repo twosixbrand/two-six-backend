@@ -42,7 +42,8 @@ import { DianModule } from './api/dian/dian.module';
 import { AccountingModule } from './api/accounting/accounting.module';
 import { PermissionModule } from './api/permission/permission.module';
 import { InventoryModule } from './api/inventory/inventory.module';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -114,6 +115,12 @@ import { ThrottlerModule } from '@nestjs/throttler';
     InventoryModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard
+    }
+  ],
 })
 export class AppModule { }

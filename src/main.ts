@@ -24,9 +24,13 @@ async function bootstrap() {
   // Prefijo global para todas las rutas
   app.setGlobalPrefix('api');
 
+  // Ocultar X-Powered-By (Best Practice - Fase 6)
+  app.getHttpAdapter().getInstance().disable('x-powered-by');
+
   // Habilitar validaciones globales
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true, // Ignora propiedades que no están en el DTO
+    forbidNonWhitelisted: true, // Rechaza solicitudes que envíen propiedades no definidas (Mass Assignment)
     transform: true, // Transforma el payload a instancias de DTO
   }));
   const port = process.env.PORT ?? 3050;
