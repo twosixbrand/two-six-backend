@@ -5,6 +5,7 @@ import { PqrService } from './pqr.service';
 import { CreatePqrDto } from './dto/create-pqr.dto';
 import { UpdatePqrStatusDto } from './dto/update-pqr-status.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+@Controller('pqr')
 export class PqrController {
     constructor(private readonly pqrService: PqrService) { }
 
