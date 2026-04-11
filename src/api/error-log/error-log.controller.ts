@@ -11,13 +11,14 @@ import { ErrorLogService } from './error-log.service';
 import { CreateErrorLogDto } from './dto/create-error-log.dto';
 import { UpdateErrorLogDto } from './dto/update-error-log.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-
+import { Public } from '../../auth/decorators/public.decorator';
 
 @UseGuards(JwtAuthGuard)
 @Controller('error-log')
 export class ErrorLogController {
   constructor(private readonly errorLogService: ErrorLogService) {}
 
+  @Public()
   @Post()
   create(@Body() createErrorLogDto: CreateErrorLogDto) {
     return this.errorLogService.create(createErrorLogDto);
