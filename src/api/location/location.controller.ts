@@ -1,16 +1,19 @@
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { Controller, Get, Param, ParseIntPipe, Patch, Body, Query , UseGuards } from '@nestjs/common';
+import { Public } from '../../auth/decorators/public.decorator';
+import { Controller, Get, Param, ParseIntPipe, Patch, Body, Query, UseGuards } from '@nestjs/common';
 import { LocationService } from './location.service';
 
 @Controller('locations')
 export class LocationController {
     constructor(private readonly locationService: LocationService) { }
 
+    @Public()
     @Get('departments')
     getDepartments() {
         return this.locationService.getDepartments();
     }
 
+    @Public()
     @Get('cities/:departmentId')
     getCities(
         @Param('departmentId', ParseIntPipe) departmentId: number,
