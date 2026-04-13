@@ -89,7 +89,7 @@ export class JournalAutoService {
 
       const bancosAccount = await this.findAccountByCode(prisma, '111005');
       const ivaAccount = await this.findAccountByCode(prisma, '240801');
-      const ingresosAccount = await this.findAccountByCode(prisma, '413535');
+      const ingresosAccount = await this.findAccountByCode(prisma, '413524');
 
       const totalPayment = order.total_payment;
       const iva = order.iva;
@@ -132,7 +132,7 @@ export class JournalAutoService {
 
       // Add commission lines if applicable
       if (commissionExpense > 0) {
-        const commissionAccount = await this.findAccountByCode(prisma, '529505');
+        const commissionAccount = await this.findAccountByCode(prisma, '530515');
         const ivaDescontableAccount = await this.findAccountByCode(prisma, '240802');
 
         lines.push({
