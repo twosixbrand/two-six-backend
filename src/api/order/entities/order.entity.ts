@@ -20,4 +20,6 @@ export class OrderEntity implements OrderModel {
   delivery_method: string;
   pickup_status: string | null;
   pickup_pin: string | null;
+  id_coupon: number | null;
+  discount_amount: number;
 }

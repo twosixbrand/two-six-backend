@@ -58,8 +58,13 @@ export class OrderController {
   }
 
   @Post('validate-discount')
-  validateDiscount(@Body('code') code: string, @Body('email') email: string) {
-    return this.orderService.validateDiscountCode(code, email);
+  validateDiscount(
+    @Body('code') code: string, 
+    @Body('email') email: string,
+    @Body('cartTotal') cartTotal?: number,
+    @Body('itemCount') itemCount?: number
+  ) {
+    return this.orderService.validateDiscountCode(code, email, cartTotal, itemCount);
   }
 
   @Post('track')
@@ -112,7 +117,6 @@ export class OrderController {
     return this.orderService.findByCustomerEmail(email);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('by-reference/:reference')
   findByReference(@Param('reference') reference: string) {
     return this.orderService.findByReference(reference);

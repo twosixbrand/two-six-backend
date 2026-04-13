@@ -30,11 +30,64 @@ export class OrderService {
     private readonly journalAutoService: JournalAutoService,
   ) { }
 
-  async validateDiscountCode(code: string, email: string) {
+  async validateDiscountCode(code: string, email: string, cartTotal: number = 0, itemCount: number = 0) {
     if (!code) throw new BadRequestException('Debes proporcionar un código');
 
+    const cleanCode = code.trim().toUpperCase();
+
+    // 1. Try to find the new dynamic Coupon
+    const coupon = await this.prisma.coupon.findUnique({
+      where: { code: cleanCode }
+    });
+
+    if (coupon) {
+      if (!coupon.is_active) throw new BadRequestException('Esta campaña ha finalizado.');
+      
+      const now = new Date();
+      if (now < coupon.valid_from || now > coupon.valid_until) {
+        throw new BadRequestException('El código no está vigente en esta fecha.');
+      }
+
+      if (coupon.max_uses && coupon.current_uses >= coupon.max_uses) {
+        throw new BadRequestException('Este cupón ya alcanzó su límite máximo de usos.');
+      }
+
+      if (coupon.min_purchase_amount && cartTotal > 0 && cartTotal < coupon.min_purchase_amount) {
+        throw new BadRequestException(`Este cupón requiere una compra mínima de $${coupon.min_purchase_amount.toLocaleString('es-CO')}`);
+      }
+
+      if (coupon.min_items_count && itemCount > 0 && itemCount < coupon.min_items_count) {
+        throw new BadRequestException(`Este cupón requiere llevar un mínimo de ${coupon.min_items_count} prendas.`);
+      }
+
+      if (coupon.is_single_use_per_client && email) {
+        // Validate against CouponUsage to see if this customer already used it
+        const customer = await this.prisma.customer.findFirst({
+          where: { email: email.toLowerCase() }
+        });
+        
+        if (customer) {
+          const usage = await this.prisma.couponUsage.findFirst({
+            where: { id_coupon: coupon.id, id_customer: customer.id }
+          });
+          if (usage) {
+            throw new BadRequestException('Ya has utilizado este cupón anteriormente.');
+          }
+        }
+      }
+
+      return { 
+        valid: true, 
+        percentage: coupon.percentage, 
+        code: coupon.code, 
+        id: coupon.id,
+        freeShipping: coupon.free_shipping 
+      };
+    }
+
+    // 2. Fallback to older logic (Subscriber unique generated discounts)
     const subscriber = await this.prisma.subscriber.findUnique({
-      where: { discount_code: code.trim().toUpperCase() }
+      where: { discount_code: cleanCode }
     });
 
     if (!subscriber) {
@@ -53,7 +106,7 @@ export class OrderService {
       throw new BadRequestException('Este código ya fue utilizado en un pedido anterior');
     }
 
-    return { valid: true, percentage: 10, code: subscriber.discount_code };
+    return { valid: true, percentage: 10, code: subscriber.discount_code, freeShipping: false };
   }
 
   async checkout(checkoutDto: CheckoutDto) {
@@ -151,19 +204,53 @@ export class OrderService {
       }
 
       let dbTotal = dbSubtotal + dbShippingCost;
+      let appliedCouponId: number | null = null;
+      let originalTotal = dbTotal;
+      let calculatedDiscount = 0;
 
       // Validate Discount if provided
       if (checkoutDto.discountCode) {
-        const subscriber = await prisma.subscriber.findUnique({
-          where: { discount_code: checkoutDto.discountCode.trim().toUpperCase() }
+        const cleanCode = checkoutDto.discountCode.trim().toUpperCase();
+
+        const coupon = await prisma.coupon.findUnique({
+          where: { code: cleanCode }
         });
 
-        if (!subscriber || subscriber.is_discount_used || subscriber.email.toLowerCase() !== customer.email.toLowerCase()) {
-          throw new BadRequestException('El código de descuento no es válido o ya fue usado');
-        }
+        if (coupon) {
+          if (!coupon.is_active || new Date() < coupon.valid_from || new Date() > coupon.valid_until) {
+             throw new BadRequestException('El cupón dinámico no es válido.');
+          }
 
-        // Apply 10% discount to products
-        dbTotal = (dbSubtotal * 0.9) + dbShippingCost;
+          if (coupon.is_single_use_per_client) {
+             const usage = await prisma.couponUsage.findFirst({
+               where: { id_coupon: coupon.id, id_customer: customerRecord.id }
+             });
+             if (usage) {
+               throw new BadRequestException('El cupón ya fue utilizado por este usuario.');
+             }
+          }
+
+          if (coupon.free_shipping) {
+             dbShippingCost = 0;
+          }
+
+          calculatedDiscount = (dbSubtotal * (coupon.percentage / 100));
+          dbTotal = (dbSubtotal - calculatedDiscount) + dbShippingCost;
+          appliedCouponId = coupon.id;
+        } else {
+          // Fallback to Subscriber
+          const subscriber = await prisma.subscriber.findUnique({
+            where: { discount_code: cleanCode }
+          });
+
+          if (!subscriber || subscriber.is_discount_used || subscriber.email.toLowerCase() !== customer.email.toLowerCase()) {
+            throw new BadRequestException('El código de descuento no es válido o ya fue usado');
+          }
+
+          // Apply 10% discount to products
+          calculatedDiscount = (dbSubtotal * 0.1);
+          dbTotal = (dbSubtotal - calculatedDiscount) + dbShippingCost;
+        }
       }
       
       codAmount = method === 'WOMPI_COD' ? dbSubtotal : 0;
@@ -219,6 +306,8 @@ export class OrderService {
           delivery_method: deliveryMethod || 'SHIPPING',
           pickup_status: deliveryMethod === 'PICKUP' ? 'PENDING' : null,
           pickup_pin: pickupPin,
+          id_coupon: appliedCouponId,
+          discount_amount: calculatedDiscount,
         },
         include: {
           customer: true
@@ -418,7 +507,23 @@ export class OrderService {
         const expectedTotalWithoutDiscount = orderSubtotal + order.shipping_cost;
         const hasDiscount = order.total_payment < expectedTotalWithoutDiscount;
 
-        if (hasDiscount) {
+        if (order.id_coupon) {
+          try {
+            await this.prisma.couponUsage.create({
+              data: {
+                id_coupon: order.id_coupon,
+                id_customer: order.id_customer,
+                id_order: order.id,
+              }
+            });
+            await this.prisma.coupon.update({
+              where: { id: order.id_coupon },
+              data: { current_uses: { increment: 1 } }
+            });
+          } catch (e) {
+            // Might already be registered
+          }
+        } else if (hasDiscount) {
           const subscriber = await this.prisma.subscriber.findUnique({
             where: { email: order.customer.email }
           });

@@ -45,6 +45,7 @@ import { InventoryModule } from './api/inventory/inventory.module';
 import { TagModule } from './api/tag/tag.module';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { CouponModule } from './api/coupon/coupon.module';
 
 @Module({
   imports: [
@@ -61,7 +62,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
     }),
     ThrottlerModule.forRoot([{
       ttl: 60000,
-      limit: 10,
+      limit: 100,
     }]),
     PrismaModule,
     ErrorLogModule,
@@ -115,6 +116,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
     PermissionModule,
     InventoryModule,
     TagModule,
+    CouponModule,
   ],
   controllers: [AppController],
   providers: [

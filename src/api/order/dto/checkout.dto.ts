@@ -41,6 +41,14 @@ class CustomerDto {
     @IsString()
     @IsOptional()
     department?: string; // State/Department
+
+    @IsString()
+    @IsOptional()
+    detail?: string;
+
+    @IsString()
+    @IsOptional()
+    instructions?: string;
 }
 
 class OrderItemDto {

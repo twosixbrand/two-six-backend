@@ -396,6 +396,7 @@ model Customer {
   order                  Order[]
   payments               Payments[]
   returns                Returns[]
+  couponUsages           CouponUsage[]
 
   @@map("customer")
 }
@@ -440,30 +441,36 @@ model IdentificationType {
 }
 
 model Order {
-  id               Int              @id @default(autoincrement()) @map("id_order")
-  id_customer      Int              @map("id_customer")
+  id               Int       @id @default(autoincrement()) @map("id_order")
+  id_customer      Int       @map("id_customer")
   order_date       DateTime
   status           String
   is_paid          Boolean
   shipping_address String
-  createdAt        DateTime         @default(now()) @map("created_at")
-  updatedAt        DateTime?        @updatedAt @map("updated_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime? @updatedAt @map("updated_at")
   iva              Float
-  purchase_date    DateTime         @map("purchase_date")
-  shipping_cost    Float            @map("shipping_cost")
-  total_payment    Float            @map("total_payment")
-  order_reference  String?          @unique
-  cod_amount       Float            @default(0) @map("cod_amount")
-  payment_method   String           @default("WOMPI_FULL") @map("payment_method")
-  delivery_method  String           @default("SHIPPING") @map("delivery_method")
-  pickup_pin       String?          @map("pickup_pin")
-  pickup_status    String?          @map("pickup_status")
-  dianEInvoicings  DianEInvoicing[]
-  customer         Customer         @relation(fields: [id_customer], references: [id])
-  orderItems       OrderItem[]
-  payments         Payments[]
-  returns          Returns[]
-  shipments        Shipment[]
+  purchase_date    DateTime  @map("purchase_date")
+  shipping_cost    Float     @map("shipping_cost")
+  total_payment    Float     @map("total_payment")
+  order_reference  String?   @unique
+  cod_amount       Float     @default(0) @map("cod_amount")
+  payment_method   String    @default("WOMPI_FULL") @map("payment_method")
+  delivery_method  String    @default("SHIPPING") @map("delivery_method")
+  pickup_pin       String?   @map("pickup_pin")
+  pickup_status    String?   @map("pickup_status")
+
+  id_coupon       Int?  @map("id_coupon")
+  discount_amount Float @default(0) @map("discount_amount")
+
+  dianEInvoicings DianEInvoicing[]
+  customer        Customer         @relation(fields: [id_customer], references: [id])
+  orderItems      OrderItem[]
+  payments        Payments[]
+  returns         Returns[]
+  shipments       Shipment[]
+  coupon          Coupon?          @relation(fields: [id_coupon], references: [id])
+  couponUsage     CouponUsage?
 
   @@map("order")
 }
@@ -1160,4 +1167,39 @@ enum GenderEnum {
   MASCULINO
   FEMENINO
   UNISEX
+}
+
+model Coupon {
+  id                       Int           @id @default(autoincrement())
+  code                     String        @unique @db.VarChar(50)
+  percentage               Float         @default(0)
+  free_shipping            Boolean       @default(false)
+  valid_from               DateTime
+  valid_until              DateTime
+  is_single_use_per_client Boolean       @default(false)
+  is_active                Boolean       @default(true)
+  max_uses                 Int?
+  current_uses             Int           @default(0)
+  min_purchase_amount      Float?
+  min_items_count          Int?
+  createdAt                DateTime      @default(now()) @map("created_at")
+  updatedAt                DateTime?     @updatedAt @map("updated_at")
+  orders                   Order[]
+  usages                   CouponUsage[]
+
+  @@map("coupon")
+}
+
+model CouponUsage {
+  id          Int      @id @default(autoincrement())
+  id_coupon   Int      @map("id_coupon")
+  id_customer Int      @map("id_customer")
+  id_order    Int      @unique @map("id_order")
+  used_at     DateTime @default(now())
+
+  coupon   Coupon   @relation(fields: [id_coupon], references: [id], onDelete: Restrict)
+  customer Customer @relation(fields: [id_customer], references: [id], onDelete: Restrict)
+  order    Order    @relation(fields: [id_order], references: [id], onDelete: Restrict)
+
+  @@map("coupon_usage")
 }
