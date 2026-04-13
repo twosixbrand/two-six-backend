@@ -245,8 +245,31 @@ model Design {
   clothing          Clothing         @relation(fields: [id_clothing], references: [id])
   collection        Collection       @relation(fields: [id_collection], references: [id])
   designProviders   DesignProvider[]
+  designTags        DesignTag[]
 
   @@map("design")
+}
+
+model Tag {
+  id         Int         @id @default(autoincrement())
+  name       String      @unique
+  slug       String      @unique
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime?   @updatedAt @map("updated_at")
+  designTags DesignTag[]
+
+  @@map("tag")
+}
+
+model DesignTag {
+  id_tag    Int      @map("id_tag")
+  id_design Int      @map("id_design")
+  createdAt DateTime @default(now()) @map("created_at")
+  design    Design   @relation(fields: [id_design], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [id_tag], references: [id], onDelete: Cascade)
+
+  @@id([id_tag, id_design])
+  @@map("design_tag")
 }
 
 model ProductionType {
@@ -282,13 +305,13 @@ model ClothingColor {
   id            Int             @id @default(autoincrement())
   id_color      Int             @map("id_color")
   id_design     Int             @map("id_design")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime?       @updatedAt @map("updated_at")
   slug          String?         @unique
   seo_title     String?         @map("seo_title")
   seo_desc      String?         @map("seo_desc")
   seo_h1        String?         @map("seo_h1")
   seo_alt       String?         @map("seo_alt")
-  createdAt     DateTime        @default(now()) @map("created_at")
-  updatedAt     DateTime?       @updatedAt @map("updated_at")
   color         Color           @relation(fields: [id_color], references: [id])
   design        Design          @relation(fields: [id_design], references: [id])
   clothingSizes ClothingSize[]
@@ -310,22 +333,22 @@ model ImageClothing {
 }
 
 model ClothingSize {
-  id                      Int           @id @default(autoincrement())
-  id_size                 Int           @map("id_size")
-  id_clothing_color       Int           @map("id_clothing_color")
+  id                      Int                       @id @default(autoincrement())
+  id_size                 Int                       @map("id_size")
+  id_clothing_color       Int                       @map("id_clothing_color")
   quantity_produced       Int
   quantity_available      Int
   quantity_sold           Int
   quantity_on_consignment Int
-  quantity_under_warranty Int           @default(0) @map("quantity_under_warranty")
-  createdAt               DateTime      @default(now()) @map("created_at")
-  updatedAt               DateTime?     @updatedAt @map("updated_at")
-  quantity_minimum_alert  Int?          @map("quantity_minimum_alert")
-  clothingColor           ClothingColor @relation(fields: [id_clothing_color], references: [id])
-  size                    Size          @relation(fields: [id_size], references: [id])
-  product                 Product?
-  kardexEntries           InventoryKardex[]
+  quantity_under_warranty Int                       @default(0) @map("quantity_under_warranty")
+  createdAt               DateTime                  @default(now()) @map("created_at")
+  updatedAt               DateTime?                 @updatedAt @map("updated_at")
+  quantity_minimum_alert  Int?                      @map("quantity_minimum_alert")
+  clothingColor           ClothingColor             @relation(fields: [id_clothing_color], references: [id])
+  size                    Size                      @relation(fields: [id_size], references: [id])
   adjustmentItems         InventoryAdjustmentItem[]
+  kardexEntries           InventoryKardex[]
+  product                 Product?
 
   @@map("clothing_size")
 }
@@ -433,8 +456,8 @@ model Order {
   cod_amount       Float            @default(0) @map("cod_amount")
   payment_method   String           @default("WOMPI_FULL") @map("payment_method")
   delivery_method  String           @default("SHIPPING") @map("delivery_method")
-  pickup_status    String?          @map("pickup_status")
   pickup_pin       String?          @map("pickup_pin")
+  pickup_status    String?          @map("pickup_status")
   dianEInvoicings  DianEInvoicing[]
   customer         Customer         @relation(fields: [id_customer], references: [id])
   orderItems       OrderItem[]
@@ -533,7 +556,6 @@ model Payments {
 model DianEInvoicing {
   id                 Int             @id @default(autoincrement())
   id_order           Int?            @map("id_order")
-  id_expense         Int?            @map("id_expense")
   cufe_code          String?
   qr_code            String?
   document_number    String
@@ -544,15 +566,16 @@ model DianEInvoicing {
   url_xml            String?
   createdAt          DateTime        @default(now()) @map("created_at")
   updatedAt          DateTime?       @updatedAt @map("updated_at")
+  dian_authorized_at DateTime?       @map("dian_authorized_at")
   dian_response      String?
-  environment        String          @default("TEST")
-  id_dian_resolution Int?            @map("id_dian_resolution")
   dian_zip_base64    String?         @map("dian_zip_base64")
   email_sent         Boolean         @default(false) @map("email_sent")
-  dian_authorized_at DateTime?       @map("dian_authorized_at")
+  environment        String          @default("TEST")
+  id_dian_resolution Int?            @map("id_dian_resolution")
+  id_expense         Int?            @map("id_expense")
   dianResolution     DianResolution? @relation(fields: [id_dian_resolution], references: [id])
-  order              Order?          @relation(fields: [id_order], references: [id])
   expense            Expense?        @relation(fields: [id_expense], references: [id])
+  order              Order?          @relation(fields: [id_order], references: [id])
   dianNotes          DianNote[]
 
   @@map("dian_e_invoicing")
@@ -674,14 +697,14 @@ model Department {
 }
 
 model City {
-  id            Int        @id @default(autoincrement())
-  name          String
-  active        Boolean    @default(true)
-  shipping_cost Int        @default(0)
-  id_department Int        @map("id_department")
-  createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime?  @updatedAt @map("updated_at")
-  department    Department @relation(fields: [id_department], references: [id])
+  id                Int                @id @default(autoincrement())
+  name              String
+  active            Boolean            @default(true)
+  shipping_cost     Int                @default(0)
+  id_department     Int                @map("id_department")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime?          @updatedAt @map("updated_at")
+  department        Department         @relation(fields: [id_department], references: [id])
   taxConfigurations TaxConfiguration[]
 
   @@map("city")
@@ -708,11 +731,11 @@ model Pqr {
   order_number     String?
   type             String
   description      String
+  observation      String?
   status           String     @default("Abierto")
+  slaRiskAlertSent Boolean    @default(false)
   createdAt        DateTime   @default(now()) @map("created_at")
   updatedAt        DateTime?  @updatedAt @map("updated_at")
-  slaRiskAlertSent Boolean    @default(false)
-  observation      String?
   images           PqrImage[]
 
   @@map("pqr")
@@ -744,8 +767,8 @@ model PucAccount {
   journalEntryLines JournalEntryLine[]
   parent            PucAccount?        @relation("PucHierarchy", fields: [parent_code], references: [code])
   children          PucAccount[]       @relation("PucHierarchy")
-  debitTaxes        TaxConfiguration[] @relation("DebitTax")
   creditTaxes       TaxConfiguration[] @relation("CreditTax")
+  debitTaxes        TaxConfiguration[] @relation("DebitTax")
 
   @@map("puc_account")
 }
@@ -802,21 +825,21 @@ model DepreciationEntry {
 }
 
 model JournalEntry {
-  id           Int                @id @default(autoincrement())
-  entry_number String             @unique @map("entry_number")
-  entry_date   DateTime           @map("entry_date")
-  description  String
-  source_type  String             @map("source_type")
-  source_id    Int?               @map("source_id")
-  status       String             @default("POSTED")
-  total_debit  Float              @map("total_debit")
-  total_credit Float              @map("total_credit")
-  created_by   Int?               @map("created_by")
-  createdAt    DateTime           @default(now()) @map("created_at")
-  updatedAt    DateTime?          @updatedAt @map("updated_at")
-  lines        JournalEntryLine[]
-  taxTransactions TaxTransaction[]
+  id                   Int                   @id @default(autoincrement())
+  entry_number         String                @unique @map("entry_number")
+  entry_date           DateTime              @map("entry_date")
+  description          String
+  source_type          String                @map("source_type")
+  source_id            Int?                  @map("source_id")
+  status               String                @default("POSTED")
+  total_debit          Float                 @map("total_debit")
+  total_credit         Float                 @map("total_credit")
+  created_by           Int?                  @map("created_by")
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime?             @updatedAt @map("updated_at")
   inventoryAdjustments InventoryAdjustment[]
+  lines                JournalEntryLine[]
+  taxTransactions      TaxTransaction[]
 
   @@map("journal_entry")
 }
@@ -837,32 +860,32 @@ model JournalEntryLine {
 }
 
 model TaxConfiguration {
-  id                  Int      @id @default(autoincrement())
-  name                String
-  type                String   // "ICA", "AUTORETENCION_RENTA"
-  city_id             Int?     @map("city_id")
-  rate                Decimal  @db.Decimal(10, 4)
-  puc_account_debit   Int?     @map("puc_account_debit")
-  puc_account_credit  Int?     @map("puc_account_credit")
-  is_active           Boolean  @default(true) @map("is_active")
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime? @updatedAt @map("updated_at")
-  city                City?    @relation(fields: [city_id], references: [id])
-  pucAccountDebit     PucAccount? @relation("DebitTax", fields: [puc_account_debit], references: [id])
-  pucAccountCredit    PucAccount? @relation("CreditTax", fields: [puc_account_credit], references: [id])
+  id                 Int         @id @default(autoincrement())
+  name               String
+  type               String
+  city_id            Int?        @map("city_id")
+  rate               Decimal     @db.Decimal(10, 4)
+  puc_account_debit  Int?        @map("puc_account_debit")
+  puc_account_credit Int?        @map("puc_account_credit")
+  is_active          Boolean     @default(true) @map("is_active")
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime?   @updatedAt @map("updated_at")
+  city               City?       @relation(fields: [city_id], references: [id])
+  pucAccountCredit   PucAccount? @relation("CreditTax", fields: [puc_account_credit], references: [id])
+  pucAccountDebit    PucAccount? @relation("DebitTax", fields: [puc_account_debit], references: [id])
 
   @@map("tax_configuration")
 }
 
 model TaxTransaction {
-  id               Int      @id @default(autoincrement())
-  id_journal_entry Int      @map("id_journal_entry")
-  tax_type         String   // "ICA", "AUTORETENCION"
-  base_amount      Float    @map("base_amount")
+  id               Int          @id @default(autoincrement())
+  id_journal_entry Int          @map("id_journal_entry")
+  tax_type         String
+  base_amount      Float        @map("base_amount")
   rate             Float
-  tax_amount       Float    @map("tax_amount")
-  city_name        String?  @map("city_name")
-  createdAt        DateTime @default(now()) @map("created_at")
+  tax_amount       Float        @map("tax_amount")
+  city_name        String?      @map("city_name")
+  createdAt        DateTime     @default(now()) @map("created_at")
   journalEntry     JournalEntry @relation(fields: [id_journal_entry], references: [id])
 
   @@map("tax_transaction")
@@ -880,30 +903,30 @@ model ExpenseCategory {
 }
 
 model Expense {
-  id                  Int             @id @default(autoincrement())
-  expense_number      String          @unique @map("expense_number")
-  id_expense_category Int             @map("id_expense_category")
-  id_puc_account      Int             @map("id_puc_account")
-  id_provider         String?         @map("id_provider")
-  invoice_number      String?         @map("invoice_number")
+  id                  Int              @id @default(autoincrement())
+  expense_number      String           @unique @map("expense_number")
+  id_expense_category Int              @map("id_expense_category")
+  id_puc_account      Int              @map("id_puc_account")
+  id_provider         String?          @map("id_provider")
+  invoice_number      String?          @map("invoice_number")
   description         String
   subtotal            Float
-  tax_amount          Float           @default(0) @map("tax_amount")
-  retention_amount    Float           @default(0) @map("retention_amount")
+  tax_amount          Float            @default(0) @map("tax_amount")
+  retention_amount    Float            @default(0) @map("retention_amount")
   total               Float
-  expense_date        DateTime        @map("expense_date")
-  due_date            DateTime?       @map("due_date")
-  payment_status      String          @default("PENDING") @map("payment_status")
-  payment_date        DateTime?       @map("payment_date")
-  payment_method      String?         @map("payment_method")
-  attachment_url      String?         @map("attachment_url")
+  expense_date        DateTime         @map("expense_date")
+  due_date            DateTime?        @map("due_date")
+  payment_status      String           @default("PENDING") @map("payment_status")
+  payment_date        DateTime?        @map("payment_date")
+  payment_method      String?          @map("payment_method")
+  attachment_url      String?          @map("attachment_url")
   notes               String?
-  createdAt           DateTime        @default(now()) @map("created_at")
-  updatedAt           DateTime?       @updatedAt @map("updated_at")
-  expenseCategory     ExpenseCategory @relation(fields: [id_expense_category], references: [id])
-  provider            Provider?       @relation(fields: [id_provider], references: [id])
-  pucAccount          PucAccount      @relation(fields: [id_puc_account], references: [id])
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime?        @updatedAt @map("updated_at")
   dianEInvoicing      DianEInvoicing[]
+  expenseCategory     ExpenseCategory  @relation(fields: [id_expense_category], references: [id])
+  provider            Provider?        @relation(fields: [id_provider], references: [id])
+  pucAccount          PucAccount       @relation(fields: [id_puc_account], references: [id])
 
   @@map("expense")
 }
@@ -1019,12 +1042,12 @@ model Employee {
   eps_entity             String?        @map("eps_entity")
   pension_fund           String?        @map("pension_fund")
   arl_risk_level         Int            @default(1) @map("arl_risk_level")
-  is_exonerated          Boolean        @default(true) @map("is_exonerated") // Ley 1607
-  contract_type          String         @default("INDEFINIDO") @map("contract_type")
   bank_name              String?        @map("bank_name")
   bank_account           String?        @map("bank_account")
   createdAt              DateTime       @default(now()) @map("created_at")
   updatedAt              DateTime?      @updatedAt @map("updated_at")
+  contract_type          String         @default("INDEFINIDO") @map("contract_type")
+  is_exonerated          Boolean        @default(true) @map("is_exonerated")
   payrollEntries         PayrollEntry[]
 
   @@map("employee")
@@ -1052,67 +1075,54 @@ model PayrollEntry {
   base_salary             Float         @map("base_salary")
   transport_allowance     Float         @default(0) @map("transport_allowance")
   worked_days             Int           @default(30) @map("worked_days")
-  
-  // Detalle de Horas Extras y Recargos
-  hed_qty                 Float         @default(0) @map("hed_qty")
-  hen_qty                 Float         @default(0) @map("hen_qty")
-  hedf_qty                Float         @default(0) @map("hedf_qty")
-  henf_qty                Float         @default(0) @map("henf_qty")
-  rn_qty                  Float         @default(0) @map("rn_qty")
-  rf_qty                  Float         @default(0) @map("rf_qty")
-  
   overtime_amount         Float         @default(0) @map("overtime_amount")
   commissions             Float         @default(0)
   bonuses                 Float         @default(0)
-  other_accruals          Float         @default(0) @map("other_accruals")
   gross_salary            Float         @map("gross_salary")
-  
-  ibc                     Float         @default(0) @map("ibc")
   health_employee         Float         @default(0) @map("health_employee")
   pension_employee        Float         @default(0) @map("pension_employee")
-  other_deductions        Float         @default(0) @map("other_deductions")
-  
   health_employer         Float         @default(0) @map("health_employer")
   pension_employer        Float         @default(0) @map("pension_employer")
   arl_employer            Float         @default(0) @map("arl_employer")
   sena_employer           Float         @default(0) @map("sena_employer")
   icbf_employer           Float         @default(0) @map("icbf_employer")
   caja_employer           Float         @default(0) @map("caja_employer")
-  
   prima_provision         Float         @default(0) @map("prima_provision")
   cesantias_provision     Float         @default(0) @map("cesantias_provision")
   int_cesantias_provision Float         @default(0) @map("int_cesantias_provision")
   vacaciones_provision    Float         @default(0) @map("vacaciones_provision")
-  
   net_salary              Float         @map("net_salary")
   total_employer_cost     Float         @map("total_employer_cost")
   createdAt               DateTime      @default(now()) @map("created_at")
   updatedAt               DateTime?     @updatedAt @map("updated_at")
+  hed_qty                 Float         @default(0) @map("hed_qty")
+  hedf_qty                Float         @default(0) @map("hedf_qty")
+  hen_qty                 Float         @default(0) @map("hen_qty")
+  henf_qty                Float         @default(0) @map("henf_qty")
+  ibc                     Float         @default(0) @map("ibc")
+  other_accruals          Float         @default(0) @map("other_accruals")
+  other_deductions        Float         @default(0) @map("other_deductions")
+  rf_qty                  Float         @default(0) @map("rf_qty")
+  rn_qty                  Float         @default(0) @map("rn_qty")
   employee                Employee      @relation(fields: [id_employee], references: [id])
   payrollPeriod           PayrollPeriod @relation(fields: [id_payroll_period], references: [id])
 
   @@map("payroll_entry")
 }
 
-enum GenderEnum {
-  MASCULINO
-  FEMENINO
-  UNISEX
-}
-
 model InventoryKardex {
-  id               Int      @id @default(autoincrement())
-  id_clothing_size Int      @map("id_clothing_size")
-  date             DateTime @default(now())
-  type             String   // "IN", "OUT"
-  source_type      String   // "SALE", "PURCHASE", "ADJUSTMENT", "RETURN"
-  source_id        Int?     @map("source_id")
+  id               Int          @id @default(autoincrement())
+  id_clothing_size Int          @map("id_clothing_size")
+  date             DateTime     @default(now())
+  type             String
+  source_type      String
+  source_id        Int?         @map("source_id")
   quantity         Int
-  balance_before   Int      @map("balance_before")
-  balance_after    Int      @map("balance_after")
-  unit_cost        Float?   @map("unit_cost")
+  balance_before   Int          @map("balance_before")
+  balance_after    Int          @map("balance_after")
+  unit_cost        Float?       @map("unit_cost")
   description      String?
-  createdAt        DateTime @default(now()) @map("created_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
   clothingSize     ClothingSize @relation(fields: [id_clothing_size], references: [id])
 
   @@map("inventory_kardex")
@@ -1121,27 +1131,33 @@ model InventoryKardex {
 model InventoryAdjustment {
   id               Int                       @id @default(autoincrement())
   adjustment_date  DateTime                  @default(now()) @map("adjustment_date")
-  reason           String                    // "MERMA", "REGALO", "SOBRANTE", "ERROR_CONTEO"
+  reason           String
   description      String?
   status           String                    @default("COMPLETED")
   id_user          Int?                      @map("id_user")
   id_journal_entry Int?                      @map("id_journal_entry")
   createdAt        DateTime                  @default(now()) @map("created_at")
   updatedAt        DateTime?                 @updatedAt @map("updated_at")
-  items            InventoryAdjustmentItem[]
   journalEntry     JournalEntry?             @relation(fields: [id_journal_entry], references: [id])
+  items            InventoryAdjustmentItem[]
 
   @@map("inventory_adjustment")
 }
 
 model InventoryAdjustmentItem {
-  id                     Int                 @id @default(autoincrement())
+  id                      Int                 @id @default(autoincrement())
   id_inventory_adjustment Int                 @map("id_inventory_adjustment")
-  id_clothing_size       Int                 @map("id_clothing_size")
-  quantity               Int                 // Positivo para entrada, negativo para salida
-  unit_cost              Float               @map("unit_cost")
-  adjustment             InventoryAdjustment @relation(fields: [id_inventory_adjustment], references: [id], onDelete: Cascade)
-  clothingSize           ClothingSize        @relation(fields: [id_clothing_size], references: [id])
+  id_clothing_size        Int                 @map("id_clothing_size")
+  quantity                Int
+  unit_cost               Float               @map("unit_cost")
+  clothingSize            ClothingSize        @relation(fields: [id_clothing_size], references: [id])
+  adjustment              InventoryAdjustment @relation(fields: [id_inventory_adjustment], references: [id], onDelete: Cascade)
 
   @@map("inventory_adjustment_item")
+}
+
+enum GenderEnum {
+  MASCULINO
+  FEMENINO
+  UNISEX
 }

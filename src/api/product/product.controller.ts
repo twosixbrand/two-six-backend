@@ -42,13 +42,14 @@ export class ProductController {
     @Query('gender') gender?: any,
     @Query('is_outlet') is_outlet?: boolean,
     @Query('category') category?: string,
+    @Query('tag') tag?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string
   ) {
     const pageNumber = page ? parseInt(page, 10) : 1;
     const limitNumber = limit ? parseInt(limit, 10) : 12;
     // Cast gender string to Enum if present
-    return this.productService.findDesignsForStore(gender, is_outlet, category, pageNumber, limitNumber);
+    return this.productService.findDesignsForStore(gender, is_outlet, category, tag, pageNumber, limitNumber);
   }
 
   @Get(':id')

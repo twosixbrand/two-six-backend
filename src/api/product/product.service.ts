@@ -110,7 +110,7 @@ export class ProductService {
   }
 
 
-  async findDesignsForStore(gender?: string, is_outlet?: boolean, category?: string, page: number = 1, limit: number = 12) {
+  async findDesignsForStore(gender?: string, is_outlet?: boolean, category?: string, tag?: string, page: number = 1, limit: number = 12) {
     const where: Prisma.DesignWhereInput = {
       clothingColors: {
         some: {
@@ -140,6 +140,15 @@ export class ProductService {
               { typeClothing: { name: { contains: category, mode: 'insensitive' } } }
             ]
           })
+        }
+      }),
+      ...(tag && {
+        designTags: {
+          some: {
+            tag: {
+              slug: tag
+            }
+          }
         }
       })
     };

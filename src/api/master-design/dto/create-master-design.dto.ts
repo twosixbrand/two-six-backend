@@ -25,4 +25,8 @@ export class CreateMasterDesignDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  id_tags?: string | number[]; // Can be comma-separated or array
 }

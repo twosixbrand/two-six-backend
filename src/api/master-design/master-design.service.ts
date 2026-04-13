@@ -82,16 +82,32 @@ export class MasterDesignService {
   }
 
   async create(createMasterDesignDto: CreateMasterDesignDto, file?: Express.Multer.File) {
+    const { id_tags, ...designData } = createMasterDesignDto;
+
+    let idTagsArray: number[] = [];
+    if (id_tags) {
+      if (typeof id_tags === 'string') {
+         idTagsArray = id_tags.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id));
+      } else if (Array.isArray(id_tags)) {
+         idTagsArray = id_tags.map(id => Number(id)).filter(id => !isNaN(id));
+      }
+    }
+
     // Usamos una transacción para asegurar la atomicidad de la operación.
     return this.prisma.$transaction(async (prisma) => {
       // 1. Crea el diseño con una referencia temporal para obtener su ID.
       const design = await prisma.design.create({
         data: {
-          ...createMasterDesignDto,
-          id_clothing: Number(createMasterDesignDto.id_clothing),
-          id_collection: Number(createMasterDesignDto.id_collection),
-          manufactured_cost: Number(createMasterDesignDto.manufactured_cost),
+          ...designData,
+          id_clothing: Number(designData.id_clothing),
+          id_collection: Number(designData.id_collection),
+          manufactured_cost: Number(designData.manufactured_cost),
           reference: 'temp', // Valor temporal
+          ...(idTagsArray.length > 0 && {
+            designTags: {
+               create: idTagsArray.map(id => ({ id_tag: id }))
+            }
+          })
         },
       });
 
@@ -134,6 +150,11 @@ export class MasterDesignService {
             provider: true,
           },
         },
+        designTags: {
+          include: {
+            tag: true
+          }
+        },
         clothing: {
           include: {
             gender: true
@@ -158,6 +179,11 @@ export class MasterDesignService {
             provider: true,
           },
         },
+        designTags: {
+          include: {
+            tag: true
+          }
+        },
         clothing: {
           include: {
             gender: true
@@ -178,8 +204,10 @@ export class MasterDesignService {
       updateMasterDesignDto.id_collection ||
       updateMasterDesignDto.id_clothing;
 
+    const { id_tags, ...updateOriginal } = updateMasterDesignDto;
+    
     let dataToUpdate: any = {
-      ...updateMasterDesignDto,
+      ...updateOriginal,
     };
 
     // Convert strings to numbers if they come from FormData
@@ -187,6 +215,19 @@ export class MasterDesignService {
     if (dataToUpdate.id_collection) dataToUpdate.id_collection = Number(dataToUpdate.id_collection);
     if (dataToUpdate.manufactured_cost) dataToUpdate.manufactured_cost = Number(dataToUpdate.manufactured_cost);
 
+    if (id_tags !== undefined) {
+      let idTagsArray: number[] = [];
+      if (typeof id_tags === 'string') {
+         idTagsArray = id_tags.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id));
+      } else if (Array.isArray(id_tags)) {
+         idTagsArray = id_tags.map(id => Number(id)).filter(id => !isNaN(id));
+      }
+      
+      dataToUpdate.designTags = {
+        deleteMany: {},
+        create: idTagsArray.map(id => ({ id_tag: id }))
+      };
+    }
 
     if (file) {
       const imageUrl = await this.uploadImage(file, id);

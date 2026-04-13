@@ -42,6 +42,7 @@ import { DianModule } from './api/dian/dian.module';
 import { AccountingModule } from './api/accounting/accounting.module';
 import { PermissionModule } from './api/permission/permission.module';
 import { InventoryModule } from './api/inventory/inventory.module';
+import { TagModule } from './api/tag/tag.module';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
@@ -113,6 +114,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
     AccountingModule,
     PermissionModule,
     InventoryModule,
+    TagModule,
   ],
   controllers: [AppController],
   providers: [
