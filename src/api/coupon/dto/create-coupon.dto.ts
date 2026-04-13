@@ -4,6 +4,13 @@ export class CreateCouponDto {
   @IsString()
   code: string;
 
+  @IsString()
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
   @IsNumber()
   @Min(0)
   percentage: number;
