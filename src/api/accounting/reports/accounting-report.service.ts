@@ -6,6 +6,150 @@ export class AccountingReportService {
   constructor(private prisma: PrismaService) { }
 
   /**
+   * Balance General comparativo: balance del período actual + período anterior
+   * (mes inmediatamente anterior O mismo mes año anterior según `compareWith`).
+   */
+  async getBalanceSheetCompared(year: number, month: number, compareWith: 'PREVIOUS_MONTH' | 'PREVIOUS_YEAR' = 'PREVIOUS_YEAR') {
+    let prevYear = year;
+    let prevMonth = month;
+    if (compareWith === 'PREVIOUS_YEAR') {
+      prevYear = year - 1;
+    } else {
+      prevMonth = month - 1;
+      if (prevMonth === 0) {
+        prevMonth = 12;
+        prevYear = year - 1;
+      }
+    }
+    const [current, previous] = await Promise.all([
+      this.getBalanceSheet(year, month),
+      this.getBalanceSheet(prevYear, prevMonth),
+    ]);
+    return { compare_with: compareWith, current, previous };
+  }
+
+  /**
+   * Estado de Resultados comparativo: período actual vs anterior (mismo rango,
+   * desplazado al período de comparación).
+   */
+  async getIncomeStatementCompared(
+    startDate: string,
+    endDate: string,
+    compareWith: 'PREVIOUS_PERIOD' | 'PREVIOUS_YEAR' = 'PREVIOUS_YEAR',
+  ) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    let prevStart: Date;
+    let prevEnd: Date;
+    if (compareWith === 'PREVIOUS_YEAR') {
+      prevStart = new Date(start);
+      prevEnd = new Date(end);
+      prevStart.setFullYear(prevStart.getFullYear() - 1);
+      prevEnd.setFullYear(prevEnd.getFullYear() - 1);
+    } else {
+      const ms = end.getTime() - start.getTime();
+      prevEnd = new Date(start.getTime() - 1);
+      prevStart = new Date(prevEnd.getTime() - ms);
+    }
+
+    const [current, previous] = await Promise.all([
+      this.getIncomeStatement(startDate, endDate),
+      this.getIncomeStatement(prevStart.toISOString(), prevEnd.toISOString()),
+    ]);
+    return { compare_with: compareWith, current, previous };
+  }
+
+  /**
+   * Estado de Cambios en el Patrimonio (requerido por NIIF PYMES).
+   * Para el período: saldo inicial, aumentos por aportes, utilidad/pérdida del
+   * ejercicio, distribuciones (dividendos), y saldo final por cuenta de patrimonio.
+   */
+  async getStatementOfChangesInEquity(year: number) {
+    const startOfYear = new Date(year, 0, 1);
+    const endOfYear = new Date(year, 11, 31, 23, 59, 59);
+
+    // Cuentas de patrimonio (clase 3)
+    const equityAccounts = await this.prisma.pucAccount.findMany({
+      where: { code: { startsWith: '3' }, accepts_movements: true, is_active: true },
+      orderBy: { code: 'asc' },
+    });
+
+    const result: any[] = [];
+    let totalOpening = 0;
+    let totalIncreases = 0;
+    let totalDecreases = 0;
+    let totalClosing = 0;
+
+    for (const acc of equityAccounts) {
+      // Saldo inicial: todas las líneas hasta el día anterior al inicio del año
+      const opening = await this.prisma.journalEntryLine.aggregate({
+        where: {
+          id_puc_account: acc.id,
+          journalEntry: { status: 'POSTED', entry_date: { lt: startOfYear } },
+        },
+        _sum: { debit: true, credit: true },
+      });
+      const openingBalance =
+        acc.nature === 'CREDITO'
+          ? (opening._sum.credit ?? 0) - (opening._sum.debit ?? 0)
+          : (opening._sum.debit ?? 0) - (opening._sum.credit ?? 0);
+
+      // Movimientos del año
+      const period = await this.prisma.journalEntryLine.aggregate({
+        where: {
+          id_puc_account: acc.id,
+          journalEntry: { status: 'POSTED', entry_date: { gte: startOfYear, lte: endOfYear } },
+        },
+        _sum: { debit: true, credit: true },
+      });
+
+      const periodIncrease =
+        acc.nature === 'CREDITO' ? (period._sum.credit ?? 0) : (period._sum.debit ?? 0);
+      const periodDecrease =
+        acc.nature === 'CREDITO' ? (period._sum.debit ?? 0) : (period._sum.credit ?? 0);
+
+      const closingBalance = openingBalance + periodIncrease - periodDecrease;
+
+      result.push({
+        code: acc.code,
+        name: acc.name,
+        opening_balance: Number(openingBalance.toFixed(2)),
+        increases: Number(periodIncrease.toFixed(2)),
+        decreases: Number(periodDecrease.toFixed(2)),
+        closing_balance: Number(closingBalance.toFixed(2)),
+      });
+
+      totalOpening += openingBalance;
+      totalIncreases += periodIncrease;
+      totalDecreases += periodDecrease;
+      totalClosing += closingBalance;
+    }
+
+    // Resultado del ejercicio: utilidad/pérdida del año
+    const incomeStatement = await this.getIncomeStatement(
+      startOfYear.toISOString(),
+      endOfYear.toISOString(),
+    );
+
+    return {
+      year,
+      accounts: result,
+      totals: {
+        opening_balance: Number(totalOpening.toFixed(2)),
+        increases: Number(totalIncreases.toFixed(2)),
+        decreases: Number(totalDecreases.toFixed(2)),
+        closing_balance: Number(totalClosing.toFixed(2)),
+      },
+      result_of_exercise: {
+        ingresos: incomeStatement.ingresos.total,
+        gastos: incomeStatement.gastos.total,
+        costos: incomeStatement.costos.total,
+        utilidad_neta: incomeStatement.utilidadNeta,
+      },
+    };
+  }
+
+  /**
    * Balance General — aggregate journal lines by PUC class 1 (Activos), 2 (Pasivos), 3 (Patrimonio)
    */
   async getBalanceSheet(year: number, month: number) {

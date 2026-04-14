@@ -47,6 +47,8 @@ import { ProfitabilityService } from './reports/profitability.service';
 import { ReconciliationController } from './reports/reconciliation.controller';
 import { ReconciliationService } from './reports/reconciliation.service';
 import { AccountingCronService } from './schedulers/accounting-cron.service';
+import { AlertsController } from './alerts/alerts.controller';
+import { AlertsService } from './alerts/alerts.service';
 
 @Module({
   imports: [PrismaModule, ConfigModule],
@@ -72,6 +74,7 @@ import { AccountingCronService } from './schedulers/accounting-cron.service';
     ExogenaController,
     ProfitabilityController,
     ReconciliationController,
+    AlertsController,
   ],
   providers: [
     PucService,
@@ -99,6 +102,7 @@ import { AccountingCronService } from './schedulers/accounting-cron.service';
     ProfitabilityService,
     ReconciliationService,
     AccountingCronService,
+    AlertsService,
   ],
   exports: [JournalAutoService, AuditService, TaxConfigService, BudgetService],
 })
