@@ -171,7 +171,10 @@ export class JournalAutoService {
         cityId = city?.id;
       }
 
-      const calculatedTaxes: any[] = await this.taxConfigService.calculateTaxes(ingresos, cityId);
+      const calculatedTaxes: any[] = await this.taxConfigService.calculateTaxes(ingresos, cityId, {
+        customerTaxStatus: order.customer?.tax_status as any,
+        ivaAmount: iva,
+      });
       const taxTransactionsData: any[] = [];
 
       for (const tax of calculatedTaxes) {
@@ -874,7 +877,10 @@ export class JournalAutoService {
         });
         cityId = city?.id;
       }
-      const calculatedTaxes: any[] = await this.taxConfigService.calculateTaxes(subtotal, cityId);
+      const calculatedTaxes: any[] = await this.taxConfigService.calculateTaxes(subtotal, cityId, {
+        customerTaxStatus: (order.customer as any)?.tax_status,
+        ivaAmount: iva,
+      });
       const taxTransactionsData: any[] = [];
       for (const tax of calculatedTaxes) {
         if (tax.config.puc_account_debit && tax.config.puc_account_credit) {

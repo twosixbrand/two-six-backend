@@ -396,6 +396,7 @@ model Customer {
   is_registered          Boolean            @default(false) @map("is_registered")
   document_number        String?            @unique
   is_consignment_ally    Boolean            @default(false) @map("is_consignment_ally")
+  tax_status             CustomerTaxStatus  @default(NORMAL) @map("tax_status")
   addresses              Address[]
   customerType           CustomerType       @relation(fields: [id_customer_type], references: [id])
   identificationType     IdentificationType @relation(fields: [id_identification_type], references: [id])
@@ -1222,6 +1223,12 @@ enum ConsignmentStockStatus {
   EN_CONSIGNACION
   DEVUELTO
   MERMADO
+}
+
+enum CustomerTaxStatus {
+  NORMAL
+  GRAN_CONTRIBUYENTE
+  AUTORETENEDOR
 }
 
 model ConsignmentWarehouse {
