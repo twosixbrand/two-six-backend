@@ -44,6 +44,7 @@ import { ProfitabilityController } from './reports/profitability.controller';
 import { ProfitabilityService } from './reports/profitability.service';
 import { ReconciliationController } from './reports/reconciliation.controller';
 import { ReconciliationService } from './reports/reconciliation.service';
+import { AccountingCronService } from './schedulers/accounting-cron.service';
 
 @Module({
   imports: [PrismaModule, ConfigModule],
@@ -93,6 +94,7 @@ import { ReconciliationService } from './reports/reconciliation.service';
     ExogenaService,
     ProfitabilityService,
     ReconciliationService,
+    AccountingCronService,
   ],
   exports: [JournalAutoService, AuditService, TaxConfigService, BudgetService],
 })
