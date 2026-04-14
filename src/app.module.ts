@@ -46,6 +46,13 @@ import { TagModule } from './api/tag/tag.module';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { CouponModule } from './api/coupon/coupon.module';
+import { ConsignmentWarehouseModule } from './api/consignment-warehouse/consignment-warehouse.module';
+import { ConsignmentPriceModule } from './api/consignment-price/consignment-price.module';
+import { ConsignmentDispatchModule } from './api/consignment-dispatch/consignment-dispatch.module';
+import { ConsignmentSelloutModule } from './api/consignment-sellout/consignment-sellout.module';
+import { ConsignmentReturnModule } from './api/consignment-return/consignment-return.module';
+import { ConsignmentCycleCountModule } from './api/consignment-cycle-count/consignment-cycle-count.module';
+import { ConsignmentReportsModule } from './api/consignment-reports/consignment-reports.module';
 
 @Module({
   imports: [
@@ -117,6 +124,13 @@ import { CouponModule } from './api/coupon/coupon.module';
     InventoryModule,
     TagModule,
     CouponModule,
+    ConsignmentWarehouseModule,
+    ConsignmentPriceModule,
+    ConsignmentDispatchModule,
+    ConsignmentSelloutModule,
+    ConsignmentReturnModule,
+    ConsignmentCycleCountModule,
+    ConsignmentReportsModule,
   ],
   controllers: [AppController],
   providers: [

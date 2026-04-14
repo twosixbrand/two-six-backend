@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsBoolean } from 'class-validator';
 
 export class UpdateCustomerDto {
     @IsOptional()
@@ -32,4 +32,8 @@ export class UpdateCustomerDto {
     @IsOptional()
     @IsString()
     country?: string;
+
+    @IsOptional()
+    @IsBoolean()
+    is_consignment_ally?: boolean;
 }

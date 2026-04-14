@@ -349,6 +349,10 @@ model ClothingSize {
   adjustmentItems         InventoryAdjustmentItem[]
   kardexEntries           InventoryKardex[]
   product                 Product?
+  consignmentStocks       ConsignmentStock[]
+  consignmentDispatchItems ConsignmentDispatchItem[]
+  consignmentReturnItems   ConsignmentReturnItem[]
+  cycleCountItems          InventoryCycleCountItem[]
 
   @@map("clothing_size")
 }
@@ -367,6 +371,7 @@ model Product {
   orderItems          OrderItem[]
   clothingSize        ClothingSize @relation(fields: [id_clothing_size], references: [id])
   returnItems         ReturnItem[]
+  consignmentPrices   CustomerConsignmentPrice[]
 
   @@map("product")
 }
@@ -390,6 +395,7 @@ model Customer {
   otpExpiresAt           DateTime?          @map("otp_expires_at")
   is_registered          Boolean            @default(false) @map("is_registered")
   document_number        String?            @unique
+  is_consignment_ally    Boolean            @default(false) @map("is_consignment_ally")
   addresses              Address[]
   customerType           CustomerType       @relation(fields: [id_customer_type], references: [id])
   identificationType     IdentificationType @relation(fields: [id_identification_type], references: [id])
@@ -397,6 +403,8 @@ model Customer {
   payments               Payments[]
   returns                Returns[]
   couponUsages           CouponUsage[]
+  consignmentWarehouses  ConsignmentWarehouse[]
+  consignmentPrices      CustomerConsignmentPrice[]
 
   @@map("customer")
 }
@@ -471,6 +479,7 @@ model Order {
   shipments       Shipment[]
   coupon          Coupon?          @relation(fields: [id_coupon], references: [id])
   couponUsage     CouponUsage?
+  consignmentReturns ConsignmentReturn[]
 
   @@map("order")
 }
@@ -1204,4 +1213,186 @@ model CouponUsage {
   order    Order    @relation(fields: [id_order], references: [id], onDelete: Restrict)
 
   @@map("coupon_usage")
+}
+
+// =================== CONSIGNMENT MODULE (Fase 1: F01, F02) ===================
+
+enum ConsignmentStockStatus {
+  PENDIENTE_RECEPCION
+  EN_CONSIGNACION
+  DEVUELTO
+  MERMADO
+}
+
+model ConsignmentWarehouse {
+  id          Int                @id @default(autoincrement())
+  id_customer Int                @map("id_customer")
+  name        String
+  address     String?
+  city        String?
+  state       String?
+  is_active   Boolean            @default(true) @map("is_active")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime?          @updatedAt @map("updated_at")
+  customer    Customer              @relation(fields: [id_customer], references: [id])
+  stocks      ConsignmentStock[]
+  dispatches  ConsignmentDispatch[]
+  returns     ConsignmentReturn[]
+  cycleCounts InventoryCycleCount[]
+
+  @@map("consignment_warehouse")
+}
+
+model ConsignmentStock {
+  id               Int                    @id @default(autoincrement())
+  id_warehouse     Int                    @map("id_warehouse")
+  id_clothing_size Int                    @map("id_clothing_size")
+  quantity         Int                    @default(0)
+  status           ConsignmentStockStatus @default(PENDIENTE_RECEPCION)
+  createdAt        DateTime               @default(now()) @map("created_at")
+  updatedAt        DateTime?              @updatedAt @map("updated_at")
+  warehouse        ConsignmentWarehouse   @relation(fields: [id_warehouse], references: [id], onDelete: Cascade)
+  clothingSize     ClothingSize           @relation(fields: [id_clothing_size], references: [id])
+
+  @@unique([id_warehouse, id_clothing_size, status])
+  @@map("consignment_stock")
+}
+
+model CustomerConsignmentPrice {
+  id          Int       @id @default(autoincrement())
+  id_customer Int       @map("id_customer")
+  id_product  Int       @map("id_product")
+  price       Float
+  valid_from  DateTime  @default(now()) @map("valid_from")
+  valid_to    DateTime? @map("valid_to")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+  customer    Customer  @relation(fields: [id_customer], references: [id])
+  product     Product   @relation(fields: [id_product], references: [id])
+
+  @@unique([id_customer, id_product, valid_from])
+  @@map("customer_consignment_price")
+}
+
+// =================== CONSIGNMENT MODULE (Fase 2: F03 — Despachos con QR) ===================
+
+enum ConsignmentDispatchStatus {
+  PENDIENTE     // borrador, sin enviar
+  EN_TRANSITO   // enviado, esperando confirmación QR del cliente
+  RECIBIDO      // cliente confirmó recepción
+  CANCELADO
+}
+
+model ConsignmentDispatch {
+  id              Int                       @id @default(autoincrement())
+  id_warehouse    Int                       @map("id_warehouse")
+  dispatch_number String                    @unique @map("dispatch_number")
+  status          ConsignmentDispatchStatus @default(PENDIENTE)
+  qr_token        String                    @unique @map("qr_token")
+  notes           String?
+  sent_at         DateTime?                 @map("sent_at")
+  received_at     DateTime?                 @map("received_at")
+  received_by     String?                   @map("received_by")
+  createdAt       DateTime                  @default(now()) @map("created_at")
+  updatedAt       DateTime?                 @updatedAt @map("updated_at")
+  warehouse       ConsignmentWarehouse      @relation(fields: [id_warehouse], references: [id])
+  items           ConsignmentDispatchItem[]
+
+  @@map("consignment_dispatch")
+}
+
+model ConsignmentDispatchItem {
+  id               Int                 @id @default(autoincrement())
+  id_dispatch      Int                 @map("id_dispatch")
+  id_clothing_size Int                 @map("id_clothing_size")
+  quantity         Int
+  createdAt        DateTime            @default(now()) @map("created_at")
+  dispatch         ConsignmentDispatch @relation(fields: [id_dispatch], references: [id], onDelete: Cascade)
+  clothingSize     ClothingSize        @relation(fields: [id_clothing_size], references: [id])
+
+  @@map("consignment_dispatch_item")
+}
+
+// =================== CONSIGNMENT MODULE (Fase 4: F04 + F05) ===================
+
+enum ConsignmentReturnType {
+  PORTFOLIO  // retorno por obsolescencia/cambio de colección (no facturado)
+  WARRANTY   // prenda defectuosa (marca, no vuelve a disponible)
+  POST_SALE  // retorno después de facturación → genera nota crédito DIAN
+}
+
+enum ConsignmentReturnStatus {
+  DRAFT
+  PROCESSED
+  CANCELLED
+}
+
+model ConsignmentReturn {
+  id                Int                      @id @default(autoincrement())
+  id_warehouse      Int                      @map("id_warehouse")
+  return_type       ConsignmentReturnType    @map("return_type")
+  status            ConsignmentReturnStatus  @default(DRAFT)
+  id_order          Int?                     @map("id_order")
+  notes             String?
+  processed_at      DateTime?                @map("processed_at")
+  credit_note_id    Int?                     @map("credit_note_id") // DianNote.id si aplica
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  updatedAt         DateTime?                @updatedAt @map("updated_at")
+  warehouse         ConsignmentWarehouse     @relation(fields: [id_warehouse], references: [id])
+  order             Order?                   @relation(fields: [id_order], references: [id])
+  items             ConsignmentReturnItem[]
+
+  @@map("consignment_return")
+}
+
+model ConsignmentReturnItem {
+  id               Int               @id @default(autoincrement())
+  id_return        Int               @map("id_return")
+  id_clothing_size Int               @map("id_clothing_size")
+  quantity         Int
+  unit_price       Float?            @map("unit_price") // usado solo en POST_SALE para la nota crédito
+  reason           String?
+  createdAt        DateTime          @default(now()) @map("created_at")
+  consignmentReturn ConsignmentReturn @relation(fields: [id_return], references: [id], onDelete: Cascade)
+  clothingSize      ClothingSize      @relation(fields: [id_clothing_size], references: [id])
+
+  @@map("consignment_return_item")
+}
+
+// =================== CONSIGNMENT MODULE (Fase 5: F06 + F07) ===================
+
+enum InventoryCycleCountStatus {
+  DRAFT
+  APPROVED
+  CANCELLED
+}
+
+model InventoryCycleCount {
+  id                Int                       @id @default(autoincrement())
+  id_warehouse      Int                       @map("id_warehouse")
+  status            InventoryCycleCountStatus @default(DRAFT)
+  notes             String?
+  approved_at       DateTime?                 @map("approved_at")
+  merma_order_id    Int?                      @map("merma_order_id") // Order.id si se facturó merma
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  updatedAt         DateTime?                 @updatedAt @map("updated_at")
+  warehouse         ConsignmentWarehouse      @relation(fields: [id_warehouse], references: [id])
+  items             InventoryCycleCountItem[]
+
+  @@map("inventory_cycle_count")
+}
+
+model InventoryCycleCountItem {
+  id               Int                 @id @default(autoincrement())
+  id_cycle_count   Int                 @map("id_cycle_count")
+  id_clothing_size Int                 @map("id_clothing_size")
+  theoretical_qty  Int                 @map("theoretical_qty")
+  real_qty         Int?                @map("real_qty")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime?           @updatedAt @map("updated_at")
+  cycleCount       InventoryCycleCount @relation(fields: [id_cycle_count], references: [id], onDelete: Cascade)
+  clothingSize     ClothingSize        @relation(fields: [id_clothing_size], references: [id])
+
+  @@unique([id_cycle_count, id_clothing_size])
+  @@map("inventory_cycle_count_item")
 }

@@ -37,6 +37,10 @@ async function main() {
     { code: '519910', name: 'Gasto Merma / Deterioro', nature: 'DEBITO' },
     { code: '523505', name: 'Gasto Publicidad / Regalos', nature: 'DEBITO' },
     { code: '530505', name: 'Gastos Bancarios / Comisiones', nature: 'DEBITO' },
+    // Cuentas PUC requeridas por módulo de Consignación
+    { code: '143505', name: 'Inventario Mercancía Propia', nature: 'DEBITO' },
+    { code: '143510', name: 'Mercancía en Consignación en Poder de Terceros', nature: 'DEBITO' },
+    { code: '429505', name: 'Aprovechamientos', nature: 'CREDITO' },
   ];
 
   for (const acc of accounts) {
