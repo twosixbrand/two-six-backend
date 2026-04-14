@@ -20,6 +20,8 @@ import { AccountingDashboardController } from './dashboard/accounting-dashboard.
 import { AccountingDashboardService } from './dashboard/accounting-dashboard.service';
 import { PayrollController } from './payroll/payroll.controller';
 import { PayrollService } from './payroll/payroll.service';
+import { PayrollNovedadService } from './payroll/payroll-novedad.service';
+import { PilaService } from './payroll/pila.service';
 import { ClosingController } from './closing/closing.controller';
 import { ClosingService } from './closing/closing.service';
 import { TaxReportController } from './tax/tax-report.controller';
@@ -82,6 +84,8 @@ import { AccountingCronService } from './schedulers/accounting-cron.service';
     AuditService,
     AccountingDashboardService,
     PayrollService,
+    PayrollNovedadService,
+    PilaService,
     ClosingService,
     TaxReportService,
     TaxConfigService,

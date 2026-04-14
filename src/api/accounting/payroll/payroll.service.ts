@@ -153,16 +153,63 @@ export class PayrollService {
 
     const entries: any[] = [];
 
-    for (const emp of employees) {
-      const workedDays = 30; // standard
-      const baseSalaryProrated = (emp.base_salary / 30) * workedDays;
-      
-      // In a real system, these would come from another table 'Novedades'
-      const overtimeAmount = 0; 
-      const commissions = 0;
-      const bonuses = 0;
+    // Cargar todas las novedades del periodo, indexadas por empleado
+    const novedades = await this.prisma.payrollNovedad.findMany({
+      where: { id_payroll_period: periodId },
+    });
+    const novedadesByEmployee = new Map<number, typeof novedades>();
+    for (const n of novedades) {
+      if (!novedadesByEmployee.has(n.id_employee)) {
+        novedadesByEmployee.set(n.id_employee, []);
+      }
+      novedadesByEmployee.get(n.id_employee)!.push(n);
+    }
 
-      const grossSalary = baseSalaryProrated + emp.transport_allowance + overtimeAmount + commissions + bonuses;
+    for (const emp of employees) {
+      const empNovedades = novedadesByEmployee.get(emp.id) ?? [];
+
+      // Sumamos novedades por categoría
+      let overtimeAmount = 0;
+      let commissions = 0;
+      let bonuses = 0;
+      let otherAccruals = 0;
+      let otherDeductions = 0;
+      let absentDays = 0;
+
+      for (const nov of empNovedades) {
+        switch (nov.type) {
+          case 'HORAS_EXTRA_DIURNAS':
+          case 'HORAS_EXTRA_NOCTURNAS':
+          case 'HORAS_EXTRA_DOMINICALES':
+            overtimeAmount += nov.amount;
+            break;
+          case 'COMISION':
+            commissions += nov.amount;
+            break;
+          case 'BONIFICACION':
+          case 'INCAPACIDAD_COMUN':
+          case 'INCAPACIDAD_LABORAL':
+          case 'LICENCIA_REMUNERADA':
+          case 'VACACIONES':
+            bonuses += nov.amount;
+            break;
+          case 'OTRO_DEVENGADO':
+            otherAccruals += nov.amount;
+            break;
+          case 'OTRO_DEDUCIBLE':
+            otherDeductions += nov.amount;
+            break;
+          case 'AUSENTISMO':
+          case 'LICENCIA_NO_REMUNERADA':
+            absentDays += nov.quantity;
+            break;
+        }
+      }
+
+      const workedDays = Math.max(0, 30 - absentDays);
+      const baseSalaryProrated = (emp.base_salary / 30) * workedDays;
+
+      const grossSalary = baseSalaryProrated + emp.transport_allowance + overtimeAmount + commissions + bonuses + otherAccruals;
 
       // IBC (Base for social security)
       const ibc = baseSalaryProrated + overtimeAmount + commissions; 
@@ -190,7 +237,7 @@ export class PayrollService {
       const intCesantiasProvision = Math.round((cesantiasProvision * 0.12) / 12);
       const vacacionesProvision = Math.round(baseSalaryProrated * 0.0417);
 
-      const netSalary = grossSalary - healthEmployee - pensionEmployee;
+      const netSalary = grossSalary - healthEmployee - pensionEmployee - otherDeductions;
 
       const totalEmployerCost = grossSalary + healthEmployer + pensionEmployer + 
                                 arlEmployer + senaEmployer + icbfEmployer + 
@@ -204,6 +251,11 @@ export class PayrollService {
           base_salary: emp.base_salary,
           transport_allowance: emp.transport_allowance,
           worked_days: workedDays,
+          overtime_amount: overtimeAmount,
+          commissions: commissions,
+          bonuses: bonuses,
+          other_accruals: otherAccruals,
+          other_deductions: otherDeductions,
           gross_salary: grossSalary,
           ibc: ibc,
           health_employee: healthEmployee,
