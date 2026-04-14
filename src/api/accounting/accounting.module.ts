@@ -42,6 +42,8 @@ import { ExogenaController } from './exogena/exogena.controller';
 import { ExogenaService } from './exogena/exogena.service';
 import { ProfitabilityController } from './reports/profitability.controller';
 import { ProfitabilityService } from './reports/profitability.service';
+import { ReconciliationController } from './reports/reconciliation.controller';
+import { ReconciliationService } from './reports/reconciliation.service';
 
 @Module({
   imports: [PrismaModule, ConfigModule],
@@ -66,6 +68,7 @@ import { ProfitabilityService } from './reports/profitability.service';
     ExportController,
     ExogenaController,
     ProfitabilityController,
+    ReconciliationController,
   ],
   providers: [
     PucService,
@@ -89,6 +92,7 @@ import { ProfitabilityService } from './reports/profitability.service';
     ExportService,
     ExogenaService,
     ProfitabilityService,
+    ReconciliationService,
   ],
   exports: [JournalAutoService, AuditService, TaxConfigService, BudgetService],
 })

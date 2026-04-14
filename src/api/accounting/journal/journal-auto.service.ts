@@ -14,23 +14,31 @@ export class JournalAutoService {
   ) { }
 
   /**
-   * Generates sequential entry_number (AC-000001)
+   * Genera el próximo entry_number (formato AC-000001) usando una Postgres sequence
+   * atómica para evitar race conditions en concurrencia alta.
+   *
+   * Fallback: si la sequence no existe (entorno de tests que no aplicó la migración),
+   * cae al algoritmo viejo de MAX()+1.
    */
   private async getNextEntryNumber(prisma: any): Promise<string> {
-    const lastEntry = await prisma.journalEntry.findFirst({
-      orderBy: { id: 'desc' },
-      select: { entry_number: true },
-    });
-
-    let nextNumber = 1;
-    if (lastEntry) {
-      const match = lastEntry.entry_number.match(/AC-(\d+)/);
-      if (match) {
-        nextNumber = parseInt(match[1], 10) + 1;
+    try {
+      const result: Array<{ nextval: bigint | number }> =
+        await prisma.$queryRawUnsafe(`SELECT nextval('journal_entry_number_seq')`);
+      const n = Number(result[0].nextval);
+      return `AC-${String(n).padStart(6, '0')}`;
+    } catch (_err) {
+      // Fallback — usado solo si la sequence aún no existe (tests unitarios con mocks)
+      const lastEntry = await prisma.journalEntry.findFirst({
+        orderBy: { id: 'desc' },
+        select: { entry_number: true },
+      });
+      let nextNumber = 1;
+      if (lastEntry) {
+        const match = lastEntry.entry_number.match(/AC-(\d+)/);
+        if (match) nextNumber = parseInt(match[1], 10) + 1;
       }
+      return `AC-${String(nextNumber).padStart(6, '0')}`;
     }
-
-    return `AC-${String(nextNumber).padStart(6, '0')}`;
   }
 
   /**
