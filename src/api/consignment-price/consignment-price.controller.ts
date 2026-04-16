@@ -14,6 +14,7 @@ import {
   ConsignmentPriceService,
   CreatePriceDto,
   UpdatePriceDto,
+  BulkCreatePriceDto,
 } from './consignment-price.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
@@ -25,6 +26,12 @@ export class ConsignmentPriceController {
   @Post()
   create(@Body() dto: CreatePriceDto) {
     return this.service.create(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('bulk')
+  bulkCreate(@Body() dto: BulkCreatePriceDto) {
+    return this.service.bulkCreate(dto);
   }
 
   @UseGuards(JwtAuthGuard)
