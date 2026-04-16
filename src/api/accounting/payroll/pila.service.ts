@@ -1,28 +1,42 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { AccountingSettingsService } from '../settings/settings.service';
 
 /**
  * Generación de archivo PILA (Planilla Integrada de Liquidación de Aportes)
- * en formato simplificado siguiendo la Resolución 2388/2016 del Ministerio
- * de Salud y la UGPP.
+ * siguiendo la Resolución 2388/2016 del Ministerio de Salud y la UGPP.
  *
- * NOTA: esta es una implementación inicial que produce los registros tipo 1
- * (encabezado) y tipo 2 (detalle empleado) con los campos clave para
- * autoliquidación. Para presentación oficial al operador PILA se recomienda
- * validar contra el último anexo técnico vigente y completar los campos
- * adicionales según las particularidades de la empresa.
+ * Produce los registros tipo 1 (encabezado) y tipo 2 (detalle empleado)
+ * con los campos clave para autoliquidación.
  */
 @Injectable()
 export class PilaService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly settingsService: AccountingSettingsService,
+  ) {}
+
+  /**
+   * Mapping de códigos internos de identificación → códigos PILA oficiales
+   * (Resolución 2388/2016 Anexo Técnico 2 - Tabla 2).
+   */
+  private static readonly PILA_ID_CODE: Record<string, string> = {
+    CC: 'CC', // Cédula de ciudadanía
+    NIT: 'NI', // NIT (personas jurídicas, poco común en PILA de empleados)
+    CE: 'CE', // Cédula de extranjería
+    PAS: 'PA', // Pasaporte
+    TI: 'TI', // Tarjeta de identidad
+    RC: 'RC', // Registro civil
+    AS: 'AS', // Adulto sin identificar
+    MS: 'MS', // Menor sin identificar
+    PEP: 'PE', // Permiso especial de permanencia
+  };
 
   async generatePila(year: number, month: number, employerNit: string) {
     const period = (await this.prisma.payrollPeriod.findFirst({
       where: { year, month, status: 'APPROVED' },
       include: {
-        entries: {
-          include: { employee: true },
-        },
+        entries: { include: { employee: true } },
       },
     })) as any;
 
@@ -60,6 +74,14 @@ export class PilaService {
       0,
     );
 
+    // Razón social desde settings
+    const companyName = (await this.settingsService.get('COMPANY_NAME')) || 'TWO SIX';
+
+    // Precarga de tipos de identificación para mapping → código PILA
+    const idTypes = await this.prisma.identificationType.findMany();
+    const idTypeById = new Map<number, string>();
+    for (const t of idTypes) idTypeById.set(t.id, t.code);
+
     // Layout simplificado (campos críticos posicionales)
     // Tipo 1: 01|TipoDoc|NumDoc|RazonSocial|TipoPlanilla|NumPlanilla|FechaPlanilla
     //        |PeriodoPension|PeriodoSalud|TotalCotizantes|TotalAportes
@@ -67,7 +89,7 @@ export class PilaService {
       '01',                       // tipo registro
       'NI',                       // tipo documento (NIT)
       pad(employerNit, 16),       // número documento
-      padR('TWO SIX', 200),       // razón social
+      padR(companyName, 200),     // razón social
       'E',                        // tipo planilla (E = empleados)
       pad(`${year}${String(month).padStart(2, '0')}001`, 10), // número planilla
       new Date().toISOString().slice(0, 10), // fecha
@@ -82,8 +104,9 @@ export class PilaService {
     let seq = 1;
     for (const entry of period.entries) {
       const e = entry.employee;
-      // Identificación (CC, TI, NIT, etc.). Mapping aproximado por id_identification_type
-      const idType = 'CC';
+      // Mapping de tipo documento a código PILA oficial
+      const internalCode = (idTypeById.get(e.id_identification_type) || 'CC').toUpperCase();
+      const idType = PilaService.PILA_ID_CODE[internalCode] || 'CC';
       const line = [
         '02',                          // tipo registro
         pad(seq, 5),                   // secuencia

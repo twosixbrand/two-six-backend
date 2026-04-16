@@ -1266,6 +1266,18 @@ enum CustomerTaxStatus {
   AUTORETENEDOR
 }
 
+model AccountingSetting {
+  id          Int       @id @default(autoincrement())
+  key         String    @unique
+  value       String
+  description String?
+  updated_by  Int?      @map("updated_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+
+  @@map("accounting_setting")
+}
+
 model ConsignmentWarehouse {
   id          Int                @id @default(autoincrement())
   id_customer Int                @map("id_customer")

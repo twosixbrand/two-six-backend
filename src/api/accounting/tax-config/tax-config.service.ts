@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateTaxConfigDto, TaxType } from './dto/create-tax-config.dto';
+import { AccountingSettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class TaxConfigService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly settingsService: AccountingSettingsService,
+  ) {}
 
   async create(createTaxConfigDto: CreateTaxConfigDto) {
     return this.prisma.taxConfiguration.create({
@@ -69,6 +73,14 @@ export class TaxConfigService {
     opts: { customerTaxStatus?: 'NORMAL' | 'GRAN_CONTRIBUYENTE' | 'AUTORETENEDOR'; ivaAmount?: number } = {},
   ) {
     const results: any[] = [];
+
+    // Régimen SIMPLE (Ley 2010 de 2019) no aplica IVA ni retenciones
+    // tradicionales — la declaración es unificada bimestral.
+    const regime = await this.settingsService.getTaxRegime();
+    if (regime === 'SIMPLE') {
+      return results;
+    }
+
     const applyRetentions =
       opts.customerTaxStatus === 'GRAN_CONTRIBUYENTE' ||
       opts.customerTaxStatus === 'AUTORETENEDOR';

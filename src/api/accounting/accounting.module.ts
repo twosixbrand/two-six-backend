@@ -49,6 +49,8 @@ import { ReconciliationService } from './reports/reconciliation.service';
 import { AccountingCronService } from './schedulers/accounting-cron.service';
 import { AlertsController } from './alerts/alerts.controller';
 import { AlertsService } from './alerts/alerts.service';
+import { AccountingSettingsController } from './settings/settings.controller';
+import { AccountingSettingsService } from './settings/settings.service';
 
 @Module({
   imports: [PrismaModule, ConfigModule],
@@ -75,6 +77,7 @@ import { AlertsService } from './alerts/alerts.service';
     ProfitabilityController,
     ReconciliationController,
     AlertsController,
+    AccountingSettingsController,
   ],
   providers: [
     PucService,
@@ -103,7 +106,8 @@ import { AlertsService } from './alerts/alerts.service';
     ReconciliationService,
     AccountingCronService,
     AlertsService,
+    AccountingSettingsService,
   ],
-  exports: [JournalAutoService, AuditService, TaxConfigService, BudgetService],
+  exports: [JournalAutoService, AuditService, TaxConfigService, BudgetService, AccountingSettingsService],
 })
 export class AccountingModule { }
