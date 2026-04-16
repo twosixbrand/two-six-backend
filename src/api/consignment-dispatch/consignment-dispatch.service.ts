@@ -177,10 +177,79 @@ export class ConsignmentDispatchService {
   }
 
   /**
+   * Dry-run antes de enviar: compara las cantidades del borrador contra
+   * el stock disponible actual. Retorna cada ítem con:
+   *  - requested: lo que pedía el borrador
+   *  - available: lo que hay ahora
+   *  - adjusted: min(requested, available)
+   *  - changed: true si adjusted != requested
+   * El CMS usa esto para mostrar una alerta y pedir confirmación.
+   */
+  async preSend(id: number) {
+    const dispatch = await this.prisma.consignmentDispatch.findUnique({
+      where: { id },
+      include: {
+        items: {
+          include: {
+            clothingSize: {
+              include: {
+                size: true,
+                clothingColor: {
+                  include: {
+                    color: true,
+                    design: { select: { reference: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!dispatch) throw new NotFoundException(`Despacho #${id} no encontrado.`);
+    if (dispatch.status !== 'PENDIENTE') {
+      throw new ConflictException(`Solo se pueden enviar despachos PENDIENTE (actual: ${dispatch.status}).`);
+    }
+
+    let hasChanges = false;
+    const items = await Promise.all(
+      dispatch.items.map(async (item) => {
+        const size = await this.prisma.clothingSize.findUnique({
+          where: { id: item.id_clothing_size },
+          select: { quantity_available: true },
+        });
+        const available = size?.quantity_available ?? 0;
+        const adjusted = Math.min(item.quantity, available);
+        const changed = adjusted !== item.quantity;
+        if (changed) hasChanges = true;
+        return {
+          id: item.id,
+          id_clothing_size: item.id_clothing_size,
+          reference: item.clothingSize.clothingColor.design.reference,
+          color: item.clothingSize.clothingColor.color.name,
+          size: item.clothingSize.size.name,
+          requested: item.quantity,
+          available,
+          adjusted,
+          changed,
+        };
+      }),
+    );
+
+    return {
+      dispatch_id: dispatch.id,
+      dispatch_number: dispatch.dispatch_number,
+      has_changes: hasChanges,
+      items,
+    };
+  }
+
+  /**
    * Envía un despacho PENDIENTE: decrementa quantity_available, crea stock
    * en la bodega destino con status PENDIENTE_RECEPCION, y registra Kardex.
+   * Si adjust_to_available=true, ajusta cantidades al stock real antes de enviar.
    */
-  async send(id: number) {
+  async send(id: number, opts: { adjust_to_available?: boolean } = {}) {
     return this.prisma.$transaction(async (tx) => {
       const dispatch = await tx.consignmentDispatch.findUnique({
         where: { id },
@@ -202,21 +271,32 @@ export class ConsignmentDispatchService {
             `ClothingSize #${item.id_clothing_size} no encontrado.`,
           );
         }
-        if (size.quantity_available < item.quantity) {
-          throw new BadRequestException(
-            `Stock insuficiente para ClothingSize #${item.id_clothing_size}. Disponible: ${size.quantity_available}, requerido: ${item.quantity}.`,
-          );
+        let qty = item.quantity;
+        if (size.quantity_available < qty) {
+          if (opts.adjust_to_available) {
+            qty = size.quantity_available;
+            if (qty <= 0) continue; // sin stock, salta este ítem
+            // Ajusta la cantidad en el registro del despacho
+            await tx.consignmentDispatchItem.update({
+              where: { id: item.id },
+              data: { quantity: qty },
+            });
+          } else {
+            throw new BadRequestException(
+              `Stock insuficiente para ClothingSize #${item.id_clothing_size}. Disponible: ${size.quantity_available}, requerido: ${item.quantity}.`,
+            );
+          }
         }
 
         const balanceBefore = size.quantity_available;
-        const balanceAfter = balanceBefore - item.quantity;
+        const balanceAfter = balanceBefore - qty;
 
         // Decrementa available, incrementa cache on_consignment
         await tx.clothingSize.update({
           where: { id: item.id_clothing_size },
           data: {
             quantity_available: balanceAfter,
-            quantity_on_consignment: { increment: item.quantity },
+            quantity_on_consignment: { increment: qty },
           },
         });
 
@@ -233,14 +313,14 @@ export class ConsignmentDispatchService {
         if (existingStock) {
           await tx.consignmentStock.update({
             where: { id: existingStock.id },
-            data: { quantity: { increment: item.quantity } },
+            data: { quantity: { increment: qty } },
           });
         } else {
           await tx.consignmentStock.create({
             data: {
               id_warehouse: dispatch.id_warehouse,
               id_clothing_size: item.id_clothing_size,
-              quantity: item.quantity,
+              quantity: qty,
               status: 'PENDIENTE_RECEPCION',
             },
           });
@@ -253,7 +333,7 @@ export class ConsignmentDispatchService {
             type: 'OUT',
             source_type: 'CONSIGNMENT_DISPATCH',
             source_id: dispatch.id,
-            quantity: item.quantity,
+            quantity: qty,
             balance_before: balanceBefore,
             balance_after: balanceAfter,
             description: `Despacho consignación ${dispatch.dispatch_number}`,

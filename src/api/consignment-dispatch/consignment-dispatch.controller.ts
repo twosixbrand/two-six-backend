@@ -48,9 +48,18 @@ export class ConsignmentDispatchController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get(':id/pre-send')
+  preSend(@Param('id', ParseIntPipe) id: number) {
+    return this.service.preSend(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post(':id/send')
-  send(@Param('id', ParseIntPipe) id: number) {
-    return this.service.send(id);
+  send(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { adjust_to_available?: boolean },
+  ) {
+    return this.service.send(id, { adjust_to_available: body?.adjust_to_available });
   }
 
   @UseGuards(JwtAuthGuard)
