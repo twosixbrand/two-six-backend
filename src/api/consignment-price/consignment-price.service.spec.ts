@@ -6,9 +6,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 describe('ConsignmentPriceService', () => {
   let service: ConsignmentPriceService;
 
-  const mockPrisma = {
+  const tx = {
+    customerConsignmentPrice: {
+      create: jest.fn(),
+    },
+  };
+  const mockPrisma: any = {
     customer: { findUnique: jest.fn() },
-    product: { findUnique: jest.fn() },
+    product: { findUnique: jest.fn(), findMany: jest.fn() },
     customerConsignmentPrice: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -17,6 +22,7 @@ describe('ConsignmentPriceService', () => {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    $transaction: jest.fn((cb: any) => cb(tx)),
   };
 
   beforeEach(async () => {
@@ -105,6 +111,60 @@ describe('ConsignmentPriceService', () => {
     it('rejects negative price on update', async () => {
       mockPrisma.customerConsignmentPrice.findUnique.mockResolvedValue({ id: 1 });
       await expect(service.update(1, { price: -1 })).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('bulkCreate', () => {
+    const ally = { id: 1, name: 'Ally', is_consignment_ally: true };
+
+    it('rechaza lista vacía de productos', async () => {
+      await expect(
+        service.bulkCreate({ id_customer: 1, id_products: [], price: 50000 }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rechaza precio inválido', async () => {
+      await expect(
+        service.bulkCreate({ id_customer: 1, id_products: [5], price: 0 }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rechaza cliente no aliado', async () => {
+      mockPrisma.customer.findUnique.mockResolvedValue({ ...ally, is_consignment_ally: false });
+      await expect(
+        service.bulkCreate({ id_customer: 1, id_products: [5], price: 50000 }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rechaza cuando algún producto no existe', async () => {
+      mockPrisma.customer.findUnique.mockResolvedValue(ally);
+      mockPrisma.product.findMany.mockResolvedValue([{ id: 5 }]); // falta 99
+      await expect(
+        service.bulkCreate({ id_customer: 1, id_products: [5, 99], price: 50000 }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('crea precios atómicamente para todos los productos', async () => {
+      mockPrisma.customer.findUnique.mockResolvedValue(ally);
+      mockPrisma.product.findMany.mockResolvedValue([{ id: 5 }, { id: 6 }, { id: 7 }]);
+      tx.customerConsignmentPrice.create.mockImplementation(({ data }: any) =>
+        Promise.resolve({ id: Math.random(), ...data }),
+      );
+
+      const result = await service.bulkCreate({
+        id_customer: 1,
+        id_products: [5, 6, 7, 5], // duplicado debe deduparse
+        price: 42000,
+        valid_from: '2026-04-15T00:00:00Z',
+      });
+
+      expect(result.created_count).toBe(3);
+      expect(tx.customerConsignmentPrice.create).toHaveBeenCalledTimes(3);
+      expect(tx.customerConsignmentPrice.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ id_customer: 1, price: 42000 }),
+        }),
+      );
     });
   });
 });
