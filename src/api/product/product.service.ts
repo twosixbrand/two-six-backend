@@ -413,6 +413,9 @@ export class ProductService {
         collection_name: clothingColor?.design?.collection?.name ?? null,
         year_production: clothingColor?.design?.collection?.yearProduction?.name ?? null,
         gender: clothingColor?.design?.clothing?.gender?.name ?? null,
+        quantity_available: clothingSize?.quantity_available ?? 0,
+        quantity_on_consignment: clothingSize?.quantity_on_consignment ?? 0,
+        reference: clothingColor?.design?.reference ?? null,
       };
     });
   }
