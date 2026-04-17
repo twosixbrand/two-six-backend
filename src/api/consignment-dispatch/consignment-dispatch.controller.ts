@@ -76,6 +76,17 @@ export class ConsignmentDispatchController {
 
   // ================= Endpoints públicos (QR) =================
 
+  @UseGuards(JwtAuthGuard)
+  @Post('items/:itemId/resolve')
+  resolveReceptionItem(
+    @Param('itemId', ParseIntPipe) itemId: number,
+    @Body() body: { action: 'ACCEPT' | 'REJECT'; resolved_by: string },
+  ) {
+    return this.service.resolveReceptionItem(itemId, body.action, body.resolved_by);
+  }
+
+  // ================= Endpoints públicos (QR) =================
+
   @Public()
   @Get('by-token/:token')
   getByToken(@Param('token') token: string) {

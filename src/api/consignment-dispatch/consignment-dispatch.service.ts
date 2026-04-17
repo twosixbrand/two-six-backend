@@ -414,19 +414,25 @@ export class ConsignmentDispatchService {
       }
 
       for (const item of dispatch.items) {
-        // Cantidad que el cliente realmente recibió
         const reception = receptionMap.get(item.id);
         const receivedQty = reception ? reception.received_qty : item.quantity;
         const receivedOk = reception ? reception.received_ok : true;
         const observation = reception?.observation || null;
+        const hasDiscrepancy = receivedQty !== item.quantity;
 
-        // Guardar detalle de recepción en el item
+        // Guardar detalle + estado de resolución
         await tx.consignmentDispatchItem.update({
           where: { id: item.id },
-          data: { received_ok: receivedOk, received_qty: receivedQty, observation },
+          data: {
+            received_ok: receivedOk,
+            received_qty: receivedQty,
+            observation,
+            resolution_status: hasDiscrepancy ? 'PENDING_REVIEW' : 'NO_DISCREPANCY',
+          },
         });
 
-        // Descuenta del bucket PENDIENTE_RECEPCION (siempre la cantidad enviada completa)
+        // Stock: PENDIENTE_RECEPCION → EN_CONSIGNACION por la cantidad ENVIADA.
+        // NO ajustar por received_qty — eso lo hace el operador al Aceptar/Rechazar.
         const pending = await tx.consignmentStock.findUnique({
           where: {
             id_warehouse_id_clothing_size_status: {
@@ -451,59 +457,28 @@ export class ConsignmentDispatchService {
           });
         }
 
-        // Solo lo recibido pasa a EN_CONSIGNACION
-        if (receivedQty > 0) {
-          const active = await tx.consignmentStock.findUnique({
-            where: {
-              id_warehouse_id_clothing_size_status: {
-                id_warehouse: dispatch.id_warehouse,
-                id_clothing_size: item.id_clothing_size,
-                status: 'EN_CONSIGNACION',
-              },
-            },
-          });
-          if (active) {
-            await tx.consignmentStock.update({
-              where: { id: active.id },
-              data: { quantity: { increment: receivedQty } },
-            });
-          } else {
-            await tx.consignmentStock.create({
-              data: {
-                id_warehouse: dispatch.id_warehouse,
-                id_clothing_size: item.id_clothing_size,
-                quantity: receivedQty,
-                status: 'EN_CONSIGNACION',
-              },
-            });
-          }
-        }
-
-        // La diferencia (no recibida) vuelve al stock disponible de Two Six
-        const diff = item.quantity - receivedQty;
-        if (diff > 0) {
-          await tx.clothingSize.update({
-            where: { id: item.id_clothing_size },
-            data: {
-              quantity_available: { increment: diff },
-              quantity_on_consignment: { decrement: diff },
-            },
-          });
-
-          // Kardex: entrada por diferencia no recibida
-          const size = await tx.clothingSize.findUnique({
-            where: { id: item.id_clothing_size },
-          });
-          await tx.inventoryKardex.create({
-            data: {
+        // Siempre mover la cantidad ENVIADA a EN_CONSIGNACION
+        const active = await tx.consignmentStock.findUnique({
+          where: {
+            id_warehouse_id_clothing_size_status: {
+              id_warehouse: dispatch.id_warehouse,
               id_clothing_size: item.id_clothing_size,
-              type: 'IN',
-              source_type: 'CONSIGNMENT_RECEPTION_DIFF',
-              source_id: dispatch.id,
-              quantity: diff,
-              balance_before: (size?.quantity_available ?? 0) - diff,
-              balance_after: size?.quantity_available ?? 0,
-              description: `Diferencia recepción ${dispatch.dispatch_number}: enviado ${item.quantity}, recibido ${receivedQty}`,
+              status: 'EN_CONSIGNACION',
+            },
+          },
+        });
+        if (active) {
+          await tx.consignmentStock.update({
+            where: { id: active.id },
+            data: { quantity: { increment: item.quantity } },
+          });
+        } else {
+          await tx.consignmentStock.create({
+            data: {
+              id_warehouse: dispatch.id_warehouse,
+              id_clothing_size: item.id_clothing_size,
+              quantity: item.quantity,
+              status: 'EN_CONSIGNACION',
             },
           });
         }
@@ -544,5 +519,146 @@ export class ConsignmentDispatchService {
       );
     }
     return this.prisma.consignmentDispatch.delete({ where: { id } });
+  }
+
+  /**
+   * Resuelve una novedad de recepción: el operador acepta o rechaza la
+   * discrepancia reportada por el cliente.
+   *
+   * ACEPTAR (faltante: received < sent):
+   *   - La diferencia vuelve a quantity_available de Two Six
+   *   - quantity_on_consignment y ConsignmentStock EN_CONSIGNACION decrementan
+   *
+   * ACEPTAR (sobrante: received > sent):
+   *   - La diferencia se agrega a ConsignmentStock EN_CONSIGNACION
+   *   - quantity_on_consignment incrementa
+   *   - quantity_available decrementa (Two Six acepta que envió de más)
+   *
+   * RECHAZAR: no se toca stock. Queda registrado como rechazado.
+   */
+  async resolveReceptionItem(
+    itemId: number,
+    action: 'ACCEPT' | 'REJECT',
+    resolvedBy: string,
+  ) {
+    const item = await this.prisma.consignmentDispatchItem.findUnique({
+      where: { id: itemId },
+      include: { dispatch: true },
+    });
+    if (!item) throw new NotFoundException(`Item #${itemId} no encontrado.`);
+    if (item.resolution_status !== 'PENDING_REVIEW') {
+      throw new ConflictException(
+        `Este item ya fue resuelto (${item.resolution_status}).`,
+      );
+    }
+    if (item.received_qty === null) {
+      throw new BadRequestException('El item no tiene cantidad recibida registrada.');
+    }
+
+    const diff = item.received_qty - item.quantity; // positivo = sobrante, negativo = faltante
+
+    return this.prisma.$transaction(async (tx) => {
+      if (action === 'ACCEPT' && diff !== 0) {
+        const absDiff = Math.abs(diff);
+
+        if (diff < 0) {
+          // FALTANTE: devolver diferencia al stock disponible de Two Six
+          await tx.clothingSize.update({
+            where: { id: item.id_clothing_size },
+            data: {
+              quantity_available: { increment: absDiff },
+              quantity_on_consignment: { decrement: absDiff },
+            },
+          });
+
+          // Decrementar ConsignmentStock EN_CONSIGNACION
+          const stock = await tx.consignmentStock.findUnique({
+            where: {
+              id_warehouse_id_clothing_size_status: {
+                id_warehouse: item.dispatch.id_warehouse,
+                id_clothing_size: item.id_clothing_size,
+                status: 'EN_CONSIGNACION',
+              },
+            },
+          });
+          if (stock) {
+            if (stock.quantity <= absDiff) {
+              await tx.consignmentStock.delete({ where: { id: stock.id } });
+            } else {
+              await tx.consignmentStock.update({
+                where: { id: stock.id },
+                data: { quantity: { decrement: absDiff } },
+              });
+            }
+          }
+
+          // Kardex
+          const size = await tx.clothingSize.findUnique({ where: { id: item.id_clothing_size } });
+          await tx.inventoryKardex.create({
+            data: {
+              id_clothing_size: item.id_clothing_size,
+              type: 'IN',
+              source_type: 'CONSIGNMENT_RECEPTION_DIFF',
+              source_id: item.dispatch.id,
+              quantity: absDiff,
+              balance_before: (size?.quantity_available ?? 0) - absDiff,
+              balance_after: size?.quantity_available ?? 0,
+              description: `Faltante aceptado ${item.dispatch.dispatch_number}: enviado ${item.quantity}, recibido ${item.received_qty}`,
+            },
+          });
+        } else {
+          // SOBRANTE: agregar diferencia al consignment stock
+          await tx.clothingSize.update({
+            where: { id: item.id_clothing_size },
+            data: {
+              quantity_available: { decrement: absDiff },
+              quantity_on_consignment: { increment: absDiff },
+            },
+          });
+
+          // Incrementar ConsignmentStock EN_CONSIGNACION
+          const stock = await tx.consignmentStock.findUnique({
+            where: {
+              id_warehouse_id_clothing_size_status: {
+                id_warehouse: item.dispatch.id_warehouse,
+                id_clothing_size: item.id_clothing_size,
+                status: 'EN_CONSIGNACION',
+              },
+            },
+          });
+          if (stock) {
+            await tx.consignmentStock.update({
+              where: { id: stock.id },
+              data: { quantity: { increment: absDiff } },
+            });
+          }
+
+          // Kardex
+          const size = await tx.clothingSize.findUnique({ where: { id: item.id_clothing_size } });
+          await tx.inventoryKardex.create({
+            data: {
+              id_clothing_size: item.id_clothing_size,
+              type: 'OUT',
+              source_type: 'CONSIGNMENT_RECEPTION_DIFF',
+              source_id: item.dispatch.id,
+              quantity: absDiff,
+              balance_before: (size?.quantity_available ?? 0) + absDiff,
+              balance_after: size?.quantity_available ?? 0,
+              description: `Sobrante aceptado ${item.dispatch.dispatch_number}: enviado ${item.quantity}, recibido ${item.received_qty}`,
+            },
+          });
+        }
+      }
+
+      // Marcar como resuelto
+      return tx.consignmentDispatchItem.update({
+        where: { id: itemId },
+        data: {
+          resolution_status: action === 'ACCEPT' ? 'ACCEPTED' : 'REJECTED',
+          resolved_by: resolvedBy,
+          resolved_at: new Date(),
+        },
+      });
+    });
   }
 }

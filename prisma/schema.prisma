@@ -1301,17 +1301,27 @@ model ConsignmentDispatch {
   @@map("consignment_dispatch")
 }
 
+enum ReceptionResolutionStatus {
+  NO_DISCREPANCY
+  PENDING_REVIEW
+  ACCEPTED
+  REJECTED
+}
+
 model ConsignmentDispatchItem {
-  id               Int                 @id @default(autoincrement())
-  id_dispatch      Int                 @map("id_dispatch")
-  id_clothing_size Int                 @map("id_clothing_size")
-  quantity         Int
-  received_qty     Int?                @map("received_qty")
-  received_ok      Boolean?            @default(false) @map("received_ok")
-  observation      String?
-  createdAt        DateTime            @default(now()) @map("created_at")
-  dispatch         ConsignmentDispatch @relation(fields: [id_dispatch], references: [id], onDelete: Cascade)
-  clothingSize     ClothingSize        @relation(fields: [id_clothing_size], references: [id])
+  id                Int                       @id @default(autoincrement())
+  id_dispatch       Int                       @map("id_dispatch")
+  id_clothing_size  Int                       @map("id_clothing_size")
+  quantity          Int
+  received_qty      Int?                      @map("received_qty")
+  received_ok       Boolean?                  @default(false) @map("received_ok")
+  observation       String?
+  resolution_status ReceptionResolutionStatus @default(NO_DISCREPANCY) @map("resolution_status")
+  resolved_by       String?                   @map("resolved_by")
+  resolved_at       DateTime?                 @map("resolved_at")
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  dispatch          ConsignmentDispatch       @relation(fields: [id_dispatch], references: [id], onDelete: Cascade)
+  clothingSize      ClothingSize              @relation(fields: [id_clothing_size], references: [id])
 
   @@map("consignment_dispatch_item")
 }
