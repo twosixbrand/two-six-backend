@@ -14,8 +14,16 @@ export interface CreateDispatchDto {
   items: { id_clothing_size: number; quantity: number }[];
 }
 
+export interface ConfirmReceptionItemDto {
+  id: number;           // ConsignmentDispatchItem.id
+  received_ok: boolean;
+  received_qty: number;
+  observation?: string;
+}
+
 export interface ConfirmReceptionDto {
   received_by: string;
+  items?: ConfirmReceptionItemDto[];
 }
 
 @Injectable()
@@ -170,6 +178,9 @@ export class ConsignmentDispatchService {
       items: d.items.map((it) => ({
         id: it.id,
         quantity: it.quantity,
+        received_ok: it.received_ok,
+        received_qty: it.received_qty,
+        observation: it.observation,
         reference: it.clothingSize.clothingColor.design.reference,
         description: it.clothingSize.clothingColor.design.description,
         color: it.clothingSize.clothingColor.color.name,
@@ -439,6 +450,28 @@ export class ConsignmentDispatchService {
               quantity: item.quantity,
               status: 'EN_CONSIGNACION',
             },
+          });
+        }
+      }
+
+      // Guardar detalle de recepción por item (si viene del formulario)
+      if (data.items && data.items.length > 0) {
+        for (const ri of data.items) {
+          await tx.consignmentDispatchItem.update({
+            where: { id: ri.id },
+            data: {
+              received_ok: ri.received_ok,
+              received_qty: ri.received_qty,
+              observation: ri.observation?.trim() || null,
+            },
+          });
+        }
+      } else {
+        // Si no envían detalle, marcar todo como OK
+        for (const item of dispatch.items) {
+          await tx.consignmentDispatchItem.update({
+            where: { id: item.id },
+            data: { received_ok: true, received_qty: item.quantity },
           });
         }
       }

@@ -1360,6 +1360,9 @@ model ConsignmentDispatchItem {
   id_dispatch      Int                 @map("id_dispatch")
   id_clothing_size Int                 @map("id_clothing_size")
   quantity         Int
+  received_qty     Int?                @map("received_qty")
+  received_ok      Boolean?            @default(false) @map("received_ok")
+  observation      String?
   createdAt        DateTime            @default(now()) @map("created_at")
   dispatch         ConsignmentDispatch @relation(fields: [id_dispatch], references: [id], onDelete: Cascade)
   clothingSize     ClothingSize        @relation(fields: [id_clothing_size], references: [id])
