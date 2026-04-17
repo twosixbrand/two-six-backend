@@ -34,7 +34,13 @@ export class ConsignmentReportsService {
             dispatches: {
               where: { status: 'RECIBIDO' },
               select: {
-                items: { select: { quantity: true } },
+                items: {
+                  select: {
+                    quantity: true,
+                    received_qty: true,
+                    resolution_status: true,
+                  },
+                },
               },
             },
             returns: {
@@ -84,6 +90,22 @@ export class ConsignmentReportsService {
           (sum, d) => sum + d.items.reduce((s, it) => s + it.quantity, 0),
           0,
         );
+
+        // Novedades de recepción
+        let reception_shortage = 0; // faltantes (cliente recibió menos)
+        let reception_surplus = 0;  // sobrantes (cliente recibió más)
+        let reception_pending = 0;  // pendientes de revisión
+        for (const d of w.dispatches) {
+          for (const it of d.items) {
+            if (it.received_qty != null && it.received_qty !== it.quantity) {
+              const diff = it.received_qty - it.quantity;
+              if (diff < 0) reception_shortage += Math.abs(diff);
+              if (diff > 0) reception_surplus += diff;
+              if ((it as any).resolution_status === 'PENDING_REVIEW') reception_pending++;
+            }
+          }
+        }
+
         const returns_by_type = {
           PORTFOLIO: 0,
           WARRANTY: 0,
@@ -100,6 +122,9 @@ export class ConsignmentReportsService {
           current_pending_reception: pending,
           current_in_consignment: active,
           total_dispatched_received: dispatched_received,
+          reception_shortage,
+          reception_surplus,
+          reception_pending,
           total_returned: returns_by_type,
         };
       });
