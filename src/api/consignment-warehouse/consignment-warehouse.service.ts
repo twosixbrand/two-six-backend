@@ -85,6 +85,43 @@ export class ConsignmentWarehouseService {
     });
   }
 
+  /**
+   * Devuelve los últimos movimientos Kardex de todos los clothing_size
+   * que tienen (o tuvieron) stock en esta bodega.
+   */
+  async findKardexByWarehouse(id: number, limit = 50) {
+    await this.findOne(id);
+
+    // Obtiene todos los clothing_size que alguna vez tuvieron stock en esta bodega
+    const stocks = await this.prisma.consignmentStock.findMany({
+      where: { id_warehouse: id },
+      select: { id_clothing_size: true },
+      distinct: ['id_clothing_size'],
+    });
+    const sizeIds = stocks.map((s) => s.id_clothing_size);
+    if (sizeIds.length === 0) return [];
+
+    return this.prisma.inventoryKardex.findMany({
+      where: { id_clothing_size: { in: sizeIds } },
+      include: {
+        clothingSize: {
+          include: {
+            size: true,
+            clothingColor: {
+              include: {
+                color: true,
+                imageClothing: { orderBy: { position: 'asc' as const }, take: 1, select: { image_url: true } },
+                design: { select: { reference: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { id: 'desc' },
+      take: limit,
+    });
+  }
+
   async update(id: number, data: UpdateWarehouseDto) {
     await this.findOne(id);
     return this.prisma.consignmentWarehouse.update({
