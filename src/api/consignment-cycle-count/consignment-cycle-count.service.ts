@@ -104,6 +104,7 @@ export class ConsignmentCycleCountService {
                 clothingColor: {
                   include: {
                     color: true,
+                    imageClothing: { orderBy: { position: "asc" as const }, take: 1, select: { image_url: true } },
                     design: { select: { id: true, reference: true, description: true } },
                   },
                 },
@@ -311,6 +312,7 @@ export class ConsignmentCycleCountService {
                 clothingColor: {
                   include: {
                     color: true,
+                    imageClothing: { orderBy: { position: "asc" as const }, take: 1, select: { image_url: true } },
                     design: { select: { id: true, reference: true } },
                   },
                 },
