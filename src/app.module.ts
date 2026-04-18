@@ -50,6 +50,7 @@ import { ConsignmentWarehouseModule } from './api/consignment-warehouse/consignm
 import { ConsignmentPriceModule } from './api/consignment-price/consignment-price.module';
 import { ConsignmentDispatchModule } from './api/consignment-dispatch/consignment-dispatch.module';
 import { ConsignmentSelloutModule } from './api/consignment-sellout/consignment-sellout.module';
+import { ConsignmentSellReportModule } from './api/consignment-sell-report/consignment-sell-report.module';
 import { ConsignmentReturnModule } from './api/consignment-return/consignment-return.module';
 import { ConsignmentCycleCountModule } from './api/consignment-cycle-count/consignment-cycle-count.module';
 import { ConsignmentReportsModule } from './api/consignment-reports/consignment-reports.module';
@@ -128,6 +129,7 @@ import { ConsignmentReportsModule } from './api/consignment-reports/consignment-
     ConsignmentPriceModule,
     ConsignmentDispatchModule,
     ConsignmentSelloutModule,
+    ConsignmentSellReportModule,
     ConsignmentReturnModule,
     ConsignmentCycleCountModule,
     ConsignmentReportsModule,
