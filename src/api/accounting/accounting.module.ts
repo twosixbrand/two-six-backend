@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '../../prisma/prisma.module';
+import { DianModule } from '../dian/dian.module';
 import { PucController } from './puc/puc.controller';
 import { PucService } from './puc/puc.service';
 import { JournalController } from './journal/journal.controller';
@@ -51,9 +52,13 @@ import { AlertsController } from './alerts/alerts.controller';
 import { AlertsService } from './alerts/alerts.service';
 import { AccountingSettingsController } from './settings/settings.controller';
 import { AccountingSettingsService } from './settings/settings.service';
+import { CashReceiptController } from './cash-receipt/cash-receipt.controller';
+import { CashReceiptService } from './cash-receipt/cash-receipt.service';
+import { ManualInvoiceController } from './manual-invoice/manual-invoice.controller';
+import { ManualInvoiceService } from './manual-invoice/manual-invoice.service';
 
 @Module({
-  imports: [PrismaModule, ConfigModule],
+  imports: [PrismaModule, ConfigModule, DianModule],
   controllers: [
     PucController,
     JournalController,
@@ -78,6 +83,8 @@ import { AccountingSettingsService } from './settings/settings.service';
     ReconciliationController,
     AlertsController,
     AccountingSettingsController,
+    CashReceiptController,
+    ManualInvoiceController,
   ],
   providers: [
     PucService,
@@ -107,7 +114,9 @@ import { AccountingSettingsService } from './settings/settings.service';
     AccountingCronService,
     AlertsService,
     AccountingSettingsService,
+    CashReceiptService,
+    ManualInvoiceService,
   ],
-  exports: [JournalAutoService, AuditService, TaxConfigService, BudgetService, AccountingSettingsService],
+  exports: [JournalAutoService, AuditService, TaxConfigService, BudgetService, AccountingSettingsService, CashReceiptService, ManualInvoiceService],
 })
 export class AccountingModule { }
