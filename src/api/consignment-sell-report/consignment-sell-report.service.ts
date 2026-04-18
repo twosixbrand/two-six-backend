@@ -162,6 +162,26 @@ export class ConsignmentSellReportService {
   }
 
   /**
+   * Operador aprueba el reporte. Se marca como APPROVED.
+   * El procesamiento del sell-out se maneja desde el CMS llamando
+   * al endpoint de sell-out existente.
+   */
+  async approve(id: number, approvedBy: string) {
+    const report = await this.findOne(id);
+    if (report.status !== 'PENDING') {
+      throw new BadRequestException(`Solo se pueden aprobar reportes PENDING (actual: ${report.status}).`);
+    }
+    return this.prisma.consignmentSellReport.update({
+      where: { id },
+      data: {
+        status: 'APPROVED',
+        approved_by: approvedBy,
+        approved_at: new Date(),
+      },
+    });
+  }
+
+  /**
    * Operador rechaza el reporte.
    */
   async reject(id: number, reason: string, rejectedBy: string) {
