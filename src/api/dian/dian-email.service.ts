@@ -52,8 +52,29 @@ export class DianEmailService {
       include: { order: { include: { customer: true, orderItems: true } } },
     });
 
-    if (!invoice || !invoice.order || !invoice.order.customer) {
-      this.logger.error(`Factura ${invoiceId} inválida o sin cliente asociado.`);
+    if (!invoice) {
+      this.logger.error(`Factura ${invoiceId} no encontrada.`);
+      return false;
+    }
+
+    // Snapshot manual (regularización sin Order). Si existe, es fuente alterna
+    // de cliente/ítems cuando no hay Order asociada.
+    let manualSnapshot: any = null;
+    if (invoice.manual_invoice_snapshot) {
+      try {
+        manualSnapshot = typeof invoice.manual_invoice_snapshot === 'string'
+          ? JSON.parse(invoice.manual_invoice_snapshot)
+          : invoice.manual_invoice_snapshot;
+      } catch (err) {
+        this.logger.warn(`manual_invoice_snapshot inválido en factura ${invoice.document_number}: ${err.message}`);
+      }
+    }
+
+    const hasOrderCustomer = !!(invoice.order && invoice.order.customer);
+    if (!hasOrderCustomer && !manualSnapshot?.customer?.email) {
+      this.logger.warn(
+        `Factura ${invoice.document_number}: sin Order ni snapshot con email. Se omite envío.`,
+      );
       return false;
     }
 
@@ -72,20 +93,35 @@ export class DianEmailService {
         where: { isActive: true, environment: invoice.environment as any, type: 'INVOICE' },
       });
 
-      const invoiceDto: InvoiceDto = {
-        number: invoice.document_number,
-        date: invoice.issue_date.toISOString().split('T')[0],
-        time: '12:00:00-05:00',
-        customerName: invoice.order.customer.name,
-        customerDoc: (invoice.order.customer as any).document_number || (invoice.order.customer as any).identification_number || '222222222222',
-        customerDocType: String(invoice.order.customer.id_identification_type) || '13',
-        resolutionPrefix: resolution?.prefix,
-        resolutionNumber: resolution?.resolutionNumber,
-        resolutionStartDate: resolution?.startDate.toISOString().split('T')[0],
-        resolutionEndDate: resolution?.endDate.toISOString().split('T')[0],
-        resolutionStartNumber: resolution?.startNumber,
-        resolutionEndNumber: resolution?.endNumber,
-      };
+      const invoiceDto: InvoiceDto = manualSnapshot
+        ? {
+            number: invoice.document_number,
+            date: invoice.issue_date.toISOString().split('T')[0],
+            time: '12:00:00-05:00',
+            customerName: manualSnapshot.customer.name,
+            customerDoc: manualSnapshot.customer.doc_number,
+            customerDocType: manualSnapshot.customer.doc_type,
+            resolutionPrefix: resolution?.prefix,
+            resolutionNumber: resolution?.resolutionNumber,
+            resolutionStartDate: resolution?.startDate.toISOString().split('T')[0],
+            resolutionEndDate: resolution?.endDate.toISOString().split('T')[0],
+            resolutionStartNumber: resolution?.startNumber,
+            resolutionEndNumber: resolution?.endNumber,
+          }
+        : {
+            number: invoice.document_number,
+            date: invoice.issue_date.toISOString().split('T')[0],
+            time: '12:00:00-05:00',
+            customerName: invoice.order!.customer!.name,
+            customerDoc: (invoice.order!.customer as any).document_number || (invoice.order!.customer as any).identification_number || '222222222222',
+            customerDocType: String(invoice.order!.customer!.id_identification_type) || '13',
+            resolutionPrefix: resolution?.prefix,
+            resolutionNumber: resolution?.resolutionNumber,
+            resolutionStartDate: resolution?.startDate.toISOString().split('T')[0],
+            resolutionEndDate: resolution?.endDate.toISOString().split('T')[0],
+            resolutionStartNumber: resolution?.startNumber,
+            resolutionEndNumber: resolution?.endNumber,
+          };
 
       const xmlBase = this.ublService.generateInvoiceXml(invoiceDto);
       const xmlWithCufe = xmlBase.replace(/CUFE_PLACEHOLDER/g, invoice.cufe_code || '');
@@ -100,7 +136,7 @@ export class DianEmailService {
       zip.addFile(`Factura_${invoice.document_number}.pdf`, pdfBuffer);
       const zipBuffer = zip.toBuffer();
 
-      const customerEmail = invoice.order.customer.email;
+      const customerEmail = manualSnapshot?.customer?.email || invoice.order?.customer?.email;
       const dianSender = this.configService.get<string>('DIAN_EMAIL_USER') || 'twosixfacturaelectronica@gmail.com';
       const companyName = this.configService.get<string>('DIAN_COMPANY_NAME') || 'TWO SIX S.A.S.';
 
@@ -116,7 +152,7 @@ export class DianEmailService {
              <p style="color: #666; font-size: 14px; letter-spacing: 2px;">FACTURA ELECTRÓNICA DE VENTA</p>
           </div>
           <div style="padding: 20px;">
-             <p>Estimado/a <strong>${invoice.order.customer.name}</strong>,</p>
+             <p>Estimado/a <strong>${manualSnapshot?.customer?.name || invoice.order?.customer?.name || 'cliente'}</strong>,</p>
              <p>Adjunto a este correo encontrará el documento electrónico <b>.zip</b> correspondiente a su compra (Factura No. ${invoice.document_number}), en cumplimiento con la normatividad de Facturación Electrónica de la DIAN (Anexo Técnico 1.8).</p>
              <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; border-left: 4px solid #000; word-break: break-all; font-size: 11px;">
                 <strong>CUFE:</strong><br/> ${invoice.cufe_code || 'N/A'}
