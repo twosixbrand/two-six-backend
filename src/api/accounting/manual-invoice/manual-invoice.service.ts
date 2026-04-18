@@ -320,6 +320,14 @@ export class ManualInvoiceService {
       source_type: 'MANUAL_DIAN_INVOICE',
       source_id: savedInvoice.id,
       created_by: dto.created_by,
+      metadata: JSON.stringify({
+        customer_nit: dto.customer.doc_number,
+        customer_name: dto.customer.name,
+        customer_email: dto.customer.email ?? null,
+        invoice_number: invoiceNumber,
+        operation_date: dto.operation_date,
+        notes: dto.notes ?? null,
+      }),
       lines: [
         {
           id_puc_account: advanceAccount.id,
