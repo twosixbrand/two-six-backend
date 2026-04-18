@@ -13,6 +13,11 @@ export class CashReceiptController {
     return this.service.createCashReceipt(dto);
   }
 
+  @Get('pending')
+  listPending(@Query('advance_puc_code') advancePucCode: string) {
+    return this.service.listPending(advancePucCode || '280505');
+  }
+
   @Get(':journalEntryId/balance')
   getBalance(
     @Param('journalEntryId', ParseIntPipe) journalEntryId: number,

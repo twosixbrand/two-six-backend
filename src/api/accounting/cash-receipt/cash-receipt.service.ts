@@ -86,6 +86,38 @@ export class CashReceiptService {
   }
 
   /**
+   * Lista los recibos de caja (CASH_RECEIPT) que aún tienen saldo pendiente
+   * de cruce contra una factura DIAN manual, para la cuenta de anticipo
+   * indicada. Útil para "reanudar" un recibo huérfano cuyo wizard se perdió
+   * antes de emitir la factura.
+   */
+  async listPending(advancePucCode: string) {
+    const entries = await this.prisma.journalEntry.findMany({
+      where: { source_type: 'CASH_RECEIPT' },
+      include: { lines: { include: { pucAccount: true } } },
+      orderBy: { entry_date: 'desc' },
+    });
+
+    const pending: any[] = [];
+    for (const entry of entries) {
+      const advanceLine = entry.lines.find((l) => l.pucAccount.code === advancePucCode);
+      if (!advanceLine) continue;
+      const balance = await this.getAvailableBalance(entry.id, advancePucCode);
+      if (balance > 0.01) {
+        pending.push({
+          journal_entry_id: entry.id,
+          entry_number: entry.entry_number,
+          entry_date: entry.entry_date,
+          description: entry.description,
+          original_amount: advanceLine.credit,
+          available_balance: balance,
+        });
+      }
+    }
+    return pending;
+  }
+
+  /**
    * Calcula el saldo pendiente de cruce sobre una cuenta de anticipo para un
    * recibo de caja específico. Se considera el monto original menos lo ya
    * aplicado por facturas DIAN (cashReceiptJournal relation).
