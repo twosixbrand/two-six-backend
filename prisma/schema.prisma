@@ -857,6 +857,7 @@ model JournalEntry {
   total_debit          Float                 @map("total_debit")
   total_credit         Float                 @map("total_credit")
   created_by           Int?                  @map("created_by")
+  metadata             String?
   createdAt            DateTime              @default(now()) @map("created_at")
   updatedAt            DateTime?             @updatedAt @map("updated_at")
   inventoryAdjustments InventoryAdjustment[]

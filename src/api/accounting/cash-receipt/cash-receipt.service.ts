@@ -51,11 +51,19 @@ export class CashReceiptService {
     const customerLabel = dto.customer_name || dto.customer_nit || 'cliente sin identificar';
     const description = `Recibo de caja - Consignación ${dto.reference} - ${customerLabel}`;
 
+    const metadata = JSON.stringify({
+      customer_nit: dto.customer_nit ?? null,
+      customer_name: dto.customer_name ?? null,
+      notes: dto.notes ?? null,
+      reference: dto.reference,
+    });
+
     const entry = await this.journalService.create({
       entry_date: dto.consignment_date,
       description,
       source_type: 'CASH_RECEIPT',
       created_by: dto.created_by,
+      metadata,
       lines: [
         {
           id_puc_account: bankAccount.id,
@@ -104,6 +112,10 @@ export class CashReceiptService {
       if (!advanceLine) continue;
       const balance = await this.getAvailableBalance(entry.id, advancePucCode);
       if (balance > 0.01) {
+        let meta: any = null;
+        if ((entry as any).metadata) {
+          try { meta = JSON.parse((entry as any).metadata); } catch { meta = null; }
+        }
         pending.push({
           journal_entry_id: entry.id,
           entry_number: entry.entry_number,
@@ -111,6 +123,10 @@ export class CashReceiptService {
           description: entry.description,
           original_amount: advanceLine.credit,
           available_balance: balance,
+          customer_nit: meta?.customer_nit ?? null,
+          customer_name: meta?.customer_name ?? null,
+          notes: meta?.notes ?? null,
+          reference: meta?.reference ?? null,
         });
       }
     }

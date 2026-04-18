@@ -224,6 +224,7 @@ export class JournalService {
           total_debit: totalDebit,
           total_credit: totalCredit,
           created_by: dto.created_by,
+          metadata: dto.metadata,
           lines: {
             create: dto.lines.map((line) => ({
               id_puc_account: line.id_puc_account,
