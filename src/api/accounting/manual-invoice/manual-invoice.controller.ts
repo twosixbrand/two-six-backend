@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { ManualInvoiceService } from './manual-invoice.service';
 import { CreateManualInvoiceDto } from './dto/create-manual-invoice.dto';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
@@ -11,5 +11,15 @@ export class ManualInvoiceController {
   @Post()
   create(@Body() dto: CreateManualInvoiceDto) {
     return this.service.createManualInvoice(dto);
+  }
+
+  @Get()
+  list(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.service.list({ startDate, endDate, status, search });
   }
 }

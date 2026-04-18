@@ -11,9 +11,96 @@ import { ClosingService } from '../closing/closing.service';
 import { CashReceiptService } from '../cash-receipt/cash-receipt.service';
 import { CreateManualInvoiceDto } from './dto/create-manual-invoice.dto';
 
+type ListFilters = {
+  startDate?: string;
+  endDate?: string;
+  status?: string;
+  search?: string;
+};
+
 @Injectable()
 export class ManualInvoiceService {
   private readonly logger = new Logger(ManualInvoiceService.name);
+
+  async list(filters: ListFilters = {}) {
+    const where: any = { cash_receipt_journal_id: { not: null } };
+    if (filters.status) where.status = filters.status;
+    if (filters.startDate || filters.endDate) {
+      where.issue_date = {};
+      if (filters.startDate) where.issue_date.gte = new Date(filters.startDate);
+      if (filters.endDate) where.issue_date.lte = new Date(filters.endDate);
+    }
+
+    const invoices = await this.prisma.dianEInvoicing.findMany({
+      where,
+      include: {
+        cashReceiptJournal: {
+          select: { id: true, entry_number: true, entry_date: true, description: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const manualEntries = await this.prisma.journalEntry.findMany({
+      where: {
+        source_type: 'MANUAL_DIAN_INVOICE',
+        source_id: { in: invoices.map((i) => i.id) },
+      },
+      select: { id: true, entry_number: true, source_id: true },
+    });
+    const entryByInvoice = new Map<number, { id: number; entry_number: string }>();
+    for (const e of manualEntries) {
+      if (e.source_id) entryByInvoice.set(e.source_id, { id: e.id, entry_number: e.entry_number });
+    }
+
+    const rows = invoices.map((inv) => {
+      let snapshot: any = null;
+      if (inv.manual_invoice_snapshot) {
+        try {
+          snapshot = JSON.parse(inv.manual_invoice_snapshot);
+        } catch {
+          snapshot = null;
+        }
+      }
+      return {
+        id: inv.id,
+        document_number: inv.document_number,
+        cufe_code: inv.cufe_code,
+        issue_date: inv.issue_date,
+        status: inv.status,
+        environment: inv.environment,
+        email_sent: inv.email_sent,
+        url_pdf: inv.url_pdf,
+        url_xml: inv.url_xml,
+        dian_authorized_at: inv.dian_authorized_at,
+        customer: snapshot?.customer ?? null,
+        operation_date: snapshot?.operation_date ?? null,
+        subtotal: snapshot?.subtotal ?? null,
+        iva_total: snapshot?.iva_total ?? null,
+        total: snapshot?.total ?? null,
+        items_count: Array.isArray(snapshot?.items) ? snapshot.items.length : 0,
+        cash_receipt: inv.cashReceiptJournal
+          ? {
+              id: inv.cashReceiptJournal.id,
+              entry_number: inv.cashReceiptJournal.entry_number,
+              entry_date: inv.cashReceiptJournal.entry_date,
+            }
+          : null,
+        journal_entry: entryByInvoice.get(inv.id) ?? null,
+      };
+    });
+
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      return rows.filter(
+        (r) =>
+          r.document_number.toLowerCase().includes(q) ||
+          r.customer?.name?.toLowerCase().includes(q) ||
+          r.customer?.doc_number?.toLowerCase().includes(q),
+      );
+    }
+    return rows;
+  }
 
   constructor(
     private readonly prisma: PrismaService,
