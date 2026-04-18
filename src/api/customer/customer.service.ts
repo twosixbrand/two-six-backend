@@ -26,6 +26,16 @@ export class CustomerService {
         });
     }
 
+    async findByDocument(document: string) {
+        return this.prisma.customer.findUnique({
+            where: { document_number: document },
+            include: {
+                customerType: true,
+                identificationType: true,
+            },
+        });
+    }
+
     async update(id: number, updateCustomerDto: UpdateCustomerDto) {
         return this.prisma.customer.update({
             where: { id },
