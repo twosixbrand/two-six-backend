@@ -78,6 +78,7 @@ export class ManualInvoiceService {
         subtotal: snapshot?.subtotal ?? null,
         iva_total: snapshot?.iva_total ?? null,
         total: snapshot?.total ?? null,
+        notes: snapshot?.notes ?? null,
         items_count: Array.isArray(snapshot?.items) ? snapshot.items.length : 0,
         cash_receipt: inv.cashReceiptJournal
           ? {
