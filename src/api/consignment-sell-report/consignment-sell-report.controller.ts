@@ -63,6 +63,14 @@ export class ConsignmentSellReportController {
     return this.service.findOne(id);
   }
 
+  @Post(':id/approve')
+  approve(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { approved_by?: string },
+  ) {
+    return this.service.approve(id, body.approved_by || 'Operador CMS');
+  }
+
   @Post(':id/reject')
   reject(
     @Param('id', ParseIntPipe) id: number,
