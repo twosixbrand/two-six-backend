@@ -353,6 +353,7 @@ model ClothingSize {
   consignmentDispatchItems ConsignmentDispatchItem[]
   consignmentReturnItems   ConsignmentReturnItem[]
   cycleCountItems          InventoryCycleCountItem[]
+  sellReportItems          ConsignmentSellReportItem[]
 
   @@map("clothing_size")
 }
@@ -405,6 +406,7 @@ model Customer {
   couponUsages           CouponUsage[]
   consignmentWarehouses  ConsignmentWarehouse[]
   consignmentPrices      CustomerConsignmentPrice[]
+  sellReports            ConsignmentSellReport[]
 
   @@map("customer")
 }
@@ -1239,6 +1241,7 @@ model ConsignmentWarehouse {
   dispatches  ConsignmentDispatch[]
   returns     ConsignmentReturn[]
   cycleCounts InventoryCycleCount[]
+  sellReports ConsignmentSellReport[]
 
   @@map("consignment_warehouse")
 }
@@ -1408,4 +1411,42 @@ model InventoryCycleCountItem {
 
   @@unique([id_cycle_count, id_clothing_size])
   @@map("inventory_cycle_count_item")
+}
+
+// =================== CONSIGNMENT: Reportes de venta del cliente ===================
+
+enum SellReportStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ConsignmentSellReport {
+  id            Int                        @id @default(autoincrement())
+  id_warehouse  Int                        @map("id_warehouse")
+  id_customer   Int                        @map("id_customer")
+  status        SellReportStatus           @default(PENDING)
+  notes         String?
+  rejected_reason String?                  @map("rejected_reason")
+  approved_at   DateTime?                  @map("approved_at")
+  approved_by   String?                    @map("approved_by")
+  createdAt     DateTime                   @default(now()) @map("created_at")
+  updatedAt     DateTime?                  @updatedAt @map("updated_at")
+  warehouse     ConsignmentWarehouse       @relation(fields: [id_warehouse], references: [id])
+  customer      Customer                   @relation(fields: [id_customer], references: [id])
+  items         ConsignmentSellReportItem[]
+
+  @@map("consignment_sell_report")
+}
+
+model ConsignmentSellReportItem {
+  id              Int                    @id @default(autoincrement())
+  id_sell_report  Int                    @map("id_sell_report")
+  id_clothing_size Int                   @map("id_clothing_size")
+  quantity        Int
+  createdAt       DateTime              @default(now()) @map("created_at")
+  sellReport      ConsignmentSellReport @relation(fields: [id_sell_report], references: [id], onDelete: Cascade)
+  clothingSize    ClothingSize          @relation(fields: [id_clothing_size], references: [id])
+
+  @@map("consignment_sell_report_item")
 }

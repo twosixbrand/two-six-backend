@@ -320,7 +320,8 @@ export class AuthService {
         postal_code: customer.postal_code,
         country: customer.country,
         is_registered: true,
-        addresses: customer.addresses, // Return addresses
+        is_consignment_ally: customer.is_consignment_ally,
+        addresses: customer.addresses,
       }
     };
   }
