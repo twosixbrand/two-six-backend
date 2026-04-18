@@ -592,9 +592,11 @@ model DianEInvoicing {
   environment        String          @default("TEST")
   id_dian_resolution Int?            @map("id_dian_resolution")
   id_expense         Int?            @map("id_expense")
+  cash_receipt_journal_id Int?       @map("cash_receipt_journal_id")
   dianResolution     DianResolution? @relation(fields: [id_dian_resolution], references: [id])
   expense            Expense?        @relation(fields: [id_expense], references: [id])
   order              Order?          @relation(fields: [id_order], references: [id])
+  cashReceiptJournal JournalEntry?   @relation("CashReceiptInvoices", fields: [cash_receipt_journal_id], references: [id])
   dianNotes          DianNote[]
 
   @@map("dian_e_invoicing")
@@ -859,6 +861,7 @@ model JournalEntry {
   inventoryAdjustments InventoryAdjustment[]
   lines                JournalEntryLine[]
   taxTransactions      TaxTransaction[]
+  crossedInvoices      DianEInvoicing[]      @relation("CashReceiptInvoices")
 
   @@map("journal_entry")
 }

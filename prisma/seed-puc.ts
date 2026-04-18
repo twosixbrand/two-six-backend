@@ -10,7 +10,9 @@ const pucBase = [
   { code: '110505', name: 'Caja General', parent_code: '1105', nature: 'D' },
   { code: '1110', name: 'Bancos', parent_code: '11', nature: 'D' },
   { code: '111005', name: 'Moneda Nacional', parent_code: '1110', nature: 'D' },
-  
+  { code: '1120', name: 'Cuentas de Ahorro', parent_code: '11', nature: 'D' },
+  { code: '112005', name: 'Bancos Comerciales - Ahorros', parent_code: '1120', nature: 'D' },
+
   // Wompi y Pasarelas a veces se manejan como Cuentas por Cobrar
   { code: '13', name: 'Deudores', parent_code: '1', nature: 'D' },
   { code: '1305', name: 'Clientes', parent_code: '13', nature: 'D' },
@@ -35,6 +37,11 @@ const pucBase = [
   { code: '23', name: 'Cuentas por Pagar', parent_code: '2', nature: 'C' },
   { code: '2365', name: 'Retención en la fuente por pagar', parent_code: '23', nature: 'C' },
   { code: '236540', name: 'Retención por compras', parent_code: '2365', nature: 'C' },
+
+  // Anticipos y avances recibidos de clientes (se cruzan contra factura posterior)
+  { code: '28', name: 'Otros Pasivos', parent_code: '2', nature: 'C' },
+  { code: '2805', name: 'Anticipos y Avances Recibidos', parent_code: '28', nature: 'C' },
+  { code: '280505', name: 'De Clientes', parent_code: '2805', nature: 'C' },
   
   // Impuestos y Gravámenes Reales (IVA)
   { code: '24', name: 'Impuestos, Gravámenes y Tasas', parent_code: '2', nature: 'C' },
