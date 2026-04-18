@@ -186,6 +186,30 @@ export class ManualInvoiceService {
       invoiceDto.date,
     );
 
+    const snapshot = {
+      customer: {
+        doc_type: dto.customer.doc_type,
+        doc_number: dto.customer.doc_number,
+        name: dto.customer.name,
+        email: dto.customer.email ?? null,
+        address: dto.customer.address ?? null,
+        city: dto.customer.city ?? null,
+      },
+      items: enrichedLines.map((l) => ({
+        description: l.description,
+        quantity: l.quantity,
+        unit_price: l.unitPrice,
+        iva_rate: l.taxPercent,
+        line_subtotal: l.lineSubtotal,
+        line_iva: l.lineIva,
+      })),
+      subtotal,
+      iva_total: ivaTotal,
+      total,
+      operation_date: dto.operation_date,
+      notes: dto.notes ?? null,
+    };
+
     const savedInvoice = await this.prisma.dianEInvoicing.create({
       data: {
         document_number: invoiceDto.number,
@@ -198,6 +222,7 @@ export class ManualInvoiceService {
         environment: env,
         id_dian_resolution: resolution.id,
         cash_receipt_journal_id: dto.cash_receipt_journal_id,
+        manual_invoice_snapshot: JSON.stringify(snapshot),
       },
     });
 

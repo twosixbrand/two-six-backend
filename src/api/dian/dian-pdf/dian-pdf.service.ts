@@ -34,8 +34,40 @@ export class DianPdfService {
     const companyName = this.configService.get<string>('DIAN_COMPANY_NAME') || 'TWO SIX S.A.S.';
 
     const order = invoice.order;
-    const items = order?.orderItems || [];
-    const customer = order?.customer;
+
+    // Snapshot de factura manual (regularización sin Order). Si existe, sus
+    // datos se usan para renderizar el PDF en vez de los defaults genéricos.
+    let snapshot: any = null;
+    if (invoice.manual_invoice_snapshot) {
+      try {
+        snapshot = typeof invoice.manual_invoice_snapshot === 'string'
+          ? JSON.parse(invoice.manual_invoice_snapshot)
+          : invoice.manual_invoice_snapshot;
+      } catch (err) {
+        this.logger.warn(`manual_invoice_snapshot inválido: ${err.message}`);
+      }
+    }
+
+    const items = snapshot?.items
+      ? snapshot.items.map((it: any) => ({
+          id_product: null,
+          product_name: it.description,
+          size: null,
+          quantity: it.quantity,
+          // unit_price en este servicio se asume CON IVA, así que reconstruimos
+          unit_price: Number((it.unit_price * (1 + (it.iva_rate || 0) / 100)).toFixed(2)),
+        }))
+      : (order?.orderItems || []);
+    const customer = snapshot?.customer
+      ? {
+          name: snapshot.customer.name,
+          document_number: snapshot.customer.doc_number,
+          identification_number: snapshot.customer.doc_number,
+          current_phone_number: null,
+          shipping_address: snapshot.customer.address,
+          email: snapshot.customer.email,
+        }
+      : order?.customer;
 
     // ═══ MEDIO DE PAGO (mapeo real) ═══
     const paymentMethodMap: Record<string, { label: string; code: string }> = {
@@ -52,12 +84,14 @@ export class DianPdfService {
     // ═══ DESGLOSE IVA ═══
     // Los unit_price ya incluyen IVA, así que para el desglose en factura:
     // basePrice = unitPrice / 1.19   cuando hay IVA 
-    const hasIva = (order?.iva && order.iva > 0);
+    const hasIva = snapshot
+      ? (snapshot.iva_total && snapshot.iva_total > 0)
+      : (order?.iva && order.iva > 0);
     const ivaRate = hasIva ? 0.19 : 0;
 
     // Calcular subtotal base (sin IVA) e IVA desglosado
     const totalProductos = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
-    const shipping = order?.shipping_cost || 0;
+    const shipping = snapshot ? 0 : (order?.shipping_cost || 0);
     // Desglose individual para la representación gráfica
     const productosBase = hasIva ? Math.round(totalProductos / 1.19) : totalProductos;
     const shippingBase = (shipping > 0 && hasIva) ? Math.round(shipping / 1.19) : shipping;

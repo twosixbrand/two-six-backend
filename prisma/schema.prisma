@@ -591,6 +591,7 @@ model DianEInvoicing {
   id_dian_resolution Int?            @map("id_dian_resolution")
   id_expense         Int?            @map("id_expense")
   cash_receipt_journal_id Int?       @map("cash_receipt_journal_id")
+  manual_invoice_snapshot String?    @map("manual_invoice_snapshot")
   dianResolution     DianResolution? @relation(fields: [id_dian_resolution], references: [id])
   expense            Expense?        @relation(fields: [id_expense], references: [id])
   order              Order?          @relation(fields: [id_order], references: [id])
