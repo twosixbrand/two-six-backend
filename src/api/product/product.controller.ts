@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   Query,
   UseGuards,
+  Header,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -35,6 +36,14 @@ export class ProductController {
   @Get('feed')
   findAllForGoogleFeed() {
     return this.productService.findAllForGoogleFeed();
+  }
+
+  @Get('facebook-feed.xml')
+  @Header('Content-Type', 'application/xml; charset=utf-8')
+  @Header('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200')
+  getFacebookFeedXml() {
+    // In production, this might come from env config, but keeping it simple based on your architecture.
+    return this.productService.getFacebookFeedXml('https://twosixweb.com');
   }
 
   @Get('store/designs')

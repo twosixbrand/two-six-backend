@@ -331,6 +331,95 @@ export class ProductService {
     });
   }
 
+  /** escape special characters for XML */
+  private escapeXml(str: string | null | undefined): string {
+    if (!str) return '';
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
+
+  /** map gender for feeds */
+  private mapGender(genderName: string): string {
+    const normalized = (genderName || '').toLowerCase().trim();
+    if (normalized === 'masculino' || normalized === 'male') return 'male';
+    if (normalized === 'femenino' || normalized === 'female') return 'female';
+    return 'unisex';
+  }
+
+  /**
+   * Generates Facebook Meta Business Manager XML Feed directly from the database
+   */
+  async getFacebookFeedXml(baseUrl: string = 'https://twosixweb.com'): Promise<string> {
+    const products = await this.findAllForGoogleFeed();
+    const validProducts = products.filter(p => p.image_url); // images are required
+
+    const TYPE_TO_CATEGORY: Record<string, string> = {
+      'camiseta': '212',
+      'polo': '212',
+      'camisa': '212',
+      'buso': '5388',
+      'chaqueta': '3066',
+      'pantalon largo': '204',
+      'jean': '204',
+      'pantalon corto': '207',
+      'calzado': '187',
+      'gorra': '173',
+      'vestido': '2271',
+    };
+
+    const itemsXml = validProducts.map(p => {
+      const productUrl = p.slug ? `${baseUrl}/product/${p.slug}` : `${baseUrl}/product/${p.id}`;
+      const availability = p.quantity_available > 0 ? 'in_stock' : 'out_of_stock';
+      
+      const titleParts = [p.clothing_name];
+      if (p.color_name) titleParts.push(p.color_name);
+      if (p.size_name) titleParts.push(p.size_name);
+      const title = titleParts.join(' - ');
+
+      const description = p.design_description || `${p.clothing_name} de Two Six. Ropa colombiana con estilo y confort.`;
+      const priceFormatted = `${Number(p.price).toFixed(2)} COP`;
+      const salePriceLine = p.discount_price ? `      <g:sale_price>${Number(p.discount_price).toFixed(2)} COP</g:sale_price>\n` : '';
+      
+      const typeKey = (p.type_clothing_name || '').toLowerCase().trim();
+      const googleCategory = TYPE_TO_CATEGORY[typeKey] || '1604';
+
+      const additionalImageLines = p.additional_images
+        .map(url => `      <g:additional_image_link>${this.escapeXml(url)}</g:additional_image_link>`)
+        .join('\n');
+
+      return `    <item>
+      <g:id>${this.escapeXml(p.sku)}</g:id>
+      <g:title>${this.escapeXml(title)}</g:title>
+      <g:description>${this.escapeXml(description)}</g:description>
+      <g:link>${this.escapeXml(productUrl)}</g:link>
+      <g:image_link>${this.escapeXml(p.image_url)}</g:image_link>
+${additionalImageLines ? additionalImageLines + '\n' : ''}      <g:availability>${availability}</g:availability>
+      <g:price>${priceFormatted}</g:price>
+${salePriceLine}      <g:brand>Two Six</g:brand>
+      <g:condition>new</g:condition>
+      <g:identifier_exists>false</g:identifier_exists>
+      <g:item_group_id>${this.escapeXml(p.design_reference || String(p.id))}</g:item_group_id>
+${p.color_name ? `      <g:color>${this.escapeXml(p.color_name)}</g:color>\n` : ''}${p.size_name ? `      <g:size>${this.escapeXml(p.size_name)}</g:size>\n` : ''}      <g:gender>${this.mapGender(p.gender_name)}</g:gender>
+      <g:age_group>adult</g:age_group>
+      <g:google_product_category>${googleCategory}</g:google_product_category>
+    </item>`;
+    }).join('\n');
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:g="http://base.google.com/ns/1.0" version="2.0">
+  <channel>
+    <title>Two Six - Facebook Catalog Feed</title>
+    <link>${baseUrl}</link>
+    <description>Catálogo de Productos para Meta Business Manager</description>
+${itemsXml}
+  </channel>
+</rss>`;
+  }
+
   async findAll(gender?: string, is_outlet?: boolean) {
     const where: Prisma.ProductWhereInput = {
       active: true,
