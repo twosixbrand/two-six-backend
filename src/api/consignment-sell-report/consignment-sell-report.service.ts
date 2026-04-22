@@ -84,6 +84,7 @@ export class ConsignmentSellReportService {
             clothingSize: {
               include: {
                 size: true,
+                product: { select: { id: true, price: true } },
                 clothingColor: {
                   include: {
                     color: true,
@@ -117,6 +118,7 @@ export class ConsignmentSellReportService {
             clothingSize: {
               include: {
                 size: true,
+                product: { select: { id: true, price: true } },
                 clothingColor: {
                   include: {
                     color: true,
@@ -144,6 +146,7 @@ export class ConsignmentSellReportService {
             clothingSize: {
               include: {
                 size: true,
+                product: { select: { id: true, price: true } },
                 clothingColor: {
                   include: {
                     color: true,
