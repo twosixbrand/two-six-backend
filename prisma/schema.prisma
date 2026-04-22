@@ -407,6 +407,7 @@ model Customer {
   consignmentWarehouses  ConsignmentWarehouse[]
   consignmentPrices      CustomerConsignmentPrice[]
   sellReports            ConsignmentSellReport[]
+  consignmentPayments    ConsignmentPayment[]
 
   @@map("customer")
 }
@@ -482,6 +483,7 @@ model Order {
   coupon          Coupon?          @relation(fields: [id_coupon], references: [id])
   couponUsage     CouponUsage?
   consignmentReturns ConsignmentReturn[]
+  consignmentPayments ConsignmentPayment[]
 
   @@map("order")
 }
@@ -1449,4 +1451,39 @@ model ConsignmentSellReportItem {
   clothingSize    ClothingSize          @relation(fields: [id_clothing_size], references: [id])
 
   @@map("consignment_sell_report_item")
+}
+
+// =================== CONSIGNMENT: Pagos del aliado ===================
+
+enum ConsignmentPaymentMethod {
+  TRANSFERENCIA
+  EFECTIVO
+  OTRO
+}
+
+enum ConsignmentPaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ConsignmentPayment {
+  id               Int                        @id @default(autoincrement())
+  id_order         Int                        @map("id_order")
+  id_customer      Int                        @map("id_customer")
+  amount           Float
+  payment_method   ConsignmentPaymentMethod   @map("payment_method")
+  proof_image_url  String?                    @map("proof_image_url")
+  reference_number String?                    @map("reference_number")
+  notes            String?
+  status           ConsignmentPaymentStatus   @default(PENDING)
+  rejected_reason  String?                    @map("rejected_reason")
+  approved_by      String?                    @map("approved_by")
+  approved_at      DateTime?                  @map("approved_at")
+  createdAt        DateTime                   @default(now()) @map("created_at")
+  updatedAt        DateTime?                  @updatedAt @map("updated_at")
+  order            Order                      @relation(fields: [id_order], references: [id])
+  customer         Customer                   @relation(fields: [id_customer], references: [id])
+
+  @@map("consignment_payment")
 }

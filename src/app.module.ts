@@ -54,6 +54,7 @@ import { ConsignmentSellReportModule } from './api/consignment-sell-report/consi
 import { ConsignmentReturnModule } from './api/consignment-return/consignment-return.module';
 import { ConsignmentCycleCountModule } from './api/consignment-cycle-count/consignment-cycle-count.module';
 import { ConsignmentReportsModule } from './api/consignment-reports/consignment-reports.module';
+import { ConsignmentPaymentModule } from './api/consignment-payment/consignment-payment.module';
 
 @Module({
   imports: [
@@ -133,6 +134,7 @@ import { ConsignmentReportsModule } from './api/consignment-reports/consignment-
     ConsignmentReturnModule,
     ConsignmentCycleCountModule,
     ConsignmentReportsModule,
+    ConsignmentPaymentModule,
   ],
   controllers: [AppController],
   providers: [

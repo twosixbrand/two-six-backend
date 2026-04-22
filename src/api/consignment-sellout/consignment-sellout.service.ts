@@ -263,7 +263,7 @@ export class ConsignmentSelloutService {
           order_date: new Date(),
           purchase_date: new Date(),
           status: 'SELLOUT',
-          is_paid: true,
+          is_paid: false, // CxC: el aliado paga después
           shipping_address: warehouse.address ?? `${warehouse.name} (Sell-out Consignación)`,
           shipping_cost: 0,
           iva: preview.summary.iva,
