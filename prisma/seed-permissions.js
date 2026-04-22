@@ -87,6 +87,14 @@ const permissions = [
   { code: 'catalog.seasons.manage', name: 'Gestionar Temporadas', group: 'Catálogo' },
   { code: 'catalog.providers.view', name: 'Ver Proveedores', group: 'Catálogo' },
   { code: 'catalog.providers.manage', name: 'Gestionar Proveedores', group: 'Catálogo' },
+  // Documentación
+  { code: 'docs.user-manual.view', name: 'Manual de Usuario', group: 'Documentación' },
+  { code: 'docs.architecture.view', name: 'Doc. Arquitectura', group: 'Documentación' },
+  { code: 'docs.database.view', name: 'Doc. Base de Datos', group: 'Documentación' },
+  { code: 'docs.dian.view', name: 'Documentación DIAN', group: 'Documentación' },
+  { code: 'docs.accounting.view', name: 'Manual Contable', group: 'Documentación' },
+  { code: 'docs.consignment.view', name: 'Manual Consignación', group: 'Documentación' },
+  { code: 'docs.strategic-plan.view', name: 'Plan Estratégico', group: 'Documentación' },
 ];
 
 async function main() {
