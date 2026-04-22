@@ -13,6 +13,11 @@ export class CustomerController {
         return this.customerService.findAll();
     }
 
+    @Get('by-document/:document')
+    findByDocument(@Param('document') document: string) {
+        return this.customerService.findByDocument(document);
+    }
+
     @Get(':id')
     findOne(@Param('id', ParseIntPipe) id: number) {
         return this.customerService.findOne(id);

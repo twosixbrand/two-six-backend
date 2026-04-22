@@ -1,28 +1,37 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class ClosingService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   /**
-   * Generates sequential entry_number (AC-000001)
+   * Genera entry_number atómicamente usando Postgres sequence (compartida con
+   * JournalService). Fallback a MAX()+1 para tests con mocks.
    */
   private async getNextEntryNumber(prisma: any): Promise<string> {
-    const lastEntry = await prisma.journalEntry.findFirst({
-      orderBy: { id: 'desc' },
-      select: { entry_number: true },
-    });
-
-    let nextNumber = 1;
-    if (lastEntry) {
-      const match = lastEntry.entry_number.match(/AC-(\d+)/);
-      if (match) {
-        nextNumber = parseInt(match[1], 10) + 1;
+    try {
+      const result: Array<{ nextval: bigint | number }> = await prisma.$queryRawUnsafe(
+        `SELECT nextval('journal_entry_number_seq')`,
+      );
+      const n = Number(result[0].nextval);
+      return `AC-${String(n).padStart(6, '0')}`;
+    } catch (_err) {
+      const lastEntry = await prisma.journalEntry.findFirst({
+        orderBy: { id: 'desc' },
+        select: { entry_number: true },
+      });
+      let nextNumber = 1;
+      if (lastEntry) {
+        const match = lastEntry.entry_number.match(/AC-(\d+)/);
+        if (match) nextNumber = parseInt(match[1], 10) + 1;
       }
+      return `AC-${String(nextNumber).padStart(6, '0')}`;
     }
-
-    return `AC-${String(nextNumber).padStart(6, '0')}`;
   }
 
   /**
@@ -224,6 +233,24 @@ export class ClosingService {
           closed_by: closedBy || null,
         },
       });
+
+      // Auditoría: registra quién y cuándo cerró el período
+      try {
+        await this.auditService.log(
+          'CLOSE_PERIOD',
+          'ACCOUNTING_CLOSING',
+          closing.id,
+          JSON.stringify({
+            year,
+            month,
+            profit_loss: profitLoss,
+            closed_by: closedBy || 'SYSTEM',
+            journal_entry_id: journalEntryId,
+          }),
+        );
+      } catch (err: any) {
+        console.error('Error registrando auditoría de cierre:', err.message);
+      }
 
       return closing;
     });

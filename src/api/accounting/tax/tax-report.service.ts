@@ -108,6 +108,67 @@ export class TaxReportService {
   }
 
   /**
+   * Exporta la declaración IVA a CSV (Excel-compatible) listo para presentación
+   * en Formulario 300 DIAN. Incluye cabecera con totales y detalle de cada
+   * movimiento en hojas concatenadas.
+   */
+  async exportIvaDeclarationCsv(startDate: string, endDate: string): Promise<{ filename: string; content: string }> {
+    const declaration = await this.getIvaDeclaration(startDate, endDate);
+    const money = (n: number) => n.toFixed(2);
+    const esc = (s: any) => {
+      const v = String(s ?? '');
+      return v.includes(',') || v.includes('"') || v.includes('\n')
+        ? `"${v.replace(/"/g, '""')}"`
+        : v;
+    };
+
+    const lines: string[] = [];
+    lines.push('DECLARACIÓN DE IVA - FORMULARIO 300');
+    lines.push(`Período,${startDate},${endDate}`);
+    lines.push('');
+    lines.push('RESUMEN');
+    lines.push('Renglón,Concepto,Valor');
+    lines.push(`32,IVA Generado (ventas),${money(declaration.ivaGenerado.total)}`);
+    lines.push(`50,IVA Descontable (compras),${money(declaration.ivaDescontable.total)}`);
+    lines.push(`60,IVA por Pagar / Saldo a Favor,${money(declaration.ivaPorPagar)}`);
+    lines.push('');
+
+    lines.push('DETALLE IVA GENERADO');
+    lines.push('Fecha,Asiento,Descripción,Débito,Crédito');
+    for (const e of declaration.ivaGenerado.entries) {
+      lines.push(
+        [
+          new Date(e.date).toISOString().slice(0, 10),
+          esc(e.entry_number),
+          esc(e.description),
+          money(e.debit),
+          money(e.credit),
+        ].join(','),
+      );
+    }
+    lines.push('');
+
+    lines.push('DETALLE IVA DESCONTABLE');
+    lines.push('Fecha,Asiento,Descripción,Débito,Crédito');
+    for (const e of declaration.ivaDescontable.entries) {
+      lines.push(
+        [
+          new Date(e.date).toISOString().slice(0, 10),
+          esc(e.entry_number),
+          esc(e.description),
+          money(e.debit),
+          money(e.credit),
+        ].join(','),
+      );
+    }
+
+    return {
+      filename: `iva-${startDate}-a-${endDate}.csv`,
+      content: lines.join('\n') + '\n',
+    };
+  }
+
+  /**
    * Declaracion de Retencion en la Fuente — Formulario 350
    * Groups expenses with retention by PUC concept code (2365xx)
    */

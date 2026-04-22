@@ -34,4 +34,16 @@ export class JournalController {
   create(@Body() createJournalEntryDto: CreateJournalEntryDto) {
     return this.journalService.create(createJournalEntryDto);
   }
+
+  /**
+   * Reversa un asiento POSTED creando un nuevo asiento con líneas invertidas.
+   * El asiento original NO se modifica (inmutabilidad POSTED).
+   */
+  @Post(':id/reverse')
+  reverse(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { reason: string; created_by?: number },
+  ) {
+    return this.journalService.reverseEntry(id, body.reason, body.created_by);
+  }
 }

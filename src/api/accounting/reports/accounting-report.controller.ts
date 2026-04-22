@@ -44,4 +44,31 @@ export class AccountingReportController {
   ) {
     return this.reportService.getSubsidiaryLedger(account, startDate, endDate);
   }
+
+  @Get('balance-sheet/compared')
+  getBalanceSheetCompared(
+    @Query('year') year: string,
+    @Query('month') month: string,
+    @Query('compareWith') compareWith: 'PREVIOUS_MONTH' | 'PREVIOUS_YEAR' = 'PREVIOUS_YEAR',
+  ) {
+    return this.reportService.getBalanceSheetCompared(
+      parseInt(year, 10),
+      parseInt(month, 10),
+      compareWith,
+    );
+  }
+
+  @Get('income-statement/compared')
+  getIncomeStatementCompared(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('compareWith') compareWith: 'PREVIOUS_PERIOD' | 'PREVIOUS_YEAR' = 'PREVIOUS_YEAR',
+  ) {
+    return this.reportService.getIncomeStatementCompared(startDate, endDate, compareWith);
+  }
+
+  @Get('statement-of-changes-equity')
+  getStatementOfChangesInEquity(@Query('year') year: string) {
+    return this.reportService.getStatementOfChangesInEquity(parseInt(year, 10));
+  }
 }

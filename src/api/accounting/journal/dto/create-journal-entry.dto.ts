@@ -46,6 +46,10 @@ export class CreateJournalEntryDto {
   @IsOptional()
   status?: string;
 
+  @IsString()
+  @IsOptional()
+  metadata?: string;
+
   @IsNumber()
   @IsOptional()
   created_by?: number;

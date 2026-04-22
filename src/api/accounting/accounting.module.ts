@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '../../prisma/prisma.module';
+import { DianModule } from '../dian/dian.module';
 import { PucController } from './puc/puc.controller';
 import { PucService } from './puc/puc.service';
 import { JournalController } from './journal/journal.controller';
@@ -20,6 +21,8 @@ import { AccountingDashboardController } from './dashboard/accounting-dashboard.
 import { AccountingDashboardService } from './dashboard/accounting-dashboard.service';
 import { PayrollController } from './payroll/payroll.controller';
 import { PayrollService } from './payroll/payroll.service';
+import { PayrollNovedadService } from './payroll/payroll-novedad.service';
+import { PilaService } from './payroll/pila.service';
 import { ClosingController } from './closing/closing.controller';
 import { ClosingService } from './closing/closing.service';
 import { TaxReportController } from './tax/tax-report.controller';
@@ -42,9 +45,20 @@ import { ExogenaController } from './exogena/exogena.controller';
 import { ExogenaService } from './exogena/exogena.service';
 import { ProfitabilityController } from './reports/profitability.controller';
 import { ProfitabilityService } from './reports/profitability.service';
+import { ReconciliationController } from './reports/reconciliation.controller';
+import { ReconciliationService } from './reports/reconciliation.service';
+import { AccountingCronService } from './schedulers/accounting-cron.service';
+import { AlertsController } from './alerts/alerts.controller';
+import { AlertsService } from './alerts/alerts.service';
+import { AccountingSettingsController } from './settings/settings.controller';
+import { AccountingSettingsService } from './settings/settings.service';
+import { CashReceiptController } from './cash-receipt/cash-receipt.controller';
+import { CashReceiptService } from './cash-receipt/cash-receipt.service';
+import { ManualInvoiceController } from './manual-invoice/manual-invoice.controller';
+import { ManualInvoiceService } from './manual-invoice/manual-invoice.service';
 
 @Module({
-  imports: [PrismaModule, ConfigModule],
+  imports: [PrismaModule, ConfigModule, DianModule],
   controllers: [
     PucController,
     JournalController,
@@ -66,6 +80,11 @@ import { ProfitabilityService } from './reports/profitability.service';
     ExportController,
     ExogenaController,
     ProfitabilityController,
+    ReconciliationController,
+    AlertsController,
+    AccountingSettingsController,
+    CashReceiptController,
+    ManualInvoiceController,
   ],
   providers: [
     PucService,
@@ -78,6 +97,8 @@ import { ProfitabilityService } from './reports/profitability.service';
     AuditService,
     AccountingDashboardService,
     PayrollService,
+    PayrollNovedadService,
+    PilaService,
     ClosingService,
     TaxReportService,
     TaxConfigService,
@@ -89,7 +110,13 @@ import { ProfitabilityService } from './reports/profitability.service';
     ExportService,
     ExogenaService,
     ProfitabilityService,
+    ReconciliationService,
+    AccountingCronService,
+    AlertsService,
+    AccountingSettingsService,
+    CashReceiptService,
+    ManualInvoiceService,
   ],
-  exports: [JournalAutoService, AuditService, TaxConfigService, BudgetService],
+  exports: [JournalAutoService, AuditService, TaxConfigService, BudgetService, AccountingSettingsService, CashReceiptService, ManualInvoiceService],
 })
 export class AccountingModule { }

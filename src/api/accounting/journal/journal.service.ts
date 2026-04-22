@@ -12,6 +12,113 @@ export class JournalService {
     private readonly closingService: ClosingService,
   ) { }
 
+  /**
+   * Genera el próximo entry_number atómicamente vía Postgres sequence.
+   * Elimina la race condition del antiguo MAX()+1.
+   */
+  private async getNextEntryNumber(): Promise<string> {
+    try {
+      const result: Array<{ nextval: bigint | number }> =
+        await this.prisma.$queryRawUnsafe(`SELECT nextval('journal_entry_number_seq')`);
+      const n = Number(result[0].nextval);
+      return `AC-${String(n).padStart(6, '0')}`;
+    } catch (_err) {
+      // Fallback solo para entornos sin la sequence (tests con mocks)
+      const lastEntry = await this.prisma.journalEntry.findFirst({
+        orderBy: { id: 'desc' },
+        select: { entry_number: true },
+      });
+      let nextNumber = 1;
+      if (lastEntry) {
+        const match = lastEntry.entry_number.match(/AC-(\d+)/);
+        if (match) nextNumber = parseInt(match[1], 10) + 1;
+      }
+      return `AC-${String(nextNumber).padStart(6, '0')}`;
+    }
+  }
+
+  /**
+   * Genera un asiento reverso: toma un asiento POSTED existente y crea un nuevo
+   * asiento que invierte todas sus líneas (débitos ↔ créditos), con source_type
+   * 'REVERSAL' y source_id = id del asiento original.
+   *
+   * El asiento original NO se toca (POSTED es inmutable). La corrección queda
+   * documentada como un nuevo asiento con trazabilidad completa.
+   */
+  async reverseEntry(id: number, reason: string, userId?: number) {
+    if (!reason?.trim()) {
+      throw new BadRequestException('Debes indicar el motivo del reverso.');
+    }
+
+    const original = await this.prisma.journalEntry.findUnique({
+      where: { id },
+      include: { lines: true },
+    });
+    if (!original) {
+      throw new NotFoundException(`Asiento contable #${id} no encontrado`);
+    }
+    if (original.status !== 'POSTED') {
+      throw new BadRequestException(
+        `Solo se pueden reversar asientos POSTED (estado actual: ${original.status}).`,
+      );
+    }
+    if (original.source_type === 'REVERSAL') {
+      throw new BadRequestException('No se puede reversar un asiento que ya es un reverso.');
+    }
+
+    const entryDate = new Date();
+    const isClosed = await this.closingService.isPeriodClosed(entryDate);
+    if (isClosed) {
+      throw new ForbiddenException('No se puede reversar en un periodo contable cerrado.');
+    }
+
+    const entryNumber = await this.getNextEntryNumber();
+
+    const entry = await this.prisma.journalEntry.create({
+      data: {
+        entry_number: entryNumber,
+        entry_date: entryDate,
+        description: `REVERSO ${original.entry_number}: ${reason}`,
+        source_type: 'REVERSAL',
+        source_id: original.id,
+        status: 'POSTED',
+        total_debit: original.total_credit, // invertido
+        total_credit: original.total_debit, // invertido
+        created_by: userId,
+        lines: {
+          create: original.lines.map((line) => ({
+            id_puc_account: line.id_puc_account,
+            description: `REVERSO: ${line.description ?? ''}`,
+            debit: line.credit, // invertido
+            credit: line.debit, // invertido
+          })),
+        },
+      },
+      include: {
+        lines: { include: { pucAccount: true } },
+      },
+    });
+
+    try {
+      await this.auditService.log(
+        'REVERSE',
+        'JOURNAL_ENTRY',
+        entry.id,
+        JSON.stringify({
+          original_entry_number: original.entry_number,
+          original_entry_id: original.id,
+          reason,
+          new_entry_number: entry.entry_number,
+        }),
+        userId,
+      );
+    } catch (err) {
+      console.error('Error registrando auditoría del reverso:', err.message);
+    }
+
+    return entry;
+  }
+
   async findAll(query: { startDate?: string; endDate?: string; source_type?: string }) {
     const where: any = {};
 
@@ -101,21 +208,9 @@ export class JournalService {
       }
     }
 
-    // Generate sequential entry_number
-    const lastEntry = await this.prisma.journalEntry.findFirst({
-      orderBy: { id: 'desc' },
-      select: { entry_number: true },
-    });
-
-    let nextNumber = 1;
-    if (lastEntry) {
-      const match = lastEntry.entry_number.match(/AC-(\d+)/);
-      if (match) {
-        nextNumber = parseInt(match[1], 10) + 1;
-      }
-    }
-
-    const entryNumber = `AC-${String(nextNumber).padStart(6, '0')}`;
+    // Genera entry_number atómicamente usando Postgres sequence
+    // (evita race conditions que producían violaciones de unique constraint).
+    const entryNumber = await this.getNextEntryNumber();
 
     const entry = await this.prisma.$transaction(async (prisma) => {
       const entry = await prisma.journalEntry.create({
@@ -129,6 +224,7 @@ export class JournalService {
           total_debit: totalDebit,
           total_credit: totalCredit,
           created_by: dto.created_by,
+          metadata: dto.metadata,
           lines: {
             create: dto.lines.map((line) => ({
               id_puc_account: line.id_puc_account,

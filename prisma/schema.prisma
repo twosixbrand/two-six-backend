@@ -397,6 +397,7 @@ model Customer {
   is_registered          Boolean            @default(false) @map("is_registered")
   document_number        String?            @unique
   is_consignment_ally    Boolean            @default(false) @map("is_consignment_ally")
+  tax_status             CustomerTaxStatus  @default(NORMAL) @map("tax_status")
   addresses              Address[]
   customerType           CustomerType       @relation(fields: [id_customer_type], references: [id])
   identificationType     IdentificationType @relation(fields: [id_identification_type], references: [id])
@@ -593,9 +594,12 @@ model DianEInvoicing {
   environment        String          @default("TEST")
   id_dian_resolution Int?            @map("id_dian_resolution")
   id_expense         Int?            @map("id_expense")
+  cash_receipt_journal_id Int?       @map("cash_receipt_journal_id")
+  manual_invoice_snapshot String?    @map("manual_invoice_snapshot")
   dianResolution     DianResolution? @relation(fields: [id_dian_resolution], references: [id])
   expense            Expense?        @relation(fields: [id_expense], references: [id])
   order              Order?          @relation(fields: [id_order], references: [id])
+  cashReceiptJournal JournalEntry?   @relation("CashReceiptInvoices", fields: [cash_receipt_journal_id], references: [id])
   dianNotes          DianNote[]
 
   @@map("dian_e_invoicing")
@@ -855,11 +859,13 @@ model JournalEntry {
   total_debit          Float                 @map("total_debit")
   total_credit         Float                 @map("total_credit")
   created_by           Int?                  @map("created_by")
+  metadata             String?
   createdAt            DateTime              @default(now()) @map("created_at")
   updatedAt            DateTime?             @updatedAt @map("updated_at")
   inventoryAdjustments InventoryAdjustment[]
   lines                JournalEntryLine[]
   taxTransactions      TaxTransaction[]
+  crossedInvoices      DianEInvoicing[]      @relation("CashReceiptInvoices")
 
   @@map("journal_entry")
 }
@@ -1049,41 +1055,76 @@ model AccountingClosing {
 }
 
 model Employee {
-  id                     Int            @id @default(autoincrement())
-  document_number        String         @unique @map("document_number")
-  id_identification_type Int            @map("id_identification_type")
+  id                     Int               @id @default(autoincrement())
+  document_number        String            @unique @map("document_number")
+  id_identification_type Int               @map("id_identification_type")
   name                   String
   position               String
   department             String?
-  hire_date              DateTime       @map("hire_date")
-  base_salary            Float          @map("base_salary")
-  transport_allowance    Float          @default(0) @map("transport_allowance")
-  is_active              Boolean        @default(true) @map("is_active")
-  eps_entity             String?        @map("eps_entity")
-  pension_fund           String?        @map("pension_fund")
-  arl_risk_level         Int            @default(1) @map("arl_risk_level")
-  bank_name              String?        @map("bank_name")
-  bank_account           String?        @map("bank_account")
-  createdAt              DateTime       @default(now()) @map("created_at")
-  updatedAt              DateTime?      @updatedAt @map("updated_at")
-  contract_type          String         @default("INDEFINIDO") @map("contract_type")
-  is_exonerated          Boolean        @default(true) @map("is_exonerated")
+  hire_date              DateTime          @map("hire_date")
+  base_salary            Float             @map("base_salary")
+  transport_allowance    Float             @default(0) @map("transport_allowance")
+  is_active              Boolean           @default(true) @map("is_active")
+  eps_entity             String?           @map("eps_entity")
+  pension_fund           String?           @map("pension_fund")
+  arl_risk_level         Int               @default(1) @map("arl_risk_level")
+  bank_name              String?           @map("bank_name")
+  bank_account           String?           @map("bank_account")
+  createdAt              DateTime          @default(now()) @map("created_at")
+  updatedAt              DateTime?         @updatedAt @map("updated_at")
+  contract_type          String            @default("INDEFINIDO") @map("contract_type")
+  is_exonerated          Boolean           @default(true) @map("is_exonerated")
   payrollEntries         PayrollEntry[]
+  payrollNovedades       PayrollNovedad[]
 
   @@map("employee")
 }
 
+enum PayrollNovedadType {
+  HORAS_EXTRA_DIURNAS
+  HORAS_EXTRA_NOCTURNAS
+  HORAS_EXTRA_DOMINICALES
+  COMISION
+  BONIFICACION
+  INCAPACIDAD_COMUN
+  INCAPACIDAD_LABORAL
+  LICENCIA_REMUNERADA
+  LICENCIA_NO_REMUNERADA
+  VACACIONES
+  AUSENTISMO
+  OTRO_DEVENGADO
+  OTRO_DEDUCIBLE
+}
+
+model PayrollNovedad {
+  id                Int                @id @default(autoincrement())
+  id_employee       Int                @map("id_employee")
+  id_payroll_period Int                @map("id_payroll_period")
+  type              PayrollNovedadType
+  quantity          Float              @default(0)
+  amount            Float              @default(0)
+  description       String?
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime?          @updatedAt @map("updated_at")
+  employee          Employee           @relation(fields: [id_employee], references: [id])
+  payrollPeriod     PayrollPeriod      @relation(fields: [id_payroll_period], references: [id], onDelete: Cascade)
+
+  @@index([id_payroll_period, id_employee])
+  @@map("payroll_novedad")
+}
+
 model PayrollPeriod {
-  id          Int            @id @default(autoincrement())
+  id          Int              @id @default(autoincrement())
   year        Int
   month       Int
-  period_type String         @map("period_type")
-  start_date  DateTime       @map("start_date")
-  end_date    DateTime       @map("end_date")
-  status      String         @default("DRAFT")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime?      @updatedAt @map("updated_at")
+  period_type String           @map("period_type")
+  start_date  DateTime         @map("start_date")
+  end_date    DateTime         @map("end_date")
+  status      String           @default("DRAFT")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime?        @updatedAt @map("updated_at")
   entries     PayrollEntry[]
+  novedades   PayrollNovedad[]
 
   @@map("payroll_period")
 }
@@ -1226,6 +1267,24 @@ enum ConsignmentStockStatus {
   EN_CONSIGNACION
   DEVUELTO
   MERMADO
+}
+
+enum CustomerTaxStatus {
+  NORMAL
+  GRAN_CONTRIBUYENTE
+  AUTORETENEDOR
+}
+
+model AccountingSetting {
+  id          Int       @id @default(autoincrement())
+  key         String    @unique
+  value       String
+  description String?
+  updated_by  Int?      @map("updated_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+
+  @@map("accounting_setting")
 }
 
 model ConsignmentWarehouse {

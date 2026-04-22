@@ -5,6 +5,7 @@ import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { JournalAutoService } from '../journal/journal-auto.service';
 import { AuditService } from '../audit/audit.service';
 import { ClosingService } from '../closing/closing.service';
+import { WithholdingService } from '../withholding/withholding.service';
 
 @Injectable()
 export class ExpenseService {
@@ -13,6 +14,7 @@ export class ExpenseService {
     private readonly journalAutoService: JournalAutoService,
     private readonly auditService: AuditService,
     private readonly closingService: ClosingService,
+    private readonly withholdingService: WithholdingService,
   ) { }
 
   async findAll(query: {
@@ -226,6 +228,18 @@ export class ExpenseService {
       );
     } catch (err) {
       console.error('Error registrando auditoría de pago de gasto:', err.message);
+    }
+
+    // Auto-regenera certificados de retención del año del pago.
+    // Best-effort: si falla no bloquea el pago. Es idempotente
+    // (deleteMany + recreate del año completo).
+    try {
+      const year = new Date(paymentDate).getFullYear();
+      await this.withholdingService.generateFromExpenses(year);
+    } catch (err: any) {
+      console.error(
+        `Error regenerando certificados de retención para el año del gasto ${id}: ${err.message}`,
+      );
     }
 
     return updated;
