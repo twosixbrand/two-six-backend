@@ -392,7 +392,7 @@ export class ConsignmentCycleCountService {
           order_date: new Date(),
           purchase_date: new Date(),
           status: 'MERMA',
-          is_paid: true,
+          is_paid: false, // CxC: el aliado paga después
           shipping_address: cc.warehouse.address ?? `${cc.warehouse.name} (Merma Consignación)`,
           shipping_cost: 0,
           iva,
