@@ -92,6 +92,14 @@ const permissions: PermissionSeed[] = [
   { code: 'admin.settings.manage', name: 'Gestionar Configuración', group: 'Administración' },
 
   // ═══════════════════════════════════════════════════════
+  // Integraciones / APIs
+  // ═══════════════════════════════════════════════════════
+  { code: 'integrations.google-merchant.view', name: 'Ver Google Merchant Feed', group: 'Integraciones' },
+  { code: 'integrations.google-merchant.manage', name: 'Gestionar Google Merchant Feed', group: 'Integraciones' },
+  { code: 'integrations.facebook-feed.view', name: 'Ver Facebook Feed', group: 'Integraciones' },
+  { code: 'integrations.facebook-feed.manage', name: 'Gestionar Facebook Feed', group: 'Integraciones' },
+
+  // ═══════════════════════════════════════════════════════
   // Catálogo
   // ═══════════════════════════════════════════════════════
   { code: 'catalog.categories.view', name: 'Ver Categorías', group: 'Catálogo' },
