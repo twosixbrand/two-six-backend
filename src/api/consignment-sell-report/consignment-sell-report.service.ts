@@ -213,6 +213,7 @@ export class ConsignmentSellReportService {
             clothingSize: {
               include: {
                 size: true,
+                product: { select: { id: true, price: true } },
                 clothingColor: {
                   include: {
                     color: true,
@@ -226,6 +227,28 @@ export class ConsignmentSellReportService {
         },
       },
     });
+
+    // Enriquecer cada stock item con el precio de consignación vigente
+    const now = new Date();
+    for (const wh of warehouses) {
+      for (const stock of wh.stocks as any[]) {
+        const productId = stock.clothingSize?.product?.id;
+        if (!productId) { stock.unit_price = 0; continue; }
+
+        const consignmentPrice = await this.prisma.customerConsignmentPrice.findFirst({
+          where: {
+            id_customer,
+            id_product: productId,
+            valid_from: { lte: now },
+            OR: [{ valid_to: null }, { valid_to: { gte: now } }],
+          },
+          orderBy: { valid_from: 'desc' },
+        });
+
+        stock.unit_price = consignmentPrice?.price ?? stock.clothingSize.product.price ?? 0;
+      }
+    }
+
     return warehouses;
   }
 }
