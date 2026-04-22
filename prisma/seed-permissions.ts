@@ -37,6 +37,28 @@ const permissions: PermissionSeed[] = [
   { code: 'accounting.indicators.view', name: 'Ver Indicadores Financieros', group: 'Contabilidad' },
   { code: 'accounting.export', name: 'Exportar Datos Contables', group: 'Contabilidad' },
 
+  { code: 'accounting.alerts.view', name: 'Ver Alertas Contables', group: 'Contabilidad' },
+  { code: 'accounting.settings.manage', name: 'Gestionar Configuración Contable', group: 'Contabilidad' },
+
+  // ═══════════════════════════════════════════════════════
+  // Consignación
+  // ═══════════════════════════════════════════════════════
+  { code: 'consignment.warehouses.view', name: 'Ver Bodegas de Consignación', group: 'Consignación' },
+  { code: 'consignment.warehouses.manage', name: 'Gestionar Bodegas de Consignación', group: 'Consignación' },
+  { code: 'consignment.prices.view', name: 'Ver Precios de Consignación', group: 'Consignación' },
+  { code: 'consignment.prices.manage', name: 'Gestionar Precios de Consignación', group: 'Consignación' },
+  { code: 'consignment.dispatches.view', name: 'Ver Despachos', group: 'Consignación' },
+  { code: 'consignment.dispatches.manage', name: 'Gestionar Despachos (enviar, cancelar)', group: 'Consignación' },
+  { code: 'consignment.sellout.view', name: 'Ver Sell-out', group: 'Consignación' },
+  { code: 'consignment.sellout.process', name: 'Procesar Sell-out + DIAN', group: 'Consignación' },
+  { code: 'consignment.sell-reports.view', name: 'Ver Reportes de Venta del Cliente', group: 'Consignación' },
+  { code: 'consignment.sell-reports.manage', name: 'Aprobar/Rechazar Reportes de Venta', group: 'Consignación' },
+  { code: 'consignment.returns.view', name: 'Ver Devoluciones/Garantías', group: 'Consignación' },
+  { code: 'consignment.returns.manage', name: 'Gestionar Devoluciones/Garantías', group: 'Consignación' },
+  { code: 'consignment.cycle-counts.view', name: 'Ver Conteos Cíclicos', group: 'Consignación' },
+  { code: 'consignment.cycle-counts.manage', name: 'Gestionar Conteos Cíclicos y Merma', group: 'Consignación' },
+  { code: 'consignment.reports.view', name: 'Ver Reportes de Consignación', group: 'Consignación' },
+
   // ═══════════════════════════════════════════════════════
   // Inventario
   // ═══════════════════════════════════════════════════════
@@ -68,6 +90,14 @@ const permissions: PermissionSeed[] = [
   { code: 'admin.permissions.manage', name: 'Gestionar Permisos', group: 'Administración' },
   { code: 'admin.logs.view', name: 'Ver Logs del Sistema', group: 'Administración' },
   { code: 'admin.settings.manage', name: 'Gestionar Configuración', group: 'Administración' },
+
+  // ═══════════════════════════════════════════════════════
+  // Integraciones / APIs
+  // ═══════════════════════════════════════════════════════
+  { code: 'integrations.google-merchant.view', name: 'Ver Google Merchant Feed', group: 'Integraciones' },
+  { code: 'integrations.google-merchant.manage', name: 'Gestionar Google Merchant Feed', group: 'Integraciones' },
+  { code: 'integrations.facebook-feed.view', name: 'Ver Facebook Feed', group: 'Integraciones' },
+  { code: 'integrations.facebook-feed.manage', name: 'Gestionar Facebook Feed', group: 'Integraciones' },
 
   // ═══════════════════════════════════════════════════════
   // Catálogo

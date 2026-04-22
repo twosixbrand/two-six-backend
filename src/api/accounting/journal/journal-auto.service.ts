@@ -529,4 +529,547 @@ export class JournalAutoService {
       return entry;
     });
   }
+
+  // ============================================================
+  //  MÓDULO CONSIGNACIÓN (F01-F08)
+  // ============================================================
+
+  /**
+   * Costo unitario de un item, usando manufactured_cost con fallback al % del precio.
+   * Misma regla que onCostOfGoodsSold (línea 373-383).
+   */
+  private costOfItem(manufacturedCost?: number | null, fallbackPrice?: number): number {
+    if (manufacturedCost && manufacturedCost > 0) return manufacturedCost;
+    const fallbackPercentage = (this.configService.get<number>('COST_PERCENTAGE') || 60) / 100;
+    return (fallbackPrice ?? 0) * fallbackPercentage;
+  }
+
+  /**
+   * F03 - Despacho enviado: reclasifica inventario propio → consignación (al costo).
+   * Dr 143510 Mercancía en Consignación en Poder de Terceros
+   * Cr 143505 Inventario Mercancía Propia
+   */
+  async onConsignmentDispatchSent(dispatchId: number) {
+    const dispatch = await this.prisma.consignmentDispatch.findUnique({
+      where: { id: dispatchId },
+      include: {
+        items: {
+          include: {
+            clothingSize: {
+              include: {
+                product: true,
+                clothingColor: { include: { design: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!dispatch || dispatch.items.length === 0) return null;
+
+    const entryDate = new Date();
+    if (await this.closingService.isPeriodClosed(entryDate)) return null;
+
+    let totalCost = 0;
+    for (const it of dispatch.items) {
+      const manufacturedCost = it.clothingSize.clothingColor.design.manufactured_cost;
+      const fallbackPrice = it.clothingSize.product?.price;
+      totalCost += this.costOfItem(manufacturedCost, fallbackPrice) * it.quantity;
+    }
+    totalCost = Number(totalCost.toFixed(2));
+    if (totalCost <= 0) return null;
+
+    return this.prisma.$transaction(async (prisma) => {
+      const entryNumber = await this.getNextEntryNumber(prisma);
+      const consignmentInv = await this.findAccountByCode(prisma, '143510');
+      const ownInv = await this.findAccountByCode(prisma, '143505');
+
+      return prisma.journalEntry.create({
+        data: {
+          entry_number: entryNumber,
+          entry_date: entryDate,
+          description: `Despacho consignación ${dispatch.dispatch_number}`,
+          source_type: 'CONSIGNMENT_DISPATCH',
+          source_id: dispatch.id,
+          status: 'POSTED',
+          total_debit: totalCost,
+          total_credit: totalCost,
+          lines: {
+            create: [
+              {
+                id_puc_account: consignmentInv.id,
+                description: `Reclass a consignación — ${dispatch.dispatch_number}`,
+                debit: totalCost,
+                credit: 0,
+              },
+              {
+                id_puc_account: ownInv.id,
+                description: `Salida inventario propio — ${dispatch.dispatch_number}`,
+                debit: 0,
+                credit: totalCost,
+              },
+            ],
+          },
+        },
+      });
+    });
+  }
+
+  /**
+   * F04 - Devolución portafolio/obsolescencia: inventario vuelve al stock propio de Two Six.
+   * Dr 143505 Inventario Mercancía Propia
+   * Cr 143510 Mercancía en Consignación en Poder de Terceros
+   */
+  async onConsignmentReturnPortfolio(returnId: number) {
+    const ret = await this.prisma.consignmentReturn.findUnique({
+      where: { id: returnId },
+      include: {
+        items: {
+          include: {
+            clothingSize: {
+              include: {
+                product: true,
+                clothingColor: { include: { design: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!ret || ret.return_type !== 'PORTFOLIO' || ret.items.length === 0) return null;
+
+    const entryDate = new Date();
+    if (await this.closingService.isPeriodClosed(entryDate)) return null;
+
+    let totalCost = 0;
+    for (const it of ret.items) {
+      const mc = it.clothingSize.clothingColor.design.manufactured_cost;
+      totalCost += this.costOfItem(mc, it.clothingSize.product?.price) * it.quantity;
+    }
+    totalCost = Number(totalCost.toFixed(2));
+    if (totalCost <= 0) return null;
+
+    return this.prisma.$transaction(async (prisma) => {
+      const entryNumber = await this.getNextEntryNumber(prisma);
+      const ownInv = await this.findAccountByCode(prisma, '143505');
+      const consignmentInv = await this.findAccountByCode(prisma, '143510');
+
+      return prisma.journalEntry.create({
+        data: {
+          entry_number: entryNumber,
+          entry_date: entryDate,
+          description: `Devolución portafolio consignación #${ret.id}`,
+          source_type: 'CONSIGNMENT_RETURN_PORTFOLIO',
+          source_id: ret.id,
+          status: 'POSTED',
+          total_debit: totalCost,
+          total_credit: totalCost,
+          lines: {
+            create: [
+              { id_puc_account: ownInv.id, description: 'Reingreso inventario propio', debit: totalCost, credit: 0 },
+              { id_puc_account: consignmentInv.id, description: 'Salida de consignación', debit: 0, credit: totalCost },
+            ],
+          },
+        },
+      });
+    });
+  }
+
+  /**
+   * F04 - Devolución por garantía: la prenda defectuosa es baja definitiva del inventario.
+   * Dr 519910 Gasto Merma / Deterioro (por garantías)
+   * Cr 143510 Mercancía en Consignación en Poder de Terceros
+   */
+  async onConsignmentReturnWarranty(returnId: number) {
+    const ret = await this.prisma.consignmentReturn.findUnique({
+      where: { id: returnId },
+      include: {
+        items: {
+          include: {
+            clothingSize: {
+              include: {
+                product: true,
+                clothingColor: { include: { design: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!ret || ret.return_type !== 'WARRANTY' || ret.items.length === 0) return null;
+
+    const entryDate = new Date();
+    if (await this.closingService.isPeriodClosed(entryDate)) return null;
+
+    let totalCost = 0;
+    for (const it of ret.items) {
+      const mc = it.clothingSize.clothingColor.design.manufactured_cost;
+      totalCost += this.costOfItem(mc, it.clothingSize.product?.price) * it.quantity;
+    }
+    totalCost = Number(totalCost.toFixed(2));
+    if (totalCost <= 0) return null;
+
+    return this.prisma.$transaction(async (prisma) => {
+      const entryNumber = await this.getNextEntryNumber(prisma);
+      const warrantyExpense = await this.findAccountByCode(prisma, '519910');
+      const consignmentInv = await this.findAccountByCode(prisma, '143510');
+
+      return prisma.journalEntry.create({
+        data: {
+          entry_number: entryNumber,
+          entry_date: entryDate,
+          description: `Garantía consignación #${ret.id}`,
+          source_type: 'CONSIGNMENT_RETURN_WARRANTY',
+          source_id: ret.id,
+          status: 'POSTED',
+          total_debit: totalCost,
+          total_credit: totalCost,
+          lines: {
+            create: [
+              { id_puc_account: warrantyExpense.id, description: 'Baja por garantía', debit: totalCost, credit: 0 },
+              { id_puc_account: consignmentInv.id, description: 'Salida de consignación', debit: 0, credit: totalCost },
+            ],
+          },
+        },
+      });
+    });
+  }
+
+  /**
+   * F04/F05 - Devolución post-venta: reverso de ingreso + reingreso de inventario + reverso COGS.
+   * Asiento único con 5 líneas:
+   *  Dr 413524 Ingresos (reverso de la venta original, al precio facturado)
+   *  Dr 240801 IVA generado (reverso)
+   *  Cr 130505 Clientes (saldo a favor del cliente — base del nota crédito DIAN)
+   *  Dr 143505 Inventario Mercancía Propia (reingreso al costo)
+   *  Cr 613524 Costo Venta (reverso del COGS)
+   */
+  async onConsignmentReturnPostSale(returnId: number) {
+    const ret = await this.prisma.consignmentReturn.findUnique({
+      where: { id: returnId },
+      include: {
+        items: {
+          include: {
+            clothingSize: {
+              include: {
+                product: true,
+                clothingColor: { include: { design: true } },
+              },
+            },
+          },
+        },
+        order: true,
+      },
+    });
+    if (!ret || ret.return_type !== 'POST_SALE' || ret.items.length === 0) return null;
+
+    const entryDate = new Date();
+    if (await this.closingService.isPeriodClosed(entryDate)) return null;
+
+    // Reverso de venta — usa unit_price capturado al crear la devolución
+    let salesSubtotal = 0;
+    let salesCostTotal = 0;
+    for (const it of ret.items) {
+      const qty = it.quantity;
+      const unitPrice = it.unit_price ?? 0;
+      salesSubtotal += unitPrice * qty;
+
+      const mc = it.clothingSize.clothingColor.design.manufactured_cost;
+      salesCostTotal += this.costOfItem(mc, unitPrice) * qty;
+    }
+    salesSubtotal = Number(salesSubtotal.toFixed(2));
+    salesCostTotal = Number(salesCostTotal.toFixed(2));
+    if (salesSubtotal <= 0) return null;
+
+    const iva = Number((salesSubtotal * 0.19).toFixed(2));
+    const total = Number((salesSubtotal + iva).toFixed(2));
+
+    return this.prisma.$transaction(async (prisma) => {
+      const entryNumber = await this.getNextEntryNumber(prisma);
+      const ingresos = await this.findAccountByCode(prisma, '413524');
+      const ivaGenerado = await this.findAccountByCode(prisma, '240801');
+      const clientes = await this.findAccountByCode(prisma, '130505');
+      const ownInv = await this.findAccountByCode(prisma, '143505');
+      const cogs = await this.findAccountByCode(prisma, '613524');
+
+      const totalDebit = Number((salesSubtotal + iva + salesCostTotal).toFixed(2));
+      const totalCredit = Number((total + salesCostTotal).toFixed(2));
+
+      return prisma.journalEntry.create({
+        data: {
+          entry_number: entryNumber,
+          entry_date: entryDate,
+          description: `Devolución post-venta consignación #${ret.id}${ret.order ? ` - Orden ${ret.order.order_reference}` : ''}`,
+          source_type: 'CONSIGNMENT_RETURN_POST_SALE',
+          source_id: ret.id,
+          status: 'POSTED',
+          total_debit: totalDebit,
+          total_credit: totalCredit,
+          lines: {
+            create: [
+              { id_puc_account: ingresos.id, description: 'Reverso ingresos por devolución', debit: salesSubtotal, credit: 0 },
+              { id_puc_account: ivaGenerado.id, description: 'Reverso IVA generado', debit: iva, credit: 0 },
+              { id_puc_account: clientes.id, description: 'Saldo a favor del cliente (nota crédito)', debit: 0, credit: total },
+              { id_puc_account: ownInv.id, description: 'Reingreso inventario propio', debit: salesCostTotal, credit: 0 },
+              { id_puc_account: cogs.id, description: 'Reverso costo venta', debit: 0, credit: salesCostTotal },
+            ],
+          },
+        },
+      });
+    });
+  }
+
+  /**
+   * F08 - Sell-out facturado: venta a crédito al aliado de consignación.
+   * Diferencia con onSaleCompleted: debita CxC (130505), no Bancos, y no calcula comisión pasarela.
+   *  Dr 130505 Clientes (total con IVA)
+   *  Cr 413524 Ingresos
+   *  Cr 240801 IVA generado
+   *  + impuestos configurables (ICA/Autoretención) como en onSaleCompleted
+   */
+  async onConsignmentSelloutCompleted(orderId: number) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        customer: { include: { addresses: { where: { is_default: true } } } },
+      },
+    });
+    if (!order) return null;
+    if (order.status !== 'SELLOUT') return null;
+
+    const entryDate = new Date();
+    if (await this.closingService.isPeriodClosed(entryDate)) return null;
+
+    return this.prisma.$transaction(async (prisma) => {
+      const entryNumber = await this.getNextEntryNumber(prisma);
+      const clientes = await this.findAccountByCode(prisma, '130505');
+      const ivaGenerado = await this.findAccountByCode(prisma, '240801');
+      const ingresos = await this.findAccountByCode(prisma, '413524');
+
+      const totalPayment = order.total_payment;
+      const iva = order.iva;
+      const subtotal = totalPayment - iva;
+
+      const lines: any[] = [
+        { id_puc_account: clientes.id, description: `CxC Sell-out ${order.order_reference}`, debit: totalPayment, credit: 0 },
+        { id_puc_account: ingresos.id, description: 'Ingresos venta consignación', debit: 0, credit: subtotal },
+        { id_puc_account: ivaGenerado.id, description: 'IVA generado venta consignación', debit: 0, credit: iva },
+      ];
+      let totalDebit = totalPayment;
+      let totalCredit = subtotal + iva;
+
+      // Impuestos adicionales (ICA / Autoretención) — misma lógica que onSaleCompleted
+      let cityId: number | undefined = undefined;
+      if (order.customer?.addresses?.length > 0) {
+        const city = await prisma.city.findFirst({
+          where: { name: order.customer.addresses[0].city },
+        });
+        cityId = city?.id;
+      }
+      const calculatedTaxes: any[] = await this.taxConfigService.calculateTaxes(subtotal, cityId);
+      const taxTransactionsData: any[] = [];
+      for (const tax of calculatedTaxes) {
+        if (tax.config.puc_account_debit && tax.config.puc_account_credit) {
+          lines.push({ id_puc_account: tax.config.puc_account_debit, description: `${tax.config.name} (Gasto)`, debit: tax.amount, credit: 0 });
+          lines.push({ id_puc_account: tax.config.puc_account_credit, description: `${tax.config.name} (Pasivo/Anticipo)`, debit: 0, credit: tax.amount });
+          totalDebit += tax.amount;
+          totalCredit += tax.amount;
+          taxTransactionsData.push({
+            tax_type: tax.type,
+            base_amount: tax.base,
+            rate: Number(tax.config.rate),
+            tax_amount: tax.amount,
+            city_name: tax.config.city?.name || 'GLOBAL',
+          });
+        }
+      }
+
+      return prisma.journalEntry.create({
+        data: {
+          entry_number: entryNumber,
+          entry_date: entryDate,
+          description: `Sell-out consignación - Orden ${order.order_reference}`,
+          source_type: 'CONSIGNMENT_SELLOUT',
+          source_id: order.id,
+          status: 'POSTED',
+          total_debit: Number(totalDebit.toFixed(2)),
+          total_credit: Number(totalCredit.toFixed(2)),
+          lines: { create: lines },
+          taxTransactions: { create: taxTransactionsData },
+        },
+        include: { lines: { include: { pucAccount: true } }, taxTransactions: true },
+      });
+    });
+  }
+
+  /**
+   * F07 - Merma facturada al cliente: venta a crédito imputada a "Otros Ingresos".
+   *  Dr 130505 Clientes (total con IVA)
+   *  Cr 429505 Aprovechamientos (otros ingresos)
+   *  Cr 240801 IVA generado
+   */
+  async onConsignmentMermaCompleted(orderId: number) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) return null;
+    if (order.status !== 'MERMA') return null;
+
+    const entryDate = new Date();
+    if (await this.closingService.isPeriodClosed(entryDate)) return null;
+
+    return this.prisma.$transaction(async (prisma) => {
+      const entryNumber = await this.getNextEntryNumber(prisma);
+      const clientes = await this.findAccountByCode(prisma, '130505');
+      const ivaGenerado = await this.findAccountByCode(prisma, '240801');
+      const otrosIngresos = await this.findAccountByCode(prisma, '429505');
+
+      const totalPayment = order.total_payment;
+      const iva = order.iva;
+      const subtotal = totalPayment - iva;
+
+      return prisma.journalEntry.create({
+        data: {
+          entry_number: entryNumber,
+          entry_date: entryDate,
+          description: `Facturación merma - Orden ${order.order_reference}`,
+          source_type: 'CONSIGNMENT_MERMA',
+          source_id: order.id,
+          status: 'POSTED',
+          total_debit: Number(totalPayment.toFixed(2)),
+          total_credit: Number((subtotal + iva).toFixed(2)),
+          lines: {
+            create: [
+              { id_puc_account: clientes.id, description: `CxC Merma ${order.order_reference}`, debit: totalPayment, credit: 0 },
+              { id_puc_account: otrosIngresos.id, description: 'Aprovechamiento por merma facturada', debit: 0, credit: subtotal },
+              { id_puc_account: ivaGenerado.id, description: 'IVA generado merma', debit: 0, credit: iva },
+            ],
+          },
+        },
+      });
+    });
+  }
+
+  /**
+   * F06 - Faltantes del conteo cíclico: pérdida al costo.
+   *  Dr 519910 Gasto Merma / Deterioro
+   *  Cr 143510 Mercancía en Consignación
+   */
+  async onCycleCountShortage(cycleCountId: number) {
+    const cc = await this.prisma.inventoryCycleCount.findUnique({
+      where: { id: cycleCountId },
+      include: {
+        items: {
+          include: {
+            clothingSize: {
+              include: {
+                product: true,
+                clothingColor: { include: { design: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!cc || cc.status !== 'APPROVED') return null;
+
+    const entryDate = new Date();
+    if (await this.closingService.isPeriodClosed(entryDate)) return null;
+
+    let totalCost = 0;
+    for (const it of cc.items) {
+      const diff = (it.real_qty ?? 0) - it.theoretical_qty;
+      if (diff >= 0) continue; // solo faltantes
+      const shortQty = -diff;
+      const mc = it.clothingSize.clothingColor.design.manufactured_cost;
+      totalCost += this.costOfItem(mc, it.clothingSize.product?.price) * shortQty;
+    }
+    totalCost = Number(totalCost.toFixed(2));
+    if (totalCost <= 0) return null;
+
+    return this.prisma.$transaction(async (prisma) => {
+      const entryNumber = await this.getNextEntryNumber(prisma);
+      const gastoMerma = await this.findAccountByCode(prisma, '519910');
+      const consignmentInv = await this.findAccountByCode(prisma, '143510');
+
+      return prisma.journalEntry.create({
+        data: {
+          entry_number: entryNumber,
+          entry_date: entryDate,
+          description: `Faltantes conteo cíclico #${cc.id}`,
+          source_type: 'CYCLE_COUNT_SHORTAGE',
+          source_id: cc.id,
+          status: 'POSTED',
+          total_debit: totalCost,
+          total_credit: totalCost,
+          lines: {
+            create: [
+              { id_puc_account: gastoMerma.id, description: 'Faltante conteo cíclico', debit: totalCost, credit: 0 },
+              { id_puc_account: consignmentInv.id, description: 'Salida inventario consignación', debit: 0, credit: totalCost },
+            ],
+          },
+        },
+      });
+    });
+  }
+
+  /**
+   * F06 - Sobrantes del conteo cíclico: ingreso al costo.
+   *  Dr 143510 Mercancía en Consignación
+   *  Cr 429505 Aprovechamientos
+   */
+  async onCycleCountSurplus(cycleCountId: number) {
+    const cc = await this.prisma.inventoryCycleCount.findUnique({
+      where: { id: cycleCountId },
+      include: {
+        items: {
+          include: {
+            clothingSize: {
+              include: {
+                product: true,
+                clothingColor: { include: { design: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!cc || cc.status !== 'APPROVED') return null;
+
+    const entryDate = new Date();
+    if (await this.closingService.isPeriodClosed(entryDate)) return null;
+
+    let totalCost = 0;
+    for (const it of cc.items) {
+      const diff = (it.real_qty ?? 0) - it.theoretical_qty;
+      if (diff <= 0) continue; // solo sobrantes
+      const mc = it.clothingSize.clothingColor.design.manufactured_cost;
+      totalCost += this.costOfItem(mc, it.clothingSize.product?.price) * diff;
+    }
+    totalCost = Number(totalCost.toFixed(2));
+    if (totalCost <= 0) return null;
+
+    return this.prisma.$transaction(async (prisma) => {
+      const entryNumber = await this.getNextEntryNumber(prisma);
+      const consignmentInv = await this.findAccountByCode(prisma, '143510');
+      const otrosIngresos = await this.findAccountByCode(prisma, '429505');
+
+      return prisma.journalEntry.create({
+        data: {
+          entry_number: entryNumber,
+          entry_date: entryDate,
+          description: `Sobrantes conteo cíclico #${cc.id}`,
+          source_type: 'CYCLE_COUNT_SURPLUS',
+          source_id: cc.id,
+          status: 'POSTED',
+          total_debit: totalCost,
+          total_credit: totalCost,
+          lines: {
+            create: [
+              { id_puc_account: consignmentInv.id, description: 'Ingreso inventario consignación', debit: totalCost, credit: 0 },
+              { id_puc_account: otrosIngresos.id, description: 'Aprovechamiento sobrante conteo', debit: 0, credit: totalCost },
+            ],
+          },
+        },
+      });
+    });
+  }
 }
