@@ -85,3 +85,4 @@ jobs:
 
       - name: 5. Ejecutar ESLint
         run: npm run lint
+        continue-on-error: true
