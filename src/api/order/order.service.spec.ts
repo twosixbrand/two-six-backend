@@ -37,6 +37,13 @@ describe('OrderService', () => {
     product: {
       findUnique: jest.fn(),
     },
+    coupon: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+    },
+    couponUsage: {
+      findFirst: jest.fn(),
+    },
     clothingSize: {
       update: jest.fn(),
     },
@@ -635,6 +642,10 @@ describe('OrderService', () => {
   // ─── validateDiscountCode ───────────────────────────────────────────
 
   describe('validateDiscountCode', () => {
+    beforeEach(() => {
+      mockPrisma.coupon.findUnique.mockResolvedValue(null);
+    });
+
     it('should throw BadRequestException if code is empty', async () => {
       await expect(service.validateDiscountCode('', 'a@b.com')).rejects.toThrow(
         BadRequestException,
@@ -685,7 +696,207 @@ describe('OrderService', () => {
       });
 
       const result = await service.validateDiscountCode('abcd', 'A@B.COM');
-      expect(result).toEqual({ valid: true, percentage: 10, code: 'ABCD' });
+      expect(result).toEqual({ valid: true, percentage: 10, code: 'ABCD', freeShipping: false });
+    });
+  });
+
+  // ─── checkout: stock atomicity ──────────────────────────────────────
+  describe('checkout — stock atomicity', () => {
+    const stockCheckoutDto = {
+      customer: {
+        document_type: '13',
+        document_number: '9999999999',
+        name: 'Stock Test User',
+        email: 'stock@test.com',
+        phone: '3009999999',
+        address: 'Calle Stock',
+        city: 'Bogota',
+        department: 'Cundinamarca',
+      },
+      items: [
+        { productId: 100, quantity: 3, price: 60000, productName: 'Hoodie Test', size: 'L', color: 'Blanco', image: '' },
+      ],
+      total: 180000,
+      shippingCost: 0,
+      paymentMethod: 'WOMPI_FULL',
+      deliveryMethod: 'SHIPPING',
+    };
+
+    it('should decrement quantity_available and increment quantity_sold atomically', async () => {
+      const clothingSizeUpdateMock = jest.fn();
+
+      mockPrismaTransaction.mockImplementation(async (cb: Function) => {
+        const txProxy = {
+          customer: {
+            findUnique: jest.fn().mockResolvedValue({ id: 50 }),
+            update: jest.fn(),
+          },
+          order: {
+            findUnique: jest.fn().mockResolvedValue(null),
+            create: jest.fn().mockResolvedValue({
+              id: 10,
+              order_reference: 'TS-260423-5678',
+              customer: { id: 50 },
+              payment_method: 'WOMPI_FULL',
+              shipping_cost: 0,
+              total_payment: 180000,
+            }),
+          },
+          orderItem: { create: jest.fn() },
+          product: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 100,
+              price: 60000,
+              clothingSize: { id: 200 },
+            }),
+          },
+          clothingSize: { update: clothingSizeUpdateMock },
+          coupon: { findUnique: jest.fn().mockResolvedValue(null) },
+        };
+        return cb(txProxy);
+      });
+
+      await service.checkout(stockCheckoutDto);
+
+      // Verify stock was updated atomically with correct quantities
+      expect(clothingSizeUpdateMock).toHaveBeenCalledWith({
+        where: { id: 200 },
+        data: {
+          quantity_available: { decrement: 3 },
+          quantity_sold: { increment: 3 },
+        },
+      });
+    });
+
+    it('should throw BadRequestException when product does not exist', async () => {
+      mockPrismaTransaction.mockImplementation(async (cb: Function) => {
+        const txProxy = {
+          customer: {
+            findUnique: jest.fn().mockResolvedValue({ id: 50 }),
+            update: jest.fn(),
+          },
+          product: {
+            findUnique: jest.fn().mockResolvedValue(null), // Product not found
+          },
+          order: { findUnique: jest.fn() },
+        };
+        return cb(txProxy);
+      });
+
+      await expect(service.checkout(stockCheckoutDto)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should apply free shipping when subtotal >= 150000', async () => {
+      const freeShipDto = {
+        ...stockCheckoutDto,
+        shippingCost: 8000, // Frontend sends 8000 but backend should override to 0
+      };
+
+      mockPrismaTransaction.mockImplementation(async (cb: Function) => {
+        const txProxy = {
+          customer: {
+            findUnique: jest.fn().mockResolvedValue({ id: 50 }),
+            update: jest.fn(),
+          },
+          order: {
+            findUnique: jest.fn().mockResolvedValue(null),
+            create: jest.fn().mockImplementation(({ data }) => ({
+              id: 11,
+              order_reference: data.order_reference,
+              customer: { id: 50 },
+              payment_method: 'WOMPI_FULL',
+              shipping_cost: data.shipping_cost,
+              total_payment: data.total_payment,
+            })),
+          },
+          orderItem: { create: jest.fn() },
+          product: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 100,
+              price: 60000,
+              clothingSize: { id: 200 },
+            }),
+          },
+          clothingSize: { update: jest.fn() },
+          coupon: { findUnique: jest.fn().mockResolvedValue(null) },
+        };
+        return cb(txProxy);
+      });
+
+      const result = await service.checkout(freeShipDto);
+
+      // 3 × 60000 = 180000 >= 150000, so shipping should be 0
+      expect(result.order.shipping_cost).toBe(0);
+    });
+  });
+
+  // ─── validateDiscountCode: dynamic coupons ─────────────────────────
+  describe('validateDiscountCode — dynamic coupons', () => {
+    beforeEach(() => {
+      // Add coupon mock to prisma
+      (mockPrisma as any).coupon = {
+        findUnique: jest.fn(),
+      };
+      (mockPrisma as any).couponUsage = {
+        findFirst: jest.fn(),
+      };
+      (mockPrisma as any).customer = {
+        ...mockPrisma.customer,
+        findFirst: jest.fn(),
+      };
+    });
+
+    it('should validate a dynamic coupon successfully', async () => {
+      (mockPrisma as any).coupon.findUnique.mockResolvedValue({
+        id: 1,
+        code: 'SUMMER20',
+        percentage: 20,
+        is_active: true,
+        valid_from: new Date('2025-01-01'),
+        valid_until: new Date('2027-12-31'),
+        max_uses: 100,
+        current_uses: 5,
+        min_purchase_amount: null,
+        min_items_count: null,
+        is_single_use_per_client: false,
+        free_shipping: true,
+      });
+
+      const result = await service.validateDiscountCode('SUMMER20', 'user@test.com');
+
+      expect(result.valid).toBe(true);
+      expect(result.percentage).toBe(20);
+      expect(result.freeShipping).toBe(true);
+    });
+
+    it('should reject an inactive coupon', async () => {
+      (mockPrisma as any).coupon.findUnique.mockResolvedValue({
+        id: 2,
+        code: 'EXPIRED',
+        is_active: false,
+        valid_from: new Date('2025-01-01'),
+        valid_until: new Date('2027-12-31'),
+      });
+
+      await expect(
+        service.validateDiscountCode('EXPIRED', 'user@test.com'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject coupon when max uses reached', async () => {
+      (mockPrisma as any).coupon.findUnique.mockResolvedValue({
+        id: 3,
+        code: 'MAXED',
+        is_active: true,
+        valid_from: new Date('2025-01-01'),
+        valid_until: new Date('2027-12-31'),
+        max_uses: 10,
+        current_uses: 10,
+      });
+
+      await expect(
+        service.validateDiscountCode('MAXED', 'user@test.com'),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

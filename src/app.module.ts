@@ -96,7 +96,6 @@ import { ConsignmentPaymentModule } from './api/consignment-payment/consignment-
     LocationModule,
     CustomerModule,
     AddressModule,
-    AddressModule,
     ClothingSizeModule,
     GenderModule,
     ImageClothingModule,

@@ -22,6 +22,9 @@ const buildMockPrisma = () => {
       delete: jest.fn(),
       findMany: jest.fn(),
     },
+    consignmentDispatchItem: {
+      update: jest.fn(),
+    },
     consignmentStock: {
       findUnique: jest.fn(),
       create: jest.fn(),

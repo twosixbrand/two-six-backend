@@ -1,0 +1,591 @@
+
+> two-six-backend@0.1.1 test
+> jest
+
+FAIL src/api/coupon/coupon.service.spec.ts (8.16 s)
+  ● CouponService › should be defined
+
+    Nest can't resolve dependencies of the CouponService (?). Please make sure that the argument PrismaService at index [0] is available in the RootTestModule context.
+
+    Potential solutions:
+    - Is RootTestModule a valid NestJS module?
+    - If PrismaService is a provider, is it part of the current RootTestModule?
+    - If PrismaService is exported from a separate @Module, is that module imported within RootTestModule?
+      @Module({
+        imports: [ /* the Module containing PrismaService */ ]
+      })
+
+       6 |
+       7 |   beforeEach(async () => {
+    >  8 |     const module: TestingModule = await Test.createTestingModule({
+         |                                   ^
+       9 |       providers: [CouponService],
+      10 |     }).compile();
+      11 |
+
+      at TestingInjector.lookupComponentInParentModules (../node_modules/@nestjs/core/injector/injector.js:262:19)
+      at TestingInjector.resolveComponentInstance (../node_modules/@nestjs/core/injector/injector.js:215:33)
+      at TestingInjector.resolveComponentInstance (../node_modules/@nestjs/testing/testing-injector.js:19:45)
+      at resolveParam (../node_modules/@nestjs/core/injector/injector.js:129:38)
+          at async Promise.all (index 0)
+      at TestingInjector.resolveConstructorParams (../node_modules/@nestjs/core/injector/injector.js:144:27)
+      at TestingInjector.loadInstance (../node_modules/@nestjs/core/injector/injector.js:70:13)
+      at TestingInjector.loadProvider (../node_modules/@nestjs/core/injector/injector.js:98:9)
+      at ../node_modules/@nestjs/core/injector/instance-loader.js:56:13
+          at async Promise.all (index 3)
+      at TestingInstanceLoader.createInstancesOfProviders (../node_modules/@nestjs/core/injector/instance-loader.js:55:9)
+      at ../node_modules/@nestjs/core/injector/instance-loader.js:40:13
+          at async Promise.all (index 1)
+      at TestingInstanceLoader.createInstances (../node_modules/@nestjs/core/injector/instance-loader.js:39:9)
+      at TestingInstanceLoader.createInstancesOfDependencies (../node_modules/@nestjs/core/injector/instance-loader.js:22:13)
+      at TestingInstanceLoader.createInstancesOfDependencies (../node_modules/@nestjs/testing/testing-instance-loader.js:9:9)
+      at TestingModuleBuilder.createInstancesOfDependencies (../node_modules/@nestjs/testing/testing-module.builder.js:118:9)
+      at TestingModuleBuilder.compile (../node_modules/@nestjs/testing/testing-module.builder.js:74:9)
+      at Object.<anonymous> (api/coupon/coupon.service.spec.ts:8:35)
+
+FAIL src/api/coupon/coupon.controller.spec.ts (8.911 s)
+  ● CouponController › should be defined
+
+    Nest can't resolve dependencies of the JwtAuthGuard (?, ConfigService, Reflector). Please make sure that the argument JwtService at index [0] is available in the RootTestModule context.
+
+    Potential solutions:
+    - Is RootTestModule a valid NestJS module?
+    - If JwtService is a provider, is it part of the current RootTestModule?
+    - If JwtService is exported from a separate @Module, is that module imported within RootTestModule?
+      @Module({
+        imports: [ /* the Module containing JwtService */ ]
+      })
+
+       6 |
+       7 |   beforeEach(async () => {
+    >  8 |     const module: TestingModule = await Test.createTestingModule({
+         |                                   ^
+       9 |       controllers: [CouponController],
+      10 |     }).compile();
+      11 |
+
+      at TestingInjector.lookupComponentInParentModules (../node_modules/@nestjs/core/injector/injector.js:262:19)
+      at TestingInjector.resolveComponentInstance (../node_modules/@nestjs/core/injector/injector.js:215:33)
+      at TestingInjector.resolveComponentInstance (../node_modules/@nestjs/testing/testing-injector.js:19:45)
+      at resolveParam (../node_modules/@nestjs/core/injector/injector.js:129:38)
+          at async Promise.all (index 0)
+      at TestingInjector.resolveConstructorParams (../node_modules/@nestjs/core/injector/injector.js:144:27)
+      at TestingInjector.loadInstance (../node_modules/@nestjs/core/injector/injector.js:70:13)
+      at TestingInjector.loadInjectable (../node_modules/@nestjs/core/injector/injector.js:94:9)
+      at ../node_modules/@nestjs/core/injector/instance-loader.js:80:13
+          at async Promise.all (index 0)
+      at TestingInstanceLoader.createInstancesOfInjectables (../node_modules/@nestjs/core/injector/instance-loader.js:79:9)
+      at ../node_modules/@nestjs/core/injector/instance-loader.js:41:13
+          at async Promise.all (index 1)
+      at TestingInstanceLoader.createInstances (../node_modules/@nestjs/core/injector/instance-loader.js:39:9)
+      at TestingInstanceLoader.createInstancesOfDependencies (../node_modules/@nestjs/core/injector/instance-loader.js:22:13)
+      at TestingInstanceLoader.createInstancesOfDependencies (../node_modules/@nestjs/testing/testing-instance-loader.js:9:9)
+      at TestingModuleBuilder.createInstancesOfDependencies (../node_modules/@nestjs/testing/testing-module.builder.js:118:9)
+      at TestingModuleBuilder.compile (../node_modules/@nestjs/testing/testing-module.builder.js:74:9)
+      at Object.<anonymous> (api/coupon/coupon.controller.spec.ts:8:35)
+
+PASS src/api/consignment-return/consignment-return.service.spec.ts (9.229 s)
+PASS src/api/consignment-cycle-count/consignment-cycle-count.service.spec.ts (9.193 s)
+PASS src/api/accounting/journal/journal-auto-consignment.spec.ts
+[31m[Nest] 28479  - [39m04/23/2026, 8:45:59 PM [31m  ERROR[39m [38;5;3m[DianCronService] [39m[31mError en cron polling Factura 8:[39m
+[31m[Nest] 28479  - [39m04/23/2026, 8:45:59 PM [31m  ERROR[39m [38;5;3m[DianCronService] [39m[31mError: SOAP timeout[39m
+PASS src/api/dian/dian-cron.service.spec.ts (9.513 s)
+FAIL src/api/consignment-dispatch/consignment-dispatch.service.spec.ts (9.797 s)
+  ● ConsignmentDispatchService › confirmByToken › moves stock from PENDIENTE_RECEPCION → EN_CONSIGNACION on confirm
+
+    TypeError: Cannot read properties of undefined (reading 'update')
+
+      422 |
+      423 |         // Guardar detalle + estado de resolución
+    > 424 |         await tx.consignmentDispatchItem.update({
+          |                                          ^
+      425 |           where: { id: item.id },
+      426 |           data: {
+      427 |             received_ok: receivedOk,
+
+      at api/consignment-dispatch/consignment-dispatch.service.ts:424:42
+
+PASS src/api/accounting/budget/budget.service.spec.ts
+PASS src/api/customer/customer.service.spec.ts
+PASS src/auth/auth.service.spec.ts
+PASS src/api/consignment-sellout/consignment-sellout.service.spec.ts
+[31m[Nest] 28481  - [39m04/23/2026, 8:46:02 PM [31m  ERROR[39m [38;5;3m[DianEmailService] [39m[31mFactura 999 no encontrada.[39m
+[31m[Nest] 28481  - [39m04/23/2026, 8:46:02 PM [31m  ERROR[39m [38;5;3m[DianEmailService] [39m[31mError despachando el correo DIAN para factura 1: SMTP connection refused[39m
+PASS src/api/accounting/alerts/alerts.service.spec.ts
+PASS src/api/dian/dian-email.service.spec.ts
+PASS src/api/size-guide/size-guide.controller.spec.ts
+PASS src/api/dian/dian-ubl/dian-ubl.service.spec.ts
+PASS src/api/consignment-reports/consignment-reports.service.spec.ts
+PASS src/api/dian/dian-soap/dian-soap.service.spec.ts
+PASS src/api/user-app/user-app.service.spec.ts
+PASS src/api/accounting/payroll/payroll-novedad.service.spec.ts
+PASS src/api/accounting/payroll/pila.service.spec.ts
+PASS src/api/consignment-warehouse/consignment-warehouse.service.spec.ts
+PASS src/api/accounting/reports/reconciliation.service.spec.ts
+PASS src/api/dian/dian-signer/dian-signer.service.spec.ts
+PASS src/api/dian/dian.service.spec.ts
+FAIL src/api/order/order.service.spec.ts (13.091 s)
+  ● Console
+
+    console.log
+      Verifying payment for transactionId: undefined
+
+      at OrderService.verifyPayment (api/order/order.service.ts:406:13)
+
+    console.log
+      Verifying payment for transactionId:
+
+      at OrderService.verifyPayment (api/order/order.service.ts:406:13)
+
+    console.log
+      Verifying payment for transactionId: txn_123
+
+      at OrderService.verifyPayment (api/order/order.service.ts:406:13)
+
+    console.log
+      WOMPI_API_URL: https://sandbox.wompi.co/v1
+
+      at OrderService.verifyPayment (api/order/order.service.ts:415:15)
+
+    console.log
+      Order found: TS-260101-1234
+
+      at OrderService.verifyPayment (api/order/order.service.ts:465:15)
+
+    console.log
+      [DIAN Invoice] Bruto items: 100000, Envío: 15000, Total pagado: 115000, Descuento: 0%
+
+      at OrderService.verifyPayment (api/order/order.service.ts:621:19)
+
+    console.log
+      Factura DIAN FE101 generada para orden TS-260101-1234
+
+      at OrderService.verifyPayment (api/order/order.service.ts:733:19)
+
+    console.log
+      Enviando correo de confirmación a: user@test.com (copia a: store@twosix.co)
+
+      at OrderService.verifyPayment (api/order/order.service.ts:799:21)
+
+    console.error
+      Error generando asiento contable (no bloquea el flujo): this.journalAutoService.onSaleCompleted is not a function
+
+      877 |           console.log(`Asiento contable generado para orden ${order.order_reference}`);
+      878 |         } catch (accountingError) {
+    > 879 |           console.error('Error generando asiento contable (no bloquea el flujo):', accountingError.message);
+          |                   ^
+      880 |         }
+      881 |
+      882 |         // 7. Generar asiento de costo de mercancía vendida (COGS)
+
+      at OrderService.verifyPayment (api/order/order.service.ts:879:19)
+      at Object.<anonymous> (api/order/order.service.spec.ts:469:22)
+
+    console.error
+      Error generando asiento COGS (no bloquea el flujo): this.journalAutoService.onCostOfGoodsSold is not a function
+
+      885 |           console.log(`Asiento de costo de mercancía vendida generado para orden ${order.order_reference}`);
+      886 |         } catch (cogsError) {
+    > 887 |           console.error('Error generando asiento COGS (no bloquea el flujo):', cogsError.message);
+          |                   ^
+      888 |         }
+      889 |
+      890 |         return {
+
+      at OrderService.verifyPayment (api/order/order.service.ts:887:19)
+      at Object.<anonymous> (api/order/order.service.spec.ts:469:22)
+
+    console.log
+      Verifying payment for transactionId: txn_declined
+
+      at OrderService.verifyPayment (api/order/order.service.ts:406:13)
+
+    console.log
+      WOMPI_API_URL: https://sandbox.wompi.co/v1
+
+      at OrderService.verifyPayment (api/order/order.service.ts:415:15)
+
+    console.log
+      Order found: TS-260101-5555
+
+      at OrderService.verifyPayment (api/order/order.service.ts:465:15)
+
+    console.log
+      Verifying payment for transactionId: txn_cod
+
+      at OrderService.verifyPayment (api/order/order.service.ts:406:13)
+
+    console.log
+      WOMPI_API_URL: https://sandbox.wompi.co/v1
+
+      at OrderService.verifyPayment (api/order/order.service.ts:415:15)
+
+    console.log
+      Order found: TS-260101-9999
+
+      at OrderService.verifyPayment (api/order/order.service.ts:465:15)
+
+    console.log
+      [DIAN Invoice] Bruto items: 100000, Envío: 15000, Total pagado: 115000, Descuento: 0%
+
+      at OrderService.verifyPayment (api/order/order.service.ts:621:19)
+
+    console.log
+      Factura DIAN FE201 generada para orden TS-260101-9999
+
+      at OrderService.verifyPayment (api/order/order.service.ts:733:19)
+
+    console.log
+      Enviando correo de confirmación a: cod@test.com (copia a: store@twosix.co)
+
+      at OrderService.verifyPayment (api/order/order.service.ts:799:21)
+
+    console.error
+      Error generando asiento contable (no bloquea el flujo): this.journalAutoService.onSaleCompleted is not a function
+
+      877 |           console.log(`Asiento contable generado para orden ${order.order_reference}`);
+      878 |         } catch (accountingError) {
+    > 879 |           console.error('Error generando asiento contable (no bloquea el flujo):', accountingError.message);
+          |                   ^
+      880 |         }
+      881 |
+      882 |         // 7. Generar asiento de costo de mercancía vendida (COGS)
+
+      at OrderService.verifyPayment (api/order/order.service.ts:879:19)
+      at Object.<anonymous> (api/order/order.service.spec.ts:585:22)
+
+    console.error
+      Error generando asiento COGS (no bloquea el flujo): this.journalAutoService.onCostOfGoodsSold is not a function
+
+      885 |           console.log(`Asiento de costo de mercancía vendida generado para orden ${order.order_reference}`);
+      886 |         } catch (cogsError) {
+    > 887 |           console.error('Error generando asiento COGS (no bloquea el flujo):', cogsError.message);
+          |                   ^
+      888 |         }
+      889 |
+      890 |         return {
+
+      at OrderService.verifyPayment (api/order/order.service.ts:887:19)
+      at Object.<anonymous> (api/order/order.service.spec.ts:585:22)
+
+    console.log
+      Verifying payment for transactionId: txn_dup
+
+      at OrderService.verifyPayment (api/order/order.service.ts:406:13)
+
+    console.log
+      WOMPI_API_URL: https://sandbox.wompi.co/v1
+
+      at OrderService.verifyPayment (api/order/order.service.ts:415:15)
+
+    console.log
+      Order found: TS-260101-1111
+
+      at OrderService.verifyPayment (api/order/order.service.ts:465:15)
+
+    console.log
+      La orden TS-260101-1111 ya fue procesada previamente. Omitiendo duplicados.
+
+      at OrderService.verifyPayment (api/order/order.service.ts:472:17)
+
+  ● OrderService › validateDiscountCode › should throw if subscriber not found
+
+    expect(received).rejects.toThrow(expected)
+
+    Expected constructor: BadRequestException
+    Received constructor: TypeError
+
+    Received message: "Cannot read properties of undefined (reading 'findUnique')"
+
+          37 |
+          38 |     // 1. Try to find the new dynamic Coupon
+        > 39 |     const coupon = await this.prisma.coupon.findUnique({
+             |                                             ^
+          40 |       where: { code: cleanCode }
+          41 |     });
+          42 |
+
+      at OrderService.validateDiscountCode (api/order/order.service.ts:39:45)
+      at Object.<anonymous> (api/order/order.service.spec.ts:647:17)
+      at Object.toThrow (../node_modules/expect/build/index.js:218:22)
+      at Object.<anonymous> (api/order/order.service.spec.ts:648:17)
+
+  ● OrderService › validateDiscountCode › should throw if email does not match
+
+    expect(received).rejects.toThrow(expected)
+
+    Expected constructor: BadRequestException
+    Received constructor: TypeError
+
+    Received message: "Cannot read properties of undefined (reading 'findUnique')"
+
+          37 |
+          38 |     // 1. Try to find the new dynamic Coupon
+        > 39 |     const coupon = await this.prisma.coupon.findUnique({
+             |                                             ^
+          40 |       where: { code: cleanCode }
+          41 |     });
+          42 |
+
+      at OrderService.validateDiscountCode (api/order/order.service.ts:39:45)
+      at Object.<anonymous> (api/order/order.service.spec.ts:660:17)
+      at Object.toThrow (../node_modules/expect/build/index.js:218:22)
+      at Object.<anonymous> (api/order/order.service.spec.ts:661:17)
+
+  ● OrderService › validateDiscountCode › should throw if discount already used
+
+    expect(received).rejects.toThrow(expected)
+
+    Expected constructor: BadRequestException
+    Received constructor: TypeError
+
+    Received message: "Cannot read properties of undefined (reading 'findUnique')"
+
+          37 |
+          38 |     // 1. Try to find the new dynamic Coupon
+        > 39 |     const coupon = await this.prisma.coupon.findUnique({
+             |                                             ^
+          40 |       where: { code: cleanCode }
+          41 |     });
+          42 |
+
+      at OrderService.validateDiscountCode (api/order/order.service.ts:39:45)
+      at Object.<anonymous> (api/order/order.service.spec.ts:674:17)
+      at Object.toThrow (../node_modules/expect/build/index.js:218:22)
+      at Object.<anonymous> (api/order/order.service.spec.ts:675:17)
+
+  ● OrderService › validateDiscountCode › should return valid discount on happy path
+
+    TypeError: Cannot read properties of undefined (reading 'findUnique')
+
+      37 |
+      38 |     // 1. Try to find the new dynamic Coupon
+    > 39 |     const coupon = await this.prisma.coupon.findUnique({
+         |                                             ^
+      40 |       where: { code: cleanCode }
+      41 |     });
+      42 |
+
+      at OrderService.validateDiscountCode (api/order/order.service.ts:39:45)
+      at Object.<anonymous> (api/order/order.service.spec.ts:687:36)
+
+PASS src/api/dian/dian-pdf/dian-pdf.service.spec.ts
+PASS src/api/dian/dian.controller.spec.ts
+PASS src/api/accounting/settings/settings.service.spec.ts
+PASS src/api/dian/dian-cufe/dian-cufe.service.spec.ts
+PASS src/app.controller.spec.ts
+PASS src/api/accounting/tax-config/tax-config.service.spec.ts
+PASS src/api/size-guide/size-guide.service.spec.ts
+PASS src/api/accounting/journal/journal-reverse.spec.ts
+FAIL src/api/accounting/journal/journal-auto.service.spec.ts
+  ● Test suite failed to run
+
+    [96msrc/api/accounting/journal/journal-auto.service.spec.ts[0m:[93m56[0m:[93m21[0m - [91merror[0m[90m TS2339: [0mProperty 'logSalesInvoice' does not exist on type 'JournalAutoService'.
+
+    [7m56[0m       await service.logSalesInvoice(saleData);
+    [7m  [0m [91m                    ~~~~~~~~~~~~~~~[0m
+    [96msrc/api/accounting/journal/journal-auto.service.spec.ts[0m:[93m90[0m:[93m28[0m - [91merror[0m[90m TS2339: [0mProperty 'logSalesInvoice' does not exist on type 'JournalAutoService'.
+
+    [7m90[0m       await expect(service.logSalesInvoice(saleData)).rejects.toThrow();
+    [7m  [0m [91m                           ~~~~~~~~~~~~~~~[0m
+
+PASS src/api/consignment-price/consignment-price.service.spec.ts
+
+Summary of all failing tests
+FAIL api/coupon/coupon.service.spec.ts (8.16 s)
+  ● CouponService › should be defined
+
+    Nest can't resolve dependencies of the CouponService (?). Please make sure that the argument PrismaService at index [0] is available in the RootTestModule context.
+
+    Potential solutions:
+    - Is RootTestModule a valid NestJS module?
+    - If PrismaService is a provider, is it part of the current RootTestModule?
+    - If PrismaService is exported from a separate @Module, is that module imported within RootTestModule?
+      @Module({
+        imports: [ /* the Module containing PrismaService */ ]
+      })
+
+       6 |
+       7 |   beforeEach(async () => {
+    >  8 |     const module: TestingModule = await Test.createTestingModule({
+         |                                   ^
+       9 |       providers: [CouponService],
+      10 |     }).compile();
+      11 |
+
+      at TestingInjector.lookupComponentInParentModules (../node_modules/@nestjs/core/injector/injector.js:262:19)
+      at TestingInjector.resolveComponentInstance (../node_modules/@nestjs/core/injector/injector.js:215:33)
+      at TestingInjector.resolveComponentInstance (../node_modules/@nestjs/testing/testing-injector.js:19:45)
+      at resolveParam (../node_modules/@nestjs/core/injector/injector.js:129:38)
+          at async Promise.all (index 0)
+      at TestingInjector.resolveConstructorParams (../node_modules/@nestjs/core/injector/injector.js:144:27)
+      at TestingInjector.loadInstance (../node_modules/@nestjs/core/injector/injector.js:70:13)
+      at TestingInjector.loadProvider (../node_modules/@nestjs/core/injector/injector.js:98:9)
+      at ../node_modules/@nestjs/core/injector/instance-loader.js:56:13
+          at async Promise.all (index 3)
+      at TestingInstanceLoader.createInstancesOfProviders (../node_modules/@nestjs/core/injector/instance-loader.js:55:9)
+      at ../node_modules/@nestjs/core/injector/instance-loader.js:40:13
+          at async Promise.all (index 1)
+      at TestingInstanceLoader.createInstances (../node_modules/@nestjs/core/injector/instance-loader.js:39:9)
+      at TestingInstanceLoader.createInstancesOfDependencies (../node_modules/@nestjs/core/injector/instance-loader.js:22:13)
+      at TestingInstanceLoader.createInstancesOfDependencies (../node_modules/@nestjs/testing/testing-instance-loader.js:9:9)
+      at TestingModuleBuilder.createInstancesOfDependencies (../node_modules/@nestjs/testing/testing-module.builder.js:118:9)
+      at TestingModuleBuilder.compile (../node_modules/@nestjs/testing/testing-module.builder.js:74:9)
+      at Object.<anonymous> (api/coupon/coupon.service.spec.ts:8:35)
+
+FAIL api/coupon/coupon.controller.spec.ts (8.911 s)
+  ● CouponController › should be defined
+
+    Nest can't resolve dependencies of the JwtAuthGuard (?, ConfigService, Reflector). Please make sure that the argument JwtService at index [0] is available in the RootTestModule context.
+
+    Potential solutions:
+    - Is RootTestModule a valid NestJS module?
+    - If JwtService is a provider, is it part of the current RootTestModule?
+    - If JwtService is exported from a separate @Module, is that module imported within RootTestModule?
+      @Module({
+        imports: [ /* the Module containing JwtService */ ]
+      })
+
+       6 |
+       7 |   beforeEach(async () => {
+    >  8 |     const module: TestingModule = await Test.createTestingModule({
+         |                                   ^
+       9 |       controllers: [CouponController],
+      10 |     }).compile();
+      11 |
+
+      at TestingInjector.lookupComponentInParentModules (../node_modules/@nestjs/core/injector/injector.js:262:19)
+      at TestingInjector.resolveComponentInstance (../node_modules/@nestjs/core/injector/injector.js:215:33)
+      at TestingInjector.resolveComponentInstance (../node_modules/@nestjs/testing/testing-injector.js:19:45)
+      at resolveParam (../node_modules/@nestjs/core/injector/injector.js:129:38)
+          at async Promise.all (index 0)
+      at TestingInjector.resolveConstructorParams (../node_modules/@nestjs/core/injector/injector.js:144:27)
+      at TestingInjector.loadInstance (../node_modules/@nestjs/core/injector/injector.js:70:13)
+      at TestingInjector.loadInjectable (../node_modules/@nestjs/core/injector/injector.js:94:9)
+      at ../node_modules/@nestjs/core/injector/instance-loader.js:80:13
+          at async Promise.all (index 0)
+      at TestingInstanceLoader.createInstancesOfInjectables (../node_modules/@nestjs/core/injector/instance-loader.js:79:9)
+      at ../node_modules/@nestjs/core/injector/instance-loader.js:41:13
+          at async Promise.all (index 1)
+      at TestingInstanceLoader.createInstances (../node_modules/@nestjs/core/injector/instance-loader.js:39:9)
+      at TestingInstanceLoader.createInstancesOfDependencies (../node_modules/@nestjs/core/injector/instance-loader.js:22:13)
+      at TestingInstanceLoader.createInstancesOfDependencies (../node_modules/@nestjs/testing/testing-instance-loader.js:9:9)
+      at TestingModuleBuilder.createInstancesOfDependencies (../node_modules/@nestjs/testing/testing-module.builder.js:118:9)
+      at TestingModuleBuilder.compile (../node_modules/@nestjs/testing/testing-module.builder.js:74:9)
+      at Object.<anonymous> (api/coupon/coupon.controller.spec.ts:8:35)
+
+FAIL api/consignment-dispatch/consignment-dispatch.service.spec.ts (9.797 s)
+  ● ConsignmentDispatchService › confirmByToken › moves stock from PENDIENTE_RECEPCION → EN_CONSIGNACION on confirm
+
+    TypeError: Cannot read properties of undefined (reading 'update')
+
+      422 |
+      423 |         // Guardar detalle + estado de resolución
+    > 424 |         await tx.consignmentDispatchItem.update({
+          |                                          ^
+      425 |           where: { id: item.id },
+      426 |           data: {
+      427 |             received_ok: receivedOk,
+
+      at api/consignment-dispatch/consignment-dispatch.service.ts:424:42
+
+FAIL api/order/order.service.spec.ts (13.091 s)
+  ● OrderService › validateDiscountCode › should throw if subscriber not found
+
+    expect(received).rejects.toThrow(expected)
+
+    Expected constructor: BadRequestException
+    Received constructor: TypeError
+
+    Received message: "Cannot read properties of undefined (reading 'findUnique')"
+
+          37 |
+          38 |     // 1. Try to find the new dynamic Coupon
+        > 39 |     const coupon = await this.prisma.coupon.findUnique({
+             |                                             ^
+          40 |       where: { code: cleanCode }
+          41 |     });
+          42 |
+
+      at OrderService.validateDiscountCode (api/order/order.service.ts:39:45)
+      at Object.<anonymous> (api/order/order.service.spec.ts:647:17)
+      at Object.toThrow (../node_modules/expect/build/index.js:218:22)
+      at Object.<anonymous> (api/order/order.service.spec.ts:648:17)
+
+  ● OrderService › validateDiscountCode › should throw if email does not match
+
+    expect(received).rejects.toThrow(expected)
+
+    Expected constructor: BadRequestException
+    Received constructor: TypeError
+
+    Received message: "Cannot read properties of undefined (reading 'findUnique')"
+
+          37 |
+          38 |     // 1. Try to find the new dynamic Coupon
+        > 39 |     const coupon = await this.prisma.coupon.findUnique({
+             |                                             ^
+          40 |       where: { code: cleanCode }
+          41 |     });
+          42 |
+
+      at OrderService.validateDiscountCode (api/order/order.service.ts:39:45)
+      at Object.<anonymous> (api/order/order.service.spec.ts:660:17)
+      at Object.toThrow (../node_modules/expect/build/index.js:218:22)
+      at Object.<anonymous> (api/order/order.service.spec.ts:661:17)
+
+  ● OrderService › validateDiscountCode › should throw if discount already used
+
+    expect(received).rejects.toThrow(expected)
+
+    Expected constructor: BadRequestException
+    Received constructor: TypeError
+
+    Received message: "Cannot read properties of undefined (reading 'findUnique')"
+
+          37 |
+          38 |     // 1. Try to find the new dynamic Coupon
+        > 39 |     const coupon = await this.prisma.coupon.findUnique({
+             |                                             ^
+          40 |       where: { code: cleanCode }
+          41 |     });
+          42 |
+
+      at OrderService.validateDiscountCode (api/order/order.service.ts:39:45)
+      at Object.<anonymous> (api/order/order.service.spec.ts:674:17)
+      at Object.toThrow (../node_modules/expect/build/index.js:218:22)
+      at Object.<anonymous> (api/order/order.service.spec.ts:675:17)
+
+  ● OrderService › validateDiscountCode › should return valid discount on happy path
+
+    TypeError: Cannot read properties of undefined (reading 'findUnique')
+
+      37 |
+      38 |     // 1. Try to find the new dynamic Coupon
+    > 39 |     const coupon = await this.prisma.coupon.findUnique({
+         |                                             ^
+      40 |       where: { code: cleanCode }
+      41 |     });
+      42 |
+
+      at OrderService.validateDiscountCode (api/order/order.service.ts:39:45)
+      at Object.<anonymous> (api/order/order.service.spec.ts:687:36)
+
+FAIL api/accounting/journal/journal-auto.service.spec.ts
+  ● Test suite failed to run
+
+    [96msrc/api/accounting/journal/journal-auto.service.spec.ts[0m:[93m56[0m:[93m21[0m - [91merror[0m[90m TS2339: [0mProperty 'logSalesInvoice' does not exist on type 'JournalAutoService'.
+
+    [7m56[0m       await service.logSalesInvoice(saleData);
+    [7m  [0m [91m                    ~~~~~~~~~~~~~~~[0m
+    [96msrc/api/accounting/journal/journal-auto.service.spec.ts[0m:[93m90[0m:[93m28[0m - [91merror[0m[90m TS2339: [0mProperty 'logSalesInvoice' does not exist on type 'JournalAutoService'.
+
+    [7m90[0m       await expect(service.logSalesInvoice(saleData)).rejects.toThrow();
+    [7m  [0m [91m                           ~~~~~~~~~~~~~~~[0m
+
+
+Test Suites: 5 failed, 30 passed, 35 total
+Tests:       7 failed, 188 passed, 195 total
+Snapshots:   0 total
+Time:        14.911 s, estimated 17 s
+Ran all test suites.
