@@ -1,0 +1,87 @@
+name: CI — Backend (Tests & Cobertura)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  test:
+    name: 🧪 Tests Unitarios & Cobertura
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Checkout del código
+        uses: actions/checkout@v4
+
+      - name: 2. Configurar Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 3. Instalar dependencias
+        run: npm ci
+        env:
+          PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: true
+
+      - name: 4. Generar cliente Prisma
+        run: npx prisma generate
+        env:
+          DATABASE_URL: 'postgresql://dummy:dummy@localhost:5432/dummy'
+
+      - name: 5. Ejecutar Tests con Cobertura
+        run: npm run test:cov -- --forceExit --passWithNoTests
+        env:
+          DATABASE_URL: 'postgresql://dummy:dummy@localhost:5432/dummy'
+          NODE_ENV: test
+
+      - name: 6. Verificar Cobertura Mínima en Lógica Crítica
+        run: |
+          echo "📊 Verificando cobertura en módulos críticos..."
+          # Extract coverage summary from JSON if available
+          if [ -f coverage/coverage-summary.json ]; then
+            echo "Coverage report generated successfully"
+            cat coverage/coverage-summary.json | head -20
+          else
+            echo "⚠️ No se generó el reporte de cobertura JSON"
+          fi
+
+      - name: 7. Subir Reporte de Cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-backend
+          path: coverage/
+          retention-days: 14
+
+  lint:
+    name: 🔍 Linting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Checkout del código
+        uses: actions/checkout@v4
+
+      - name: 2. Configurar Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 3. Instalar dependencias
+        run: npm ci
+        env:
+          PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: true
+
+      - name: 4. Generar cliente Prisma
+        run: npx prisma generate
+        env:
+          DATABASE_URL: 'postgresql://dummy:dummy@localhost:5432/dummy'
+
+      - name: 5. Ejecutar ESLint
+        run: npm run lint

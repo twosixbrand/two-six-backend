@@ -1,11 +1,21 @@
+// ⚠️ Sentry DEBE inicializarse ANTES de cualquier otro import
+import { initSentry } from './common/sentry/instrument';
+initSentry();
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { HttpAdapterHost } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
+import { SentryExceptionFilter } from './common/sentry/sentry-exception.filter';
 
 async function bootstrap() {
   console.log('Starting bootstrap...');
   const app = await NestFactory.create(AppModule);
+
+  // Registrar Sentry como filtro global de excepciones (captura errores 5xx)
+  const { httpAdapter } = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new SentryExceptionFilter(httpAdapter));
 
   // Activar protecciones básicas HTTP (MED-05)
   app.use(helmet());

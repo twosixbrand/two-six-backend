@@ -317,6 +317,8 @@ model ClothingColor {
   clothingSizes ClothingSize[]
   imageClothing ImageClothing[]
 
+  // Índice de rendimiento: búsqueda por slug (SEO)
+  @@index([slug])
   @@map("clothing_color")
 }
 
@@ -333,23 +335,23 @@ model ImageClothing {
 }
 
 model ClothingSize {
-  id                      Int                       @id @default(autoincrement())
-  id_size                 Int                       @map("id_size")
-  id_clothing_color       Int                       @map("id_clothing_color")
-  quantity_produced       Int
-  quantity_available      Int
-  quantity_sold           Int
-  quantity_on_consignment Int
-  quantity_under_warranty Int                       @default(0) @map("quantity_under_warranty")
-  createdAt               DateTime                  @default(now()) @map("created_at")
-  updatedAt               DateTime?                 @updatedAt @map("updated_at")
-  quantity_minimum_alert  Int?                      @map("quantity_minimum_alert")
-  clothingColor           ClothingColor             @relation(fields: [id_clothing_color], references: [id])
-  size                    Size                      @relation(fields: [id_size], references: [id])
-  adjustmentItems         InventoryAdjustmentItem[]
-  kardexEntries           InventoryKardex[]
-  product                 Product?
-  consignmentStocks       ConsignmentStock[]
+  id                       Int                         @id @default(autoincrement())
+  id_size                  Int                         @map("id_size")
+  id_clothing_color        Int                         @map("id_clothing_color")
+  quantity_produced        Int
+  quantity_available       Int
+  quantity_sold            Int
+  quantity_on_consignment  Int
+  quantity_under_warranty  Int                         @default(0) @map("quantity_under_warranty")
+  createdAt                DateTime                    @default(now()) @map("created_at")
+  updatedAt                DateTime?                   @updatedAt @map("updated_at")
+  quantity_minimum_alert   Int?                        @map("quantity_minimum_alert")
+  clothingColor            ClothingColor               @relation(fields: [id_clothing_color], references: [id])
+  size                     Size                        @relation(fields: [id_size], references: [id])
+  adjustmentItems          InventoryAdjustmentItem[]
+  kardexEntries            InventoryKardex[]
+  product                  Product?
+  consignmentStocks        ConsignmentStock[]
   consignmentDispatchItems ConsignmentDispatchItem[]
   consignmentReturnItems   ConsignmentReturnItem[]
   cycleCountItems          InventoryCycleCountItem[]
@@ -359,27 +361,29 @@ model ClothingSize {
 }
 
 model Product {
-  id                  Int          @id @default(autoincrement())
+  id                  Int                        @id @default(autoincrement())
   price               Float
   active              Boolean
-  updatedAt           DateTime?    @updatedAt @map("updated_at")
-  createdAt           DateTime     @default(now()) @map("created_at")
-  is_outlet           Boolean      @map("is_outlet")
+  updatedAt           DateTime?                  @updatedAt @map("updated_at")
+  createdAt           DateTime                   @default(now()) @map("created_at")
+  is_outlet           Boolean                    @map("is_outlet")
   sku                 String?
   discount_percentage Float?
   discount_price      Float?
-  id_clothing_size    Int          @unique @map("id_clothing_size")
+  id_clothing_size    Int                        @unique @map("id_clothing_size")
   orderItems          OrderItem[]
-  clothingSize        ClothingSize @relation(fields: [id_clothing_size], references: [id])
+  clothingSize        ClothingSize               @relation(fields: [id_clothing_size], references: [id])
   returnItems         ReturnItem[]
   consignmentPrices   CustomerConsignmentPrice[]
 
+  // Índice de rendimiento: búsqueda por SKU en inventario
+  @@index([sku])
   @@map("product")
 }
 
 model Customer {
-  id_customer_type       Int                @map("id_customer_type")
-  id_identification_type Int                @map("id_identification_type")
+  id_customer_type       Int                        @map("id_customer_type")
+  id_identification_type Int                        @map("id_identification_type")
   name                   String
   email                  String
   current_phone_number   String
@@ -389,18 +393,18 @@ model Customer {
   state                  String
   postal_code            String
   country                String
-  createdAt              DateTime           @default(now()) @map("created_at")
-  updatedAt              DateTime?          @updatedAt @map("updated_at")
-  id                     Int                @id @default(autoincrement())
+  createdAt              DateTime                   @default(now()) @map("created_at")
+  updatedAt              DateTime?                  @updatedAt @map("updated_at")
+  id                     Int                        @id @default(autoincrement())
   otp                    String?
-  otpExpiresAt           DateTime?          @map("otp_expires_at")
-  is_registered          Boolean            @default(false) @map("is_registered")
-  document_number        String?            @unique
-  is_consignment_ally    Boolean            @default(false) @map("is_consignment_ally")
-  tax_status             CustomerTaxStatus  @default(NORMAL) @map("tax_status")
+  otpExpiresAt           DateTime?                  @map("otp_expires_at")
+  is_registered          Boolean                    @default(false) @map("is_registered")
+  document_number        String?                    @unique
+  is_consignment_ally    Boolean                    @default(false) @map("is_consignment_ally")
+  tax_status             CustomerTaxStatus          @default(NORMAL) @map("tax_status")
   addresses              Address[]
-  customerType           CustomerType       @relation(fields: [id_customer_type], references: [id])
-  identificationType     IdentificationType @relation(fields: [id_identification_type], references: [id])
+  customerType           CustomerType               @relation(fields: [id_customer_type], references: [id])
+  identificationType     IdentificationType         @relation(fields: [id_identification_type], references: [id])
   order                  Order[]
   payments               Payments[]
   returns                Returns[]
@@ -410,6 +414,9 @@ model Customer {
   sellReports            ConsignmentSellReport[]
   consignmentPayments    ConsignmentPayment[]
 
+  // Índices de rendimiento: búsqueda por email y documento
+  @@index([email])
+  @@index([document_number])
   @@map("customer")
 }
 
@@ -475,17 +482,20 @@ model Order {
   id_coupon       Int?  @map("id_coupon")
   discount_amount Float @default(0) @map("discount_amount")
 
-  dianEInvoicings DianEInvoicing[]
-  customer        Customer         @relation(fields: [id_customer], references: [id])
-  orderItems      OrderItem[]
-  payments        Payments[]
-  returns         Returns[]
-  shipments       Shipment[]
-  coupon          Coupon?          @relation(fields: [id_coupon], references: [id])
-  couponUsage     CouponUsage?
-  consignmentReturns ConsignmentReturn[]
+  dianEInvoicings     DianEInvoicing[]
+  customer            Customer             @relation(fields: [id_customer], references: [id])
+  orderItems          OrderItem[]
+  payments            Payments[]
+  returns             Returns[]
+  shipments           Shipment[]
+  coupon              Coupon?              @relation(fields: [id_coupon], references: [id])
+  couponUsage         CouponUsage?
+  consignmentReturns  ConsignmentReturn[]
   consignmentPayments ConsignmentPayment[]
 
+  // Índices de rendimiento: columnas de búsqueda frecuente
+  @@index([status])
+  @@index([id_customer])
   @@map("order")
 }
 
@@ -575,33 +585,36 @@ model Payments {
 }
 
 model DianEInvoicing {
-  id                 Int             @id @default(autoincrement())
-  id_order           Int?            @map("id_order")
-  cufe_code          String?
-  qr_code            String?
-  document_number    String
-  issue_date         DateTime
-  due_date           DateTime
-  status             String
-  url_pdf            String?
-  url_xml            String?
-  createdAt          DateTime        @default(now()) @map("created_at")
-  updatedAt          DateTime?       @updatedAt @map("updated_at")
-  dian_authorized_at DateTime?       @map("dian_authorized_at")
-  dian_response      String?
-  dian_zip_base64    String?         @map("dian_zip_base64")
-  email_sent         Boolean         @default(false) @map("email_sent")
-  environment        String          @default("TEST")
-  id_dian_resolution Int?            @map("id_dian_resolution")
-  id_expense         Int?            @map("id_expense")
-  cash_receipt_journal_id Int?       @map("cash_receipt_journal_id")
-  manual_invoice_snapshot String?    @map("manual_invoice_snapshot")
-  dianResolution     DianResolution? @relation(fields: [id_dian_resolution], references: [id])
-  expense            Expense?        @relation(fields: [id_expense], references: [id])
-  order              Order?          @relation(fields: [id_order], references: [id])
-  cashReceiptJournal JournalEntry?   @relation("CashReceiptInvoices", fields: [cash_receipt_journal_id], references: [id])
-  dianNotes          DianNote[]
+  id                      Int             @id @default(autoincrement())
+  id_order                Int?            @map("id_order")
+  cufe_code               String?
+  qr_code                 String?
+  document_number         String
+  issue_date              DateTime
+  due_date                DateTime
+  status                  String
+  url_pdf                 String?
+  url_xml                 String?
+  createdAt               DateTime        @default(now()) @map("created_at")
+  updatedAt               DateTime?       @updatedAt @map("updated_at")
+  dian_authorized_at      DateTime?       @map("dian_authorized_at")
+  dian_response           String?
+  dian_zip_base64         String?         @map("dian_zip_base64")
+  email_sent              Boolean         @default(false) @map("email_sent")
+  environment             String          @default("TEST")
+  id_dian_resolution      Int?            @map("id_dian_resolution")
+  id_expense              Int?            @map("id_expense")
+  cash_receipt_journal_id Int?            @map("cash_receipt_journal_id")
+  manual_invoice_snapshot String?         @map("manual_invoice_snapshot")
+  dianResolution          DianResolution? @relation(fields: [id_dian_resolution], references: [id])
+  expense                 Expense?        @relation(fields: [id_expense], references: [id])
+  order                   Order?          @relation(fields: [id_order], references: [id])
+  cashReceiptJournal      JournalEntry?   @relation("CashReceiptInvoices", fields: [cash_receipt_journal_id], references: [id])
+  dianNotes               DianNote[]
 
+  // Índices de rendimiento: búsqueda por orden y número de factura
+  @@index([id_order])
+  @@index([document_number])
   @@map("dian_e_invoicing")
 }
 
@@ -1055,25 +1068,25 @@ model AccountingClosing {
 }
 
 model Employee {
-  id                     Int               @id @default(autoincrement())
-  document_number        String            @unique @map("document_number")
-  id_identification_type Int               @map("id_identification_type")
+  id                     Int              @id @default(autoincrement())
+  document_number        String           @unique @map("document_number")
+  id_identification_type Int              @map("id_identification_type")
   name                   String
   position               String
   department             String?
-  hire_date              DateTime          @map("hire_date")
-  base_salary            Float             @map("base_salary")
-  transport_allowance    Float             @default(0) @map("transport_allowance")
-  is_active              Boolean           @default(true) @map("is_active")
-  eps_entity             String?           @map("eps_entity")
-  pension_fund           String?           @map("pension_fund")
-  arl_risk_level         Int               @default(1) @map("arl_risk_level")
-  bank_name              String?           @map("bank_name")
-  bank_account           String?           @map("bank_account")
-  createdAt              DateTime          @default(now()) @map("created_at")
-  updatedAt              DateTime?         @updatedAt @map("updated_at")
-  contract_type          String            @default("INDEFINIDO") @map("contract_type")
-  is_exonerated          Boolean           @default(true) @map("is_exonerated")
+  hire_date              DateTime         @map("hire_date")
+  base_salary            Float            @map("base_salary")
+  transport_allowance    Float            @default(0) @map("transport_allowance")
+  is_active              Boolean          @default(true) @map("is_active")
+  eps_entity             String?          @map("eps_entity")
+  pension_fund           String?          @map("pension_fund")
+  arl_risk_level         Int              @default(1) @map("arl_risk_level")
+  bank_name              String?          @map("bank_name")
+  bank_account           String?          @map("bank_account")
+  createdAt              DateTime         @default(now()) @map("created_at")
+  updatedAt              DateTime?        @updatedAt @map("updated_at")
+  contract_type          String           @default("INDEFINIDO") @map("contract_type")
+  is_exonerated          Boolean          @default(true) @map("is_exonerated")
   payrollEntries         PayrollEntry[]
   payrollNovedades       PayrollNovedad[]
 
@@ -1288,16 +1301,16 @@ model AccountingSetting {
 }
 
 model ConsignmentWarehouse {
-  id          Int                @id @default(autoincrement())
-  id_customer Int                @map("id_customer")
+  id          Int                     @id @default(autoincrement())
+  id_customer Int                     @map("id_customer")
   name        String
   address     String?
   city        String?
   state       String?
-  is_active   Boolean            @default(true) @map("is_active")
-  createdAt   DateTime           @default(now()) @map("created_at")
-  updatedAt   DateTime?          @updatedAt @map("updated_at")
-  customer    Customer              @relation(fields: [id_customer], references: [id])
+  is_active   Boolean                 @default(true) @map("is_active")
+  createdAt   DateTime                @default(now()) @map("created_at")
+  updatedAt   DateTime?               @updatedAt @map("updated_at")
+  customer    Customer                @relation(fields: [id_customer], references: [id])
   stocks      ConsignmentStock[]
   dispatches  ConsignmentDispatch[]
   returns     ConsignmentReturn[]
@@ -1341,9 +1354,9 @@ model CustomerConsignmentPrice {
 // =================== CONSIGNMENT MODULE (Fase 2: F03 — Despachos con QR) ===================
 
 enum ConsignmentDispatchStatus {
-  PENDIENTE     // borrador, sin enviar
-  EN_TRANSITO   // enviado, esperando confirmación QR del cliente
-  RECIBIDO      // cliente confirmó recepción
+  PENDIENTE // borrador, sin enviar
+  EN_TRANSITO // enviado, esperando confirmación QR del cliente
+  RECIBIDO // cliente confirmó recepción
   CANCELADO
 }
 
@@ -1393,9 +1406,9 @@ model ConsignmentDispatchItem {
 // =================== CONSIGNMENT MODULE (Fase 4: F04 + F05) ===================
 
 enum ConsignmentReturnType {
-  PORTFOLIO  // retorno por obsolescencia/cambio de colección (no facturado)
-  WARRANTY   // prenda defectuosa (marca, no vuelve a disponible)
-  POST_SALE  // retorno después de facturación → genera nota crédito DIAN
+  PORTFOLIO // retorno por obsolescencia/cambio de colección (no facturado)
+  WARRANTY // prenda defectuosa (marca, no vuelve a disponible)
+  POST_SALE // retorno después de facturación → genera nota crédito DIAN
 }
 
 enum ConsignmentReturnStatus {
@@ -1405,31 +1418,31 @@ enum ConsignmentReturnStatus {
 }
 
 model ConsignmentReturn {
-  id                Int                      @id @default(autoincrement())
-  id_warehouse      Int                      @map("id_warehouse")
-  return_type       ConsignmentReturnType    @map("return_type")
-  status            ConsignmentReturnStatus  @default(DRAFT)
-  id_order          Int?                     @map("id_order")
-  notes             String?
-  processed_at      DateTime?                @map("processed_at")
-  credit_note_id    Int?                     @map("credit_note_id") // DianNote.id si aplica
-  createdAt         DateTime                 @default(now()) @map("created_at")
-  updatedAt         DateTime?                @updatedAt @map("updated_at")
-  warehouse         ConsignmentWarehouse     @relation(fields: [id_warehouse], references: [id])
-  order             Order?                   @relation(fields: [id_order], references: [id])
-  items             ConsignmentReturnItem[]
+  id             Int                     @id @default(autoincrement())
+  id_warehouse   Int                     @map("id_warehouse")
+  return_type    ConsignmentReturnType   @map("return_type")
+  status         ConsignmentReturnStatus @default(DRAFT)
+  id_order       Int?                    @map("id_order")
+  notes          String?
+  processed_at   DateTime?               @map("processed_at")
+  credit_note_id Int?                    @map("credit_note_id") // DianNote.id si aplica
+  createdAt      DateTime                @default(now()) @map("created_at")
+  updatedAt      DateTime?               @updatedAt @map("updated_at")
+  warehouse      ConsignmentWarehouse    @relation(fields: [id_warehouse], references: [id])
+  order          Order?                  @relation(fields: [id_order], references: [id])
+  items          ConsignmentReturnItem[]
 
   @@map("consignment_return")
 }
 
 model ConsignmentReturnItem {
-  id               Int               @id @default(autoincrement())
-  id_return        Int               @map("id_return")
-  id_clothing_size Int               @map("id_clothing_size")
-  quantity         Int
-  unit_price       Float?            @map("unit_price") // usado solo en POST_SALE para la nota crédito
-  reason           String?
-  createdAt        DateTime          @default(now()) @map("created_at")
+  id                Int               @id @default(autoincrement())
+  id_return         Int               @map("id_return")
+  id_clothing_size  Int               @map("id_clothing_size")
+  quantity          Int
+  unit_price        Float?            @map("unit_price") // usado solo en POST_SALE para la nota crédito
+  reason            String?
+  createdAt         DateTime          @default(now()) @map("created_at")
   consignmentReturn ConsignmentReturn @relation(fields: [id_return], references: [id], onDelete: Cascade)
   clothingSize      ClothingSize      @relation(fields: [id_clothing_size], references: [id])
 
@@ -1445,16 +1458,16 @@ enum InventoryCycleCountStatus {
 }
 
 model InventoryCycleCount {
-  id                Int                       @id @default(autoincrement())
-  id_warehouse      Int                       @map("id_warehouse")
-  status            InventoryCycleCountStatus @default(DRAFT)
-  notes             String?
-  approved_at       DateTime?                 @map("approved_at")
-  merma_order_id    Int?                      @map("merma_order_id") // Order.id si se facturó merma
-  createdAt         DateTime                  @default(now()) @map("created_at")
-  updatedAt         DateTime?                 @updatedAt @map("updated_at")
-  warehouse         ConsignmentWarehouse      @relation(fields: [id_warehouse], references: [id])
-  items             InventoryCycleCountItem[]
+  id             Int                       @id @default(autoincrement())
+  id_warehouse   Int                       @map("id_warehouse")
+  status         InventoryCycleCountStatus @default(DRAFT)
+  notes          String?
+  approved_at    DateTime?                 @map("approved_at")
+  merma_order_id Int?                      @map("merma_order_id") // Order.id si se facturó merma
+  createdAt      DateTime                  @default(now()) @map("created_at")
+  updatedAt      DateTime?                 @updatedAt @map("updated_at")
+  warehouse      ConsignmentWarehouse      @relation(fields: [id_warehouse], references: [id])
+  items          InventoryCycleCountItem[]
 
   @@map("inventory_cycle_count")
 }
@@ -1483,31 +1496,31 @@ enum SellReportStatus {
 }
 
 model ConsignmentSellReport {
-  id            Int                        @id @default(autoincrement())
-  id_warehouse  Int                        @map("id_warehouse")
-  id_customer   Int                        @map("id_customer")
-  status        SellReportStatus           @default(PENDING)
-  notes         String?
-  rejected_reason String?                  @map("rejected_reason")
-  approved_at   DateTime?                  @map("approved_at")
-  approved_by   String?                    @map("approved_by")
-  createdAt     DateTime                   @default(now()) @map("created_at")
-  updatedAt     DateTime?                  @updatedAt @map("updated_at")
-  warehouse     ConsignmentWarehouse       @relation(fields: [id_warehouse], references: [id])
-  customer      Customer                   @relation(fields: [id_customer], references: [id])
-  items         ConsignmentSellReportItem[]
+  id              Int                         @id @default(autoincrement())
+  id_warehouse    Int                         @map("id_warehouse")
+  id_customer     Int                         @map("id_customer")
+  status          SellReportStatus            @default(PENDING)
+  notes           String?
+  rejected_reason String?                     @map("rejected_reason")
+  approved_at     DateTime?                   @map("approved_at")
+  approved_by     String?                     @map("approved_by")
+  createdAt       DateTime                    @default(now()) @map("created_at")
+  updatedAt       DateTime?                   @updatedAt @map("updated_at")
+  warehouse       ConsignmentWarehouse        @relation(fields: [id_warehouse], references: [id])
+  customer        Customer                    @relation(fields: [id_customer], references: [id])
+  items           ConsignmentSellReportItem[]
 
   @@map("consignment_sell_report")
 }
 
 model ConsignmentSellReportItem {
-  id              Int                    @id @default(autoincrement())
-  id_sell_report  Int                    @map("id_sell_report")
+  id               Int                   @id @default(autoincrement())
+  id_sell_report   Int                   @map("id_sell_report")
   id_clothing_size Int                   @map("id_clothing_size")
-  quantity        Int
-  createdAt       DateTime              @default(now()) @map("created_at")
-  sellReport      ConsignmentSellReport @relation(fields: [id_sell_report], references: [id], onDelete: Cascade)
-  clothingSize    ClothingSize          @relation(fields: [id_clothing_size], references: [id])
+  quantity         Int
+  createdAt        DateTime              @default(now()) @map("created_at")
+  sellReport       ConsignmentSellReport @relation(fields: [id_sell_report], references: [id], onDelete: Cascade)
+  clothingSize     ClothingSize          @relation(fields: [id_clothing_size], references: [id])
 
   @@map("consignment_sell_report_item")
 }
@@ -1527,22 +1540,22 @@ enum ConsignmentPaymentStatus {
 }
 
 model ConsignmentPayment {
-  id               Int                        @id @default(autoincrement())
-  id_order         Int                        @map("id_order")
-  id_customer      Int                        @map("id_customer")
+  id               Int                      @id @default(autoincrement())
+  id_order         Int                      @map("id_order")
+  id_customer      Int                      @map("id_customer")
   amount           Float
-  payment_method   ConsignmentPaymentMethod   @map("payment_method")
-  proof_image_url  String?                    @map("proof_image_url")
-  reference_number String?                    @map("reference_number")
+  payment_method   ConsignmentPaymentMethod @map("payment_method")
+  proof_image_url  String?                  @map("proof_image_url")
+  reference_number String?                  @map("reference_number")
   notes            String?
-  status           ConsignmentPaymentStatus   @default(PENDING)
-  rejected_reason  String?                    @map("rejected_reason")
-  approved_by      String?                    @map("approved_by")
-  approved_at      DateTime?                  @map("approved_at")
-  createdAt        DateTime                   @default(now()) @map("created_at")
-  updatedAt        DateTime?                  @updatedAt @map("updated_at")
-  order            Order                      @relation(fields: [id_order], references: [id])
-  customer         Customer                   @relation(fields: [id_customer], references: [id])
+  status           ConsignmentPaymentStatus @default(PENDING)
+  rejected_reason  String?                  @map("rejected_reason")
+  approved_by      String?                  @map("approved_by")
+  approved_at      DateTime?                @map("approved_at")
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  updatedAt        DateTime?                @updatedAt @map("updated_at")
+  order            Order                    @relation(fields: [id_order], references: [id])
+  customer         Customer                 @relation(fields: [id_customer], references: [id])
 
   @@map("consignment_payment")
 }
