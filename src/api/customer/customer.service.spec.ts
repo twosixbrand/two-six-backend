@@ -37,8 +37,18 @@ describe('CustomerService', () => {
   describe('findAll', () => {
     it('should return all customers with related types', async () => {
       const customers = [
-        { id: 1, name: 'Alice', customerType: { id: 1, name: 'Natural' }, identificationType: { id: 1 } },
-        { id: 2, name: 'Bob', customerType: { id: 1, name: 'Natural' }, identificationType: { id: 2 } },
+        {
+          id: 1,
+          name: 'Alice',
+          customerType: { id: 1, name: 'Natural' },
+          identificationType: { id: 1 },
+        },
+        {
+          id: 2,
+          name: 'Bob',
+          customerType: { id: 1, name: 'Natural' },
+          identificationType: { id: 2 },
+        },
       ];
       mockPrisma.customer.findMany.mockResolvedValue(customers);
 
@@ -66,7 +76,12 @@ describe('CustomerService', () => {
 
   describe('findOne', () => {
     it('should return a customer by id', async () => {
-      const customer = { id: 1, name: 'Alice', customerType: {}, identificationType: {} };
+      const customer = {
+        id: 1,
+        name: 'Alice',
+        customerType: {},
+        identificationType: {},
+      };
       mockPrisma.customer.findUnique.mockResolvedValue(customer);
 
       const result = await service.findOne(1);
@@ -111,9 +126,9 @@ describe('CustomerService', () => {
         new Error('Record to update not found'),
       );
 
-      await expect(
-        service.update(999, { name: 'Ghost' }),
-      ).rejects.toThrow('Record to update not found');
+      await expect(service.update(999, { name: 'Ghost' })).rejects.toThrow(
+        'Record to update not found',
+      );
     });
   });
 });

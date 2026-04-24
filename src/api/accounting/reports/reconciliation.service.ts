@@ -52,12 +52,13 @@ export class ReconciliationService {
       orderBy: { code: 'asc' },
     });
 
-    const byCode = new Map<string, typeof accounts[number]>();
+    const byCode = new Map<string, (typeof accounts)[number]>();
     const childrenByParent = new Map<string, typeof accounts>();
     for (const a of accounts) {
       byCode.set(a.code, a);
       if (a.parent_code) {
-        if (!childrenByParent.has(a.parent_code)) childrenByParent.set(a.parent_code, []);
+        if (!childrenByParent.has(a.parent_code))
+          childrenByParent.set(a.parent_code, []);
         childrenByParent.get(a.parent_code)!.push(a);
       }
     }
@@ -91,7 +92,7 @@ export class ReconciliationService {
 
     const summary = accounts.map((a) => {
       const balance = a.accepts_movements
-        ? balanceById.get(a.id) ?? 0
+        ? (balanceById.get(a.id) ?? 0)
         : computeSubtree(a.code);
       return {
         id: a.id,

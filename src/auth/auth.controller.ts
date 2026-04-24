@@ -1,4 +1,11 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -13,7 +20,7 @@ import { Public } from './decorators/public.decorator';
 @Throttle({ default: { limit: 5, ttl: 60000 } }) // Max 5 requests per 60 seconds
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -36,7 +43,10 @@ export class AuthController {
   @Post('customer/verify-otp')
   @HttpCode(HttpStatus.OK)
   async verifyCustomerOtp(@Body() verifyOtpDto: VerifyCustomerOtpDto) {
-    return this.authService.verifyCustomerOtp(verifyOtpDto.email, verifyOtpDto.otp);
+    return this.authService.verifyCustomerOtp(
+      verifyOtpDto.email,
+      verifyOtpDto.otp,
+    );
   }
 
   @Post('customer/register')

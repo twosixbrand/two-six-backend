@@ -16,15 +16,24 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     this.$use(async (params, next) => {
       const isJournalEntry = params.model === 'JournalEntry';
       const isJournalLine = params.model === 'JournalEntryLine';
-      const mutating = ['update', 'updateMany', 'delete', 'deleteMany', 'upsert'];
+      const mutating = [
+        'update',
+        'updateMany',
+        'delete',
+        'deleteMany',
+        'upsert',
+      ];
 
-      if ((isJournalEntry || isJournalLine) && mutating.includes(params.action)) {
+      if (
+        (isJournalEntry || isJournalLine) &&
+        mutating.includes(params.action)
+      ) {
         // Permitimos explícitamente el flag `__allowPostedUpdate` usado sólo
         // internamente por código confiable (ej. linking de FK post-creación).
         // Si no viene, validamos inmutabilidad.
-        const allowOverride = (params.args as any)?.data?.__allowPostedUpdate === true;
+        const allowOverride = params.args?.data?.__allowPostedUpdate === true;
         if (allowOverride) {
-          delete (params.args as any).data.__allowPostedUpdate;
+          delete params.args.data.__allowPostedUpdate;
           return next(params);
         }
 
@@ -44,7 +53,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
           });
           affectedPosted = affected.some((e) => e.status === 'POSTED');
           if (affectedPosted) {
-            const posted = affected.filter((e) => e.status === 'POSTED').map((e) => e.entry_number).join(', ');
+            const posted = affected
+              .filter((e) => e.status === 'POSTED')
+              .map((e) => e.entry_number)
+              .join(', ');
             throw new ForbiddenException(
               `No se puede ${params.action} un asiento POSTED (${posted}). Use el endpoint de reverso contable.`,
             );
@@ -54,11 +66,18 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
           // Buscar líneas afectadas y verificar si su entry padre está POSTED
           const affected = await this.journalEntryLine.findMany({
             where,
-            select: { id: true, journalEntry: { select: { status: true, entry_number: true } } },
+            select: {
+              id: true,
+              journalEntry: { select: { status: true, entry_number: true } },
+            },
           });
-          const blocked = affected.filter((l) => l.journalEntry.status === 'POSTED');
+          const blocked = affected.filter(
+            (l) => l.journalEntry.status === 'POSTED',
+          );
           if (blocked.length > 0) {
-            const nums = blocked.map((l) => l.journalEntry.entry_number).join(', ');
+            const nums = blocked
+              .map((l) => l.journalEntry.entry_number)
+              .join(', ');
             throw new ForbiddenException(
               `No se puede ${params.action} líneas de un asiento POSTED (${nums}). Use el endpoint de reverso contable.`,
             );

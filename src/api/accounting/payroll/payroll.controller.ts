@@ -13,13 +13,15 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { PayrollService } from './payroll.service';
-import { PayrollNovedadService, CreateNovedadDto } from './payroll-novedad.service';
+import {
+  PayrollNovedadService,
+  CreateNovedadDto,
+} from './payroll-novedad.service';
 import { PilaService } from './pila.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { CreatePayrollPeriodDto } from './dto/create-payroll-period.dto';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
-
 
 @UseGuards(JwtAuthGuard)
 @Controller('accounting/payroll')
@@ -121,9 +123,16 @@ export class PayrollController {
     @Res() res: Response,
   ) {
     const employerNit = nit || process.env.DIAN_COMPANY_NIT || '900000000';
-    const result = await this.pilaService.generatePila(year, month, employerNit);
+    const result = await this.pilaService.generatePila(
+      year,
+      month,
+      employerNit,
+    );
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${result.filename}"`,
+    );
     res.setHeader('X-Pila-Cotizantes', String(result.summary.cotizantes));
     res.setHeader('X-Pila-Total', String(result.summary.total_aportes));
     res.send(result.content);

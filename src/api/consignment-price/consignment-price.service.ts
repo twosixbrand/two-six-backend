@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 export interface CreatePriceDto {
@@ -17,7 +21,9 @@ export interface BulkCreatePriceDto {
   valid_to?: string | null;
 }
 
-export type UpdatePriceDto = Partial<Omit<CreatePriceDto, 'id_customer' | 'id_product'>>;
+export type UpdatePriceDto = Partial<
+  Omit<CreatePriceDto, 'id_customer' | 'id_product'>
+>;
 
 @Injectable()
 export class ConsignmentPriceService {
@@ -28,7 +34,9 @@ export class ConsignmentPriceService {
       where: { id: data.id_customer },
     });
     if (!customer) {
-      throw new NotFoundException(`Cliente #${data.id_customer} no encontrado.`);
+      throw new NotFoundException(
+        `Cliente #${data.id_customer} no encontrado.`,
+      );
     }
     if (!customer.is_consignment_ally) {
       throw new BadRequestException(
@@ -40,7 +48,9 @@ export class ConsignmentPriceService {
       where: { id: data.id_product },
     });
     if (!product) {
-      throw new NotFoundException(`Producto #${data.id_product} no encontrado.`);
+      throw new NotFoundException(
+        `Producto #${data.id_product} no encontrado.`,
+      );
     }
 
     if (data.price <= 0) {
@@ -74,7 +84,9 @@ export class ConsignmentPriceService {
       where: { id: data.id_customer },
     });
     if (!customer) {
-      throw new NotFoundException(`Cliente #${data.id_customer} no encontrado.`);
+      throw new NotFoundException(
+        `Cliente #${data.id_customer} no encontrado.`,
+      );
     }
     if (!customer.is_consignment_ally) {
       throw new BadRequestException(
@@ -120,7 +132,11 @@ export class ConsignmentPriceService {
     });
   }
 
-  findAll(filters: { id_customer?: number; id_product?: number; only_active?: boolean }) {
+  findAll(filters: {
+    id_customer?: number;
+    id_product?: number;
+    only_active?: boolean;
+  }) {
     const where: any = {};
     if (filters.id_customer) where.id_customer = filters.id_customer;
     if (filters.id_product) where.id_product = filters.id_product;
@@ -145,7 +161,11 @@ export class ConsignmentPriceService {
                 clothingColor: {
                   include: {
                     color: true,
-                    imageClothing: { orderBy: { position: "asc" as const }, take: 1, select: { image_url: true } },
+                    imageClothing: {
+                      orderBy: { position: 'asc' as const },
+                      take: 1,
+                      select: { image_url: true },
+                    },
                     design: { select: { id: true, reference: true } },
                   },
                 },
@@ -163,7 +183,9 @@ export class ConsignmentPriceService {
       where: { id },
     });
     if (!row) {
-      throw new NotFoundException(`Precio de consignación #${id} no encontrado.`);
+      throw new NotFoundException(
+        `Precio de consignación #${id} no encontrado.`,
+      );
     }
     return row;
   }

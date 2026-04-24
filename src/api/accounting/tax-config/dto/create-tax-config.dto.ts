@@ -1,4 +1,10 @@
-import { IsString, IsNumber, IsOptional, IsBoolean, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsBoolean,
+  IsEnum,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum TaxType {
@@ -7,7 +13,10 @@ export enum TaxType {
 }
 
 export class CreateTaxConfigDto {
-  @ApiProperty({ example: 'ICA Bogotá', description: 'Nombre descriptivo de la tarifa' })
+  @ApiProperty({
+    example: 'ICA Bogotá',
+    description: 'Nombre descriptivo de la tarifa',
+  })
   @IsString()
   name: string;
 
@@ -20,7 +29,10 @@ export class CreateTaxConfigDto {
   @IsOptional()
   city_id?: number;
 
-  @ApiProperty({ example: 0.01104, description: 'Tarifa (ej. 11.04 x 1000 = 0.01104)' })
+  @ApiProperty({
+    example: 0.01104,
+    description: 'Tarifa (ej. 11.04 x 1000 = 0.01104)',
+  })
   @IsNumber()
   rate: number;
 

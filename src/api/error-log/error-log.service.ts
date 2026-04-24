@@ -48,7 +48,10 @@ export class ErrorLogService {
    * Actualiza un log de error existente.
    * @throws NotFoundException si el log no se encuentra.
    */
-  async update(id: number, updateErrorLogDto: UpdateErrorLogDto): Promise<ErrorLog> {
+  async update(
+    id: number,
+    updateErrorLogDto: UpdateErrorLogDto,
+  ): Promise<ErrorLog> {
     await this.findOne(id); // Asegura que el log exista
     return this.prisma.errorLog.update({
       where: { id },

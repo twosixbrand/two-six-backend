@@ -8,7 +8,14 @@ export class DianPdfService {
 
   constructor(private readonly configService: ConfigService) {}
 
-  async generateQrBase64(cufe: string, nit: string, valFac: string, valIva: string, valTot: string, fecha: string): Promise<string> {
+  async generateQrBase64(
+    cufe: string,
+    nit: string,
+    valFac: string,
+    valIva: string,
+    valTot: string,
+    fecha: string,
+  ): Promise<string> {
     // URL de consulta DIAN — esto es lo que debe codificar el QR
     const url = `https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=${cufe}`;
 
@@ -31,7 +38,8 @@ export class DianPdfService {
   async generateInvoicePdf(invoice: any, resolution: any): Promise<Buffer> {
     const nit = this.configService.get<string>('DIAN_COMPANY_NIT') || '';
     const dv = this.configService.get<string>('DIAN_COMPANY_DV') || '';
-    const companyName = this.configService.get<string>('DIAN_COMPANY_NAME') || 'TWO SIX S.A.S.';
+    const companyName =
+      this.configService.get<string>('DIAN_COMPANY_NAME') || 'TWO SIX S.A.S.';
 
     const order = invoice.order;
 
@@ -40,9 +48,10 @@ export class DianPdfService {
     let snapshot: any = null;
     if (invoice.manual_invoice_snapshot) {
       try {
-        snapshot = typeof invoice.manual_invoice_snapshot === 'string'
-          ? JSON.parse(invoice.manual_invoice_snapshot)
-          : invoice.manual_invoice_snapshot;
+        snapshot =
+          typeof invoice.manual_invoice_snapshot === 'string'
+            ? JSON.parse(invoice.manual_invoice_snapshot)
+            : invoice.manual_invoice_snapshot;
       } catch (err) {
         this.logger.warn(`manual_invoice_snapshot inválido: ${err.message}`);
       }
@@ -55,9 +64,11 @@ export class DianPdfService {
           size: null,
           quantity: it.quantity,
           // unit_price en este servicio se asume CON IVA, así que reconstruimos
-          unit_price: Number((it.unit_price * (1 + (it.iva_rate || 0) / 100)).toFixed(2)),
+          unit_price: Number(
+            (it.unit_price * (1 + (it.iva_rate || 0) / 100)).toFixed(2),
+          ),
         }))
-      : (order?.orderItems || []);
+      : order?.orderItems || [];
     const customer = snapshot?.customer
       ? {
           name: snapshot.customer.name,
@@ -71,42 +82,60 @@ export class DianPdfService {
 
     // ═══ MEDIO DE PAGO (mapeo real) ═══
     const paymentMethodMap: Record<string, { label: string; code: string }> = {
-      'WOMPI_FULL': { label: 'Tarjeta de Crédito/Débito', code: '48' },
-      'WOMPI_COD': { label: 'Contra Entrega', code: '10' },
-      'PSE': { label: 'Débito ACH (PSE)', code: '49' },
-      'NEQUI': { label: 'Billetera Digital (Nequi)', code: 'ZZZ' },
-      'CASH': { label: 'Efectivo', code: '10' },
-      'TRANSFER': { label: 'Transferencia Bancaria', code: '31' },
+      WOMPI_FULL: { label: 'Tarjeta de Crédito/Débito', code: '48' },
+      WOMPI_COD: { label: 'Contra Entrega', code: '10' },
+      PSE: { label: 'Débito ACH (PSE)', code: '49' },
+      NEQUI: { label: 'Billetera Digital (Nequi)', code: 'ZZZ' },
+      CASH: { label: 'Efectivo', code: '10' },
+      TRANSFER: { label: 'Transferencia Bancaria', code: '31' },
     };
-    const pm = paymentMethodMap[order?.payment_method] || { label: 'Instrumento no definido', code: '10' };
+    const pm = paymentMethodMap[order?.payment_method] || {
+      label: 'Instrumento no definido',
+      code: '10',
+    };
     const paymentMethodLabel = `${pm.label} (${pm.code})`;
 
     // ═══ DESGLOSE IVA ═══
     // Los unit_price ya incluyen IVA, así que para el desglose en factura:
-    // basePrice = unitPrice / 1.19   cuando hay IVA 
+    // basePrice = unitPrice / 1.19   cuando hay IVA
     const hasIva = snapshot
-      ? (snapshot.iva_total && snapshot.iva_total > 0)
-      : (order?.iva && order.iva > 0);
+      ? snapshot.iva_total && snapshot.iva_total > 0
+      : order?.iva && order.iva > 0;
     const ivaRate = hasIva ? 0.19 : 0;
 
     // Calcular subtotal base (sin IVA) e IVA desglosado
-    const totalProductos = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
-    const shipping = snapshot ? 0 : (order?.shipping_cost || 0);
+    const totalProductos = items.reduce(
+      (sum, item) => sum + item.unit_price * item.quantity,
+      0,
+    );
+    const shipping = snapshot ? 0 : order?.shipping_cost || 0;
     // Desglose individual para la representación gráfica
-    const productosBase = hasIva ? Math.round(totalProductos / 1.19) : totalProductos;
-    const shippingBase = (shipping > 0 && hasIva) ? Math.round(shipping / 1.19) : shipping;
+    const productosBase = hasIva
+      ? Math.round(totalProductos / 1.19)
+      : totalProductos;
+    const shippingBase =
+      shipping > 0 && hasIva ? Math.round(shipping / 1.19) : shipping;
     // Totales combinados
     const subtotalBase = productosBase + shippingBase;
-    const ivaCalculado = hasIva ? (totalProductos + shipping - subtotalBase) : 0;
+    const ivaCalculado = hasIva ? totalProductos + shipping - subtotalBase : 0;
     const total = subtotalBase + ivaCalculado;
 
-    const formatCOP = (n: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
+    const formatCOP = (n: number) =>
+      new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 0,
+      }).format(n);
 
-    let itemsHtml = items.length > 0
-      ? items.map((item, i) => {
-          const unitPriceBase = hasIva ? Math.round(item.unit_price / 1.19) : item.unit_price;
-          const lineTotal = item.unit_price * item.quantity; // Total con IVA incluido
-          return `
+    let itemsHtml =
+      items.length > 0
+        ? items
+            .map((item, i) => {
+              const unitPriceBase = hasIva
+                ? Math.round(item.unit_price / 1.19)
+                : item.unit_price;
+              const lineTotal = item.unit_price * item.quantity; // Total con IVA incluido
+              return `
         <tr>
           <td class="text-center">${item.id_product || i + 1}</td>
           <td>${item.product_name} ${item.size ? '- Talla ' + item.size : ''}</td>
@@ -115,8 +144,9 @@ export class DianPdfService {
           <td class="text-center">${hasIva ? '19%' : '0%'}</td>
           <td class="text-right">${formatCOP(lineTotal)}</td>
         </tr>`;
-        }).join('')
-      : '<tr><td colspan="6" class="text-center" style="color: #888;">Factura generada sin detalle de productos (prueba API)</td></tr>';
+            })
+            .join('')
+        : '<tr><td colspan="6" class="text-center" style="color: #888;">Factura generada sin detalle de productos (prueba API)</td></tr>';
 
     // Añadir envío como línea adicional en la tabla (con IVA incluido)
     if (shipping > 0) {
@@ -135,15 +165,27 @@ export class DianPdfService {
     // Regenerar QR con URL limpia si el actual no funciona
     let qrImg = invoice.qr_code;
     if (!qrImg || !qrImg.startsWith('data:image')) {
-      qrImg = await this.generateQrBase64(invoice.cufe_code || '', nit, '0', '0', '0', '');
+      qrImg = await this.generateQrBase64(
+        invoice.cufe_code || '',
+        nit,
+        '0',
+        '0',
+        '0',
+        '',
+      );
     }
 
     const fsNative = require('fs');
     const pathNative = require('path');
-    const logoPath = pathNative.join(process.cwd(), '../two-six-web/public/logo-gorilla.png');
+    const logoPath = pathNative.join(
+      process.cwd(),
+      '../two-six-web/public/logo-gorilla.png',
+    );
     let logoBase64 = '';
     if (fsNative.existsSync(logoPath)) {
-      logoBase64 = 'data:image/png;base64,' + fsNative.readFileSync(logoPath).toString('base64');
+      logoBase64 =
+        'data:image/png;base64,' +
+        fsNative.readFileSync(logoPath).toString('base64');
     }
 
     const resText = resolution
@@ -299,9 +341,9 @@ export class DianPdfService {
           <div class="info-box">
             <div class="ib-title"><span class="icon">👤</span> Facturar A</div>
             <div class="ib-row"><span class="lbl">Razón Social / Nombre</span><span class="val">${customer?.name || 'Cliente'}</span></div>
-            <div class="ib-row"><span class="lbl">CC / NIT</span><span class="val">${(customer as any)?.document_number || (customer as any)?.identification_number || '222222222222'}</span></div>
+            <div class="ib-row"><span class="lbl">CC / NIT</span><span class="val">${customer?.document_number || customer?.identification_number || '222222222222'}</span></div>
             <div class="ib-row"><span class="lbl">Teléfono</span><span class="val">${customer?.current_phone_number || 'N/A'}</span></div>
-            <div class="ib-row"><span class="lbl">Dirección / Ubi.</span><span class="val">${order?.delivery_method === 'PICKUP' ? '📦 Recoge en Tienda — Punto Two Six' : (order?.shipping_address || customer?.shipping_address || 'No registrada')}</span></div>
+            <div class="ib-row"><span class="lbl">Dirección / Ubi.</span><span class="val">${order?.delivery_method === 'PICKUP' ? '📦 Recoge en Tienda — Punto Two Six' : order?.shipping_address || customer?.shipping_address || 'No registrada'}</span></div>
             <div class="ib-row"><span class="lbl">Correo Electrónico</span><span class="val">${customer?.email || 'N/A'}</span></div>
           </div>
           <div class="info-box">
@@ -382,19 +424,27 @@ export class DianPdfService {
 
     const puppeteer = require('puppeteer');
     const fs = require('fs');
-    const executablePath = this.configService.get<string>('PUPPETEER_EXECUTABLE_PATH') || puppeteer.executablePath();
-    
+    const executablePath =
+      this.configService.get<string>('PUPPETEER_EXECUTABLE_PATH') ||
+      puppeteer.executablePath();
+
     this.logger.log(`Lanzando Puppeteer. ExecutablePath: ${executablePath}`);
     if (fs.existsSync(executablePath)) {
       this.logger.log(`El binario de Chrome EXISTE en: ${executablePath}`);
     } else {
-      this.logger.error(`¡ERROR! El binario de Chrome NO EXISTE en: ${executablePath}`);
+      this.logger.error(
+        `¡ERROR! El binario de Chrome NO EXISTE en: ${executablePath}`,
+      );
     }
 
     const browser = await puppeteer.launch({
       headless: 'new',
       executablePath,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+      ],
     });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });

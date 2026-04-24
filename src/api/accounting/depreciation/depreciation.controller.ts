@@ -4,15 +4,16 @@ import {
   Post,
   Body,
   Param,
-  ParseIntPipe, UseGuards } from '@nestjs/common';
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { DepreciationService } from './depreciation.service';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
-
 
 @UseGuards(JwtAuthGuard)
 @Controller('accounting/assets')
 export class DepreciationController {
-  constructor(private readonly depreciationService: DepreciationService) { }
+  constructor(private readonly depreciationService: DepreciationService) {}
 
   @Get()
   findAll() {
@@ -21,7 +22,8 @@ export class DepreciationController {
 
   @Post()
   create(
-    @Body() body: {
+    @Body()
+    body: {
       name: string;
       description?: string;
       acquisition_date: string;
@@ -38,10 +40,11 @@ export class DepreciationController {
   }
 
   @Post('depreciate')
-  runMonthlyDepreciation(
-    @Body() body: { year: number; month: number },
-  ) {
-    return this.depreciationService.runMonthlyDepreciation(body.year, body.month);
+  runMonthlyDepreciation(@Body() body: { year: number; month: number }) {
+    return this.depreciationService.runMonthlyDepreciation(
+      body.year,
+      body.month,
+    );
   }
 
   @Get(':id')

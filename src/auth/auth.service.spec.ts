@@ -149,7 +149,8 @@ describe('AuthService', () => {
       });
       expect(mockMailerService.sendMail).toHaveBeenCalled();
       expect(result).toEqual({
-        message: 'Se ha enviado un código de acceso a tu correo electrónico nuevo.',
+        message:
+          'Se ha enviado un código de acceso a tu correo electrónico nuevo.',
       });
     });
   });

@@ -6,6 +6,6 @@ import { PrismaModule } from '../../prisma/prisma.module';
 @Module({
   imports: [PrismaModule],
   providers: [SizeGuideService],
-  controllers: [SizeGuideController]
+  controllers: [SizeGuideController],
 })
-export class SizeGuideModule { }
+export class SizeGuideModule {}

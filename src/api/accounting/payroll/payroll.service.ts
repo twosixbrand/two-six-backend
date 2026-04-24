@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { JournalAutoService } from '../journal/journal-auto.service';
 import { ClosingService } from '../closing/closing.service';
@@ -11,18 +16,18 @@ const ARL_RATES: Record<number, number> = {
   1: 0.00522,
   2: 0.01044,
   3: 0.02436,
-  4: 0.04350,
-  5: 0.06960,
+  4: 0.0435,
+  5: 0.0696,
 };
 
 // Overtime & Surcharge rates (Colombian law)
 const RATES = {
-  HED: 1.25,  // Hora Extra Diurna
-  HEN: 1.75,  // Hora Extra Nocturna
-  HEDF: 2.00, // Hora Extra Diurna Festiva
-  HENF: 2.50, // Hora Extra Nocturna Festiva
-  RN: 0.35,   // Recargo Nocturno
-  RF: 0.75,   // Recargo Festivo
+  HED: 1.25, // Hora Extra Diurna
+  HEN: 1.75, // Hora Extra Nocturna
+  HEDF: 2.0, // Hora Extra Diurna Festiva
+  HENF: 2.5, // Hora Extra Nocturna Festiva
+  RN: 0.35, // Recargo Nocturno
+  RF: 0.75, // Recargo Festivo
 };
 
 @Injectable()
@@ -109,7 +114,9 @@ export class PayrollService {
       },
     });
     if (!period) {
-      throw new NotFoundException(`Período de nómina con ID ${id} no encontrado`);
+      throw new NotFoundException(
+        `Período de nómina con ID ${id} no encontrado`,
+      );
     }
     return period;
   }
@@ -209,10 +216,16 @@ export class PayrollService {
       const workedDays = Math.max(0, 30 - absentDays);
       const baseSalaryProrated = (emp.base_salary / 30) * workedDays;
 
-      const grossSalary = baseSalaryProrated + emp.transport_allowance + overtimeAmount + commissions + bonuses + otherAccruals;
+      const grossSalary =
+        baseSalaryProrated +
+        emp.transport_allowance +
+        overtimeAmount +
+        commissions +
+        bonuses +
+        otherAccruals;
 
       // IBC (Base for social security)
-      const ibc = baseSalaryProrated + overtimeAmount + commissions; 
+      const ibc = baseSalaryProrated + overtimeAmount + commissions;
 
       // Employee deductions (4% Salud, 4% Pensión)
       const healthEmployee = Math.round(ibc * 0.04);
@@ -221,11 +234,11 @@ export class PayrollService {
       // Employer contributions
       // LEY 1607: Exoneration if salary < 10 SMLMV
       const isExonerated = emp.is_exonerated && emp.base_salary < 13000000;
-      
+
       const healthEmployer = isExonerated ? 0 : Math.round(ibc * 0.085);
       const senaEmployer = isExonerated ? 0 : Math.round(ibc * 0.02);
       const icbfEmployer = isExonerated ? 0 : Math.round(ibc * 0.03);
-      
+
       const pensionEmployer = Math.round(ibc * 0.12);
       const arlRate = ARL_RATES[emp.arl_risk_level] || ARL_RATES[1];
       const arlEmployer = Math.round(ibc * arlRate);
@@ -234,15 +247,26 @@ export class PayrollService {
       // Provisions
       const primaProvision = Math.round(grossSalary * 0.0833);
       const cesantiasProvision = Math.round(grossSalary * 0.0833);
-      const intCesantiasProvision = Math.round((cesantiasProvision * 0.12) / 12);
+      const intCesantiasProvision = Math.round(
+        (cesantiasProvision * 0.12) / 12,
+      );
       const vacacionesProvision = Math.round(baseSalaryProrated * 0.0417);
 
-      const netSalary = grossSalary - healthEmployee - pensionEmployee - otherDeductions;
+      const netSalary =
+        grossSalary - healthEmployee - pensionEmployee - otherDeductions;
 
-      const totalEmployerCost = grossSalary + healthEmployer + pensionEmployer + 
-                                arlEmployer + senaEmployer + icbfEmployer + 
-                                cajaEmployer + primaProvision + cesantiasProvision + 
-                                intCesantiasProvision + vacacionesProvision;
+      const totalEmployerCost =
+        grossSalary +
+        healthEmployer +
+        pensionEmployer +
+        arlEmployer +
+        senaEmployer +
+        icbfEmployer +
+        cajaEmployer +
+        primaProvision +
+        cesantiasProvision +
+        intCesantiasProvision +
+        vacacionesProvision;
 
       const entry = await this.prisma.payrollEntry.create({
         data: {
@@ -306,7 +330,9 @@ export class PayrollService {
     }
 
     // Validate if period is closed
-    const isClosed = await this.closingService.isPeriodClosed(new Date(period.year, period.month - 1, 1));
+    const isClosed = await this.closingService.isPeriodClosed(
+      new Date(period.year, period.month - 1, 1),
+    );
     if (isClosed) {
       throw new ForbiddenException(
         `No se puede aprobar la nómina. El periodo contable ${period.year}-${period.month} ya se encuentra cerrado.`,
@@ -336,7 +362,8 @@ export class PayrollService {
         cajaEmployer: acc.cajaEmployer + e.caja_employer,
         primaProvision: acc.primaProvision + e.prima_provision,
         cesantiasProvision: acc.cesantiasProvision + e.cesantias_provision,
-        intCesantiasProvision: acc.intCesantiasProvision + e.int_cesantias_provision,
+        intCesantiasProvision:
+          acc.intCesantiasProvision + e.int_cesantias_provision,
         vacacionesProvision: acc.vacacionesProvision + e.vacaciones_provision,
         netSalary: acc.netSalary + e.net_salary,
       }),
@@ -363,9 +390,10 @@ export class PayrollService {
       totals[key] = Math.round(totals[key] * 100) / 100;
     }
 
-    const totalParafiscales = Math.round(
-      (totals.senaEmployer + totals.icbfEmployer + totals.cajaEmployer) * 100,
-    ) / 100;
+    const totalParafiscales =
+      Math.round(
+        (totals.senaEmployer + totals.icbfEmployer + totals.cajaEmployer) * 100,
+      ) / 100;
 
     // Generate journal entry via transaction
     const journalEntry = await this.prisma.$transaction(async (prisma) => {
@@ -409,7 +437,11 @@ export class PayrollService {
       const lines: any[] = [];
 
       // DEBITS (expenses)
-      const addDebit = async (code: string, description: string, amount: number) => {
+      const addDebit = async (
+        code: string,
+        description: string,
+        amount: number,
+      ) => {
         if (amount <= 0) return;
         const account = await findAccount(code);
         if (account) {
@@ -422,7 +454,11 @@ export class PayrollService {
         }
       };
 
-      const addCredit = async (code: string, description: string, amount: number) => {
+      const addCredit = async (
+        code: string,
+        description: string,
+        amount: number,
+      ) => {
         if (amount <= 0) return;
         const account = await findAccount(code);
         if (account) {
@@ -437,23 +473,63 @@ export class PayrollService {
 
       // Debits
       await addDebit('510506', 'Sueldos y salarios', totals.grossSalary);
-      await addDebit('510530', 'Cesantías provisión', totals.cesantiasProvision);
-      await addDebit('510533', 'Intereses sobre cesantías', totals.intCesantiasProvision);
+      await addDebit(
+        '510530',
+        'Cesantías provisión',
+        totals.cesantiasProvision,
+      );
+      await addDebit(
+        '510533',
+        'Intereses sobre cesantías',
+        totals.intCesantiasProvision,
+      );
       await addDebit('510536', 'Prima de servicios', totals.primaProvision);
-      await addDebit('510539', 'Vacaciones provisión', totals.vacacionesProvision);
+      await addDebit(
+        '510539',
+        'Vacaciones provisión',
+        totals.vacacionesProvision,
+      );
       await addDebit('510568', 'Aportes EPS empleador', totals.healthEmployer);
-      await addDebit('510570', 'Aportes pensión empleador', totals.pensionEmployer);
+      await addDebit(
+        '510570',
+        'Aportes pensión empleador',
+        totals.pensionEmployer,
+      );
       await addDebit('510572', 'Aportes ARL', totals.arlEmployer);
-      await addDebit('510575', 'Aportes parafiscales (SENA, ICBF, Caja)', totalParafiscales);
+      await addDebit(
+        '510575',
+        'Aportes parafiscales (SENA, ICBF, Caja)',
+        totalParafiscales,
+      );
 
       // Credits
       await addCredit('237005', 'Aportes EPS empleado', totals.healthEmployee);
-      await addCredit('237006', 'Aportes pensión empleado', totals.pensionEmployee);
+      await addCredit(
+        '237006',
+        'Aportes pensión empleado',
+        totals.pensionEmployee,
+      );
       await addCredit('250505', 'Nómina por pagar', totals.netSalary);
-      await addCredit('261005', 'Cesantías consolidadas', totals.cesantiasProvision);
-      await addCredit('261505', 'Intereses sobre cesantías', totals.intCesantiasProvision);
-      await addCredit('261010', 'Vacaciones consolidadas', totals.vacacionesProvision);
-      await addCredit('237010', 'Aportes parafiscales por pagar', totalParafiscales);
+      await addCredit(
+        '261005',
+        'Cesantías consolidadas',
+        totals.cesantiasProvision,
+      );
+      await addCredit(
+        '261505',
+        'Intereses sobre cesantías',
+        totals.intCesantiasProvision,
+      );
+      await addCredit(
+        '261010',
+        'Vacaciones consolidadas',
+        totals.vacacionesProvision,
+      );
+      await addCredit(
+        '237010',
+        'Aportes parafiscales por pagar',
+        totalParafiscales,
+      );
 
       const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
       const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
@@ -470,8 +546,10 @@ export class PayrollService {
         }
       }
 
-      const finalDebit = Math.round(lines.reduce((s, l) => s + l.debit, 0) * 100) / 100;
-      const finalCredit = Math.round(lines.reduce((s, l) => s + l.credit, 0) * 100) / 100;
+      const finalDebit =
+        Math.round(lines.reduce((s, l) => s + l.debit, 0) * 100) / 100;
+      const finalCredit =
+        Math.round(lines.reduce((s, l) => s + l.credit, 0) * 100) / 100;
 
       const periodLabel = `${period.year}-${String(period.month).padStart(2, '0')} (${period.period_type})`;
 

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 
 export interface CreateNovedadDto {
@@ -18,7 +22,8 @@ export class PayrollNovedadService {
     const period = await this.prisma.payrollPeriod.findUnique({
       where: { id: dto.id_payroll_period },
     });
-    if (!period) throw new NotFoundException('Período de nómina no encontrado.');
+    if (!period)
+      throw new NotFoundException('Período de nómina no encontrado.');
     if (period.status !== 'DRAFT') {
       throw new BadRequestException(
         `Solo se pueden registrar novedades en períodos DRAFT (actual: ${period.status}).`,
@@ -45,7 +50,9 @@ export class PayrollNovedadService {
   findByPeriod(id_payroll_period: number) {
     return this.prisma.payrollNovedad.findMany({
       where: { id_payroll_period },
-      include: { employee: { select: { id: true, name: true, document_number: true } } },
+      include: {
+        employee: { select: { id: true, name: true, document_number: true } },
+      },
       orderBy: [{ id_employee: 'asc' }, { type: 'asc' }],
     });
   }
@@ -57,7 +64,9 @@ export class PayrollNovedadService {
     });
     if (!existing) throw new NotFoundException('Novedad no encontrada.');
     if (existing.payrollPeriod.status !== 'DRAFT') {
-      throw new BadRequestException('Solo se editan novedades de períodos DRAFT.');
+      throw new BadRequestException(
+        'Solo se editan novedades de períodos DRAFT.',
+      );
     }
 
     return this.prisma.payrollNovedad.update({
@@ -78,7 +87,9 @@ export class PayrollNovedadService {
     });
     if (!existing) throw new NotFoundException('Novedad no encontrada.');
     if (existing.payrollPeriod.status !== 'DRAFT') {
-      throw new BadRequestException('Solo se eliminan novedades de períodos DRAFT.');
+      throw new BadRequestException(
+        'Solo se eliminan novedades de períodos DRAFT.',
+      );
     }
     return this.prisma.payrollNovedad.delete({ where: { id } });
   }

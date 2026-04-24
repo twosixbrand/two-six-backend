@@ -15,7 +15,7 @@ export interface CreateDispatchDto {
 }
 
 export interface ConfirmReceptionItemDto {
-  id: number;           // ConsignmentDispatchItem.id
+  id: number; // ConsignmentDispatchItem.id
   received_ok: boolean;
   received_qty: number;
   observation?: string;
@@ -57,7 +57,9 @@ export class ConsignmentDispatchService {
       where: { id: data.id_warehouse },
     });
     if (!warehouse) {
-      throw new NotFoundException(`Bodega #${data.id_warehouse} no encontrada.`);
+      throw new NotFoundException(
+        `Bodega #${data.id_warehouse} no encontrada.`,
+      );
     }
     if (!warehouse.is_active) {
       throw new BadRequestException('La bodega destino está inactiva.');
@@ -103,7 +105,9 @@ export class ConsignmentDispatchService {
         ...(filters.status && { status: filters.status as any }),
       },
       include: {
-        warehouse: { include: { customer: { select: { id: true, name: true } } } },
+        warehouse: {
+          include: { customer: { select: { id: true, name: true } } },
+        },
         items: true,
       },
       orderBy: { id: 'desc' },
@@ -123,8 +127,14 @@ export class ConsignmentDispatchService {
                 clothingColor: {
                   include: {
                     color: true,
-                    imageClothing: { orderBy: { position: "asc" as const }, take: 1, select: { image_url: true } },
-                    design: { select: { id: true, reference: true, description: true } },
+                    imageClothing: {
+                      orderBy: { position: 'asc' as const },
+                      take: 1,
+                      select: { image_url: true },
+                    },
+                    design: {
+                      select: { id: true, reference: true, description: true },
+                    },
                   },
                 },
               },
@@ -141,7 +151,9 @@ export class ConsignmentDispatchService {
     const d = await this.prisma.consignmentDispatch.findUnique({
       where: { qr_token: token },
       include: {
-        warehouse: { include: { customer: { select: { id: true, name: true } } } },
+        warehouse: {
+          include: { customer: { select: { id: true, name: true } } },
+        },
         items: {
           include: {
             clothingSize: {
@@ -150,8 +162,14 @@ export class ConsignmentDispatchService {
                 clothingColor: {
                   include: {
                     color: true,
-                    imageClothing: { orderBy: { position: "asc" as const }, take: 1, select: { image_url: true } },
-                    design: { select: { id: true, reference: true, description: true } },
+                    imageClothing: {
+                      orderBy: { position: 'asc' as const },
+                      take: 1,
+                      select: { image_url: true },
+                    },
+                    design: {
+                      select: { id: true, reference: true, description: true },
+                    },
                   },
                 },
               },
@@ -185,7 +203,9 @@ export class ConsignmentDispatchService {
         description: it.clothingSize.clothingColor.design.description,
         color: it.clothingSize.clothingColor.color.name,
         size: it.clothingSize.size.name,
-        image_url: (it.clothingSize.clothingColor as any).imageClothing?.[0]?.image_url ?? null,
+        image_url:
+          (it.clothingSize.clothingColor as any).imageClothing?.[0]
+            ?.image_url ?? null,
       })),
     };
   }
@@ -211,7 +231,11 @@ export class ConsignmentDispatchService {
                 clothingColor: {
                   include: {
                     color: true,
-                    imageClothing: { orderBy: { position: "asc" as const }, take: 1, select: { image_url: true } },
+                    imageClothing: {
+                      orderBy: { position: 'asc' as const },
+                      take: 1,
+                      select: { image_url: true },
+                    },
                     design: { select: { reference: true } },
                   },
                 },
@@ -221,9 +245,12 @@ export class ConsignmentDispatchService {
         },
       },
     });
-    if (!dispatch) throw new NotFoundException(`Despacho #${id} no encontrado.`);
+    if (!dispatch)
+      throw new NotFoundException(`Despacho #${id} no encontrado.`);
     if (dispatch.status !== 'PENDIENTE') {
-      throw new ConflictException(`Solo se pueden enviar despachos PENDIENTE (actual: ${dispatch.status}).`);
+      throw new ConflictException(
+        `Solo se pueden enviar despachos PENDIENTE (actual: ${dispatch.status}).`,
+      );
     }
 
     let hasChanges = false;
@@ -265,116 +292,119 @@ export class ConsignmentDispatchService {
    * Si adjust_to_available=true, ajusta cantidades al stock real antes de enviar.
    */
   async send(id: number, opts: { adjust_to_available?: boolean } = {}) {
-    return this.prisma.$transaction(async (tx) => {
-      const dispatch = await tx.consignmentDispatch.findUnique({
-        where: { id },
-        include: { items: true },
-      });
-      if (!dispatch) throw new NotFoundException(`Despacho #${id} no encontrado.`);
-      if (dispatch.status !== 'PENDIENTE') {
-        throw new ConflictException(
-          `Solo los despachos en estado PENDIENTE pueden enviarse (estado actual: ${dispatch.status}).`,
-        );
-      }
-
-      for (const item of dispatch.items) {
-        const size = await tx.clothingSize.findUnique({
-          where: { id: item.id_clothing_size },
+    return this.prisma
+      .$transaction(async (tx) => {
+        const dispatch = await tx.consignmentDispatch.findUnique({
+          where: { id },
+          include: { items: true },
         });
-        if (!size) {
-          throw new NotFoundException(
-            `ClothingSize #${item.id_clothing_size} no encontrado.`,
+        if (!dispatch)
+          throw new NotFoundException(`Despacho #${id} no encontrado.`);
+        if (dispatch.status !== 'PENDIENTE') {
+          throw new ConflictException(
+            `Solo los despachos en estado PENDIENTE pueden enviarse (estado actual: ${dispatch.status}).`,
           );
         }
-        let qty = item.quantity;
-        if (size.quantity_available < qty) {
-          if (opts.adjust_to_available) {
-            qty = size.quantity_available;
-            if (qty <= 0) continue; // sin stock, salta este ítem
-            // Ajusta la cantidad en el registro del despacho
-            await tx.consignmentDispatchItem.update({
-              where: { id: item.id },
-              data: { quantity: qty },
-            });
-          } else {
-            throw new BadRequestException(
-              `Stock insuficiente para ClothingSize #${item.id_clothing_size}. Disponible: ${size.quantity_available}, requerido: ${item.quantity}.`,
+
+        for (const item of dispatch.items) {
+          const size = await tx.clothingSize.findUnique({
+            where: { id: item.id_clothing_size },
+          });
+          if (!size) {
+            throw new NotFoundException(
+              `ClothingSize #${item.id_clothing_size} no encontrado.`,
             );
           }
-        }
+          let qty = item.quantity;
+          if (size.quantity_available < qty) {
+            if (opts.adjust_to_available) {
+              qty = size.quantity_available;
+              if (qty <= 0) continue; // sin stock, salta este ítem
+              // Ajusta la cantidad en el registro del despacho
+              await tx.consignmentDispatchItem.update({
+                where: { id: item.id },
+                data: { quantity: qty },
+              });
+            } else {
+              throw new BadRequestException(
+                `Stock insuficiente para ClothingSize #${item.id_clothing_size}. Disponible: ${size.quantity_available}, requerido: ${item.quantity}.`,
+              );
+            }
+          }
 
-        const balanceBefore = size.quantity_available;
-        const balanceAfter = balanceBefore - qty;
+          const balanceBefore = size.quantity_available;
+          const balanceAfter = balanceBefore - qty;
 
-        // Decrementa available, incrementa cache on_consignment
-        await tx.clothingSize.update({
-          where: { id: item.id_clothing_size },
-          data: {
-            quantity_available: balanceAfter,
-            quantity_on_consignment: { increment: qty },
-          },
-        });
-
-        // Upsert ConsignmentStock (PENDIENTE_RECEPCION)
-        const existingStock = await tx.consignmentStock.findUnique({
-          where: {
-            id_warehouse_id_clothing_size_status: {
-              id_warehouse: dispatch.id_warehouse,
-              id_clothing_size: item.id_clothing_size,
-              status: 'PENDIENTE_RECEPCION',
-            },
-          },
-        });
-        if (existingStock) {
-          await tx.consignmentStock.update({
-            where: { id: existingStock.id },
-            data: { quantity: { increment: qty } },
-          });
-        } else {
-          await tx.consignmentStock.create({
+          // Decrementa available, incrementa cache on_consignment
+          await tx.clothingSize.update({
+            where: { id: item.id_clothing_size },
             data: {
-              id_warehouse: dispatch.id_warehouse,
+              quantity_available: balanceAfter,
+              quantity_on_consignment: { increment: qty },
+            },
+          });
+
+          // Upsert ConsignmentStock (PENDIENTE_RECEPCION)
+          const existingStock = await tx.consignmentStock.findUnique({
+            where: {
+              id_warehouse_id_clothing_size_status: {
+                id_warehouse: dispatch.id_warehouse,
+                id_clothing_size: item.id_clothing_size,
+                status: 'PENDIENTE_RECEPCION',
+              },
+            },
+          });
+          if (existingStock) {
+            await tx.consignmentStock.update({
+              where: { id: existingStock.id },
+              data: { quantity: { increment: qty } },
+            });
+          } else {
+            await tx.consignmentStock.create({
+              data: {
+                id_warehouse: dispatch.id_warehouse,
+                id_clothing_size: item.id_clothing_size,
+                quantity: qty,
+                status: 'PENDIENTE_RECEPCION',
+              },
+            });
+          }
+
+          // Registra Kardex
+          await tx.inventoryKardex.create({
+            data: {
               id_clothing_size: item.id_clothing_size,
+              type: 'OUT',
+              source_type: 'CONSIGNMENT_DISPATCH',
+              source_id: dispatch.id,
               quantity: qty,
-              status: 'PENDIENTE_RECEPCION',
+              balance_before: balanceBefore,
+              balance_after: balanceAfter,
+              description: `Despacho consignación ${dispatch.dispatch_number}`,
             },
           });
         }
 
-        // Registra Kardex
-        await tx.inventoryKardex.create({
-          data: {
-            id_clothing_size: item.id_clothing_size,
-            type: 'OUT',
-            source_type: 'CONSIGNMENT_DISPATCH',
-            source_id: dispatch.id,
-            quantity: qty,
-            balance_before: balanceBefore,
-            balance_after: balanceAfter,
-            description: `Despacho consignación ${dispatch.dispatch_number}`,
+        return tx.consignmentDispatch.update({
+          where: { id },
+          data: { status: 'EN_TRANSITO', sent_at: new Date() },
+          include: {
+            items: true,
+            warehouse: { include: { customer: true } },
           },
         });
-      }
-
-      return tx.consignmentDispatch.update({
-        where: { id },
-        data: { status: 'EN_TRANSITO', sent_at: new Date() },
-        include: {
-          items: true,
-          warehouse: { include: { customer: true } },
-        },
+      })
+      .then(async (result) => {
+        // Asiento contable: reclass 143505 → 143510. Best-effort, no bloquea.
+        try {
+          await this.journalAutoService.onConsignmentDispatchSent(id);
+        } catch (err: any) {
+          console.error(
+            `[JournalAuto] Error generando asiento de despacho ${id}: ${err.message}`,
+          );
+        }
+        return result;
       });
-    }).then(async (result) => {
-      // Asiento contable: reclass 143505 → 143510. Best-effort, no bloquea.
-      try {
-        await this.journalAutoService.onConsignmentDispatchSent(id);
-      } catch (err: any) {
-        console.error(
-          `[JournalAuto] Error generando asiento de despacho ${id}: ${err.message}`,
-        );
-      }
-      return result;
-    });
   }
 
   /**
@@ -402,7 +432,10 @@ export class ConsignmentDispatchService {
       }
 
       // Construir mapa de recepción por item_id
-      const receptionMap = new Map<number, { received_ok: boolean; received_qty: number; observation?: string }>();
+      const receptionMap = new Map<
+        number,
+        { received_ok: boolean; received_qty: number; observation?: string }
+      >();
       if (data.items && data.items.length > 0) {
         for (const ri of data.items) {
           receptionMap.set(ri.id, {
@@ -427,7 +460,9 @@ export class ConsignmentDispatchService {
             received_ok: receivedOk,
             received_qty: receivedQty,
             observation,
-            resolution_status: hasDiscrepancy ? 'PENDING_REVIEW' : 'NO_DISCREPANCY',
+            resolution_status: hasDiscrepancy
+              ? 'PENDING_REVIEW'
+              : 'NO_DISCREPANCY',
           },
         });
 
@@ -552,7 +587,9 @@ export class ConsignmentDispatchService {
       );
     }
     if (item.received_qty === null) {
-      throw new BadRequestException('El item no tiene cantidad recibida registrada.');
+      throw new BadRequestException(
+        'El item no tiene cantidad recibida registrada.',
+      );
     }
 
     const diff = item.received_qty - item.quantity; // positivo = sobrante, negativo = faltante
@@ -593,7 +630,9 @@ export class ConsignmentDispatchService {
           }
 
           // Kardex
-          const size = await tx.clothingSize.findUnique({ where: { id: item.id_clothing_size } });
+          const size = await tx.clothingSize.findUnique({
+            where: { id: item.id_clothing_size },
+          });
           await tx.inventoryKardex.create({
             data: {
               id_clothing_size: item.id_clothing_size,
@@ -634,7 +673,9 @@ export class ConsignmentDispatchService {
           }
 
           // Kardex
-          const size = await tx.clothingSize.findUnique({ where: { id: item.id_clothing_size } });
+          const size = await tx.clothingSize.findUnique({
+            where: { id: item.id_clothing_size },
+          });
           await tx.inventoryKardex.create({
             data: {
               id_clothing_size: item.id_clothing_size,

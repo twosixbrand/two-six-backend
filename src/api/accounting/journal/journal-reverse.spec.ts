@@ -36,9 +36,11 @@ describe('JournalService.reverseEntry', () => {
       journalEntry: {
         findUnique: jest.fn(),
         findFirst: jest.fn().mockResolvedValue({ entry_number: 'AC-000011' }),
-        create: jest.fn().mockImplementation(({ data }: any) =>
-          Promise.resolve({ id: 11, ...data, lines: data.lines.create }),
-        ),
+        create: jest
+          .fn()
+          .mockImplementation(({ data }: any) =>
+            Promise.resolve({ id: 11, ...data, lines: data.lines.create }),
+          ),
       },
       $queryRawUnsafe: jest.fn().mockRejectedValue(new Error('no seq in test')),
     };
@@ -58,27 +60,43 @@ describe('JournalService.reverseEntry', () => {
 
   it('lanza NotFound si el asiento no existe', async () => {
     prismaMock.journalEntry.findUnique.mockResolvedValue(null);
-    await expect(service.reverseEntry(999, 'Motivo')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.reverseEntry(999, 'Motivo')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('requiere un motivo no vacío', async () => {
-    await expect(service.reverseEntry(10, '  ')).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.reverseEntry(10, '  ')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('rechaza asientos que no estén POSTED', async () => {
-    prismaMock.journalEntry.findUnique.mockResolvedValue({ ...postedEntry, status: 'DRAFT' });
-    await expect(service.reverseEntry(10, 'Motivo')).rejects.toBeInstanceOf(BadRequestException);
+    prismaMock.journalEntry.findUnique.mockResolvedValue({
+      ...postedEntry,
+      status: 'DRAFT',
+    });
+    await expect(service.reverseEntry(10, 'Motivo')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('no permite reversar un reverso', async () => {
-    prismaMock.journalEntry.findUnique.mockResolvedValue({ ...postedEntry, source_type: 'REVERSAL' });
-    await expect(service.reverseEntry(10, 'Motivo')).rejects.toBeInstanceOf(BadRequestException);
+    prismaMock.journalEntry.findUnique.mockResolvedValue({
+      ...postedEntry,
+      source_type: 'REVERSAL',
+    });
+    await expect(service.reverseEntry(10, 'Motivo')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('respeta el cierre de periodo', async () => {
     prismaMock.journalEntry.findUnique.mockResolvedValue(postedEntry);
     closingMock.isPeriodClosed.mockResolvedValue(true);
-    await expect(service.reverseEntry(10, 'Motivo')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.reverseEntry(10, 'Motivo')).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
   });
 
   it('crea un asiento nuevo con líneas invertidas y source_type REVERSAL', async () => {

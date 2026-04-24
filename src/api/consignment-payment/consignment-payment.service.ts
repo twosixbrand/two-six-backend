@@ -31,16 +31,21 @@ export class ConsignmentPaymentService {
     const order = await this.prisma.order.findUnique({
       where: { id: dto.id_order },
     });
-    if (!order) throw new NotFoundException(`Orden #${dto.id_order} no encontrada.`);
+    if (!order)
+      throw new NotFoundException(`Orden #${dto.id_order} no encontrada.`);
     if (order.id_customer !== dto.id_customer) {
       throw new ForbiddenException('Esta orden no pertenece a tu cuenta.');
     }
     if (!['SELLOUT', 'MERMA'].includes(order.status)) {
-      throw new BadRequestException('Solo se pueden registrar pagos de órdenes de consignación.');
+      throw new BadRequestException(
+        'Solo se pueden registrar pagos de órdenes de consignación.',
+      );
     }
 
     if (dto.payment_method === 'TRANSFERENCIA' && !dto.proof_image_url) {
-      throw new BadRequestException('Para transferencia debes adjuntar el comprobante.');
+      throw new BadRequestException(
+        'Para transferencia debes adjuntar el comprobante.',
+      );
     }
 
     return this.prisma.consignmentPayment.create({
@@ -61,7 +66,14 @@ export class ConsignmentPaymentService {
     return this.prisma.consignmentPayment.findMany({
       where: { id_customer },
       include: {
-        order: { select: { id: true, order_reference: true, total_payment: true, status: true } },
+        order: {
+          select: {
+            id: true,
+            order_reference: true,
+            total_payment: true,
+            status: true,
+          },
+        },
       },
       orderBy: { id: 'desc' },
     });
@@ -83,7 +95,12 @@ export class ConsignmentPaymentService {
         status: true,
         createdAt: true,
         consignmentPayments: {
-          select: { id: true, amount: true, status: true, payment_method: true },
+          select: {
+            id: true,
+            amount: true,
+            status: true,
+            payment_method: true,
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -99,7 +116,15 @@ export class ConsignmentPaymentService {
       },
       include: {
         customer: { select: { id: true, name: true, document_number: true } },
-        order: { select: { id: true, order_reference: true, total_payment: true, status: true, is_paid: true } },
+        order: {
+          select: {
+            id: true,
+            order_reference: true,
+            total_payment: true,
+            status: true,
+            is_paid: true,
+          },
+        },
       },
       orderBy: { id: 'desc' },
     });
@@ -123,7 +148,9 @@ export class ConsignmentPaymentService {
   async approve(id: number, approvedBy: string) {
     const payment = await this.findOne(id);
     if (payment.status !== 'PENDING') {
-      throw new BadRequestException(`Solo se pueden aprobar pagos PENDING (actual: ${payment.status}).`);
+      throw new BadRequestException(
+        `Solo se pueden aprobar pagos PENDING (actual: ${payment.status}).`,
+      );
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -141,7 +168,8 @@ export class ConsignmentPaymentService {
       const allPayments = await tx.consignmentPayment.findMany({
         where: { id_order: payment.id_order, status: 'APPROVED' },
       });
-      const totalPaid = allPayments.reduce((s, p) => s + p.amount, 0) + payment.amount;
+      const totalPaid =
+        allPayments.reduce((s, p) => s + p.amount, 0) + payment.amount;
 
       if (totalPaid >= payment.order.total_payment) {
         // Marcar orden como pagada
@@ -159,7 +187,9 @@ export class ConsignmentPaymentService {
   async reject(id: number, reason: string, rejectedBy: string) {
     const payment = await this.findOne(id);
     if (payment.status !== 'PENDING') {
-      throw new BadRequestException(`Solo se pueden rechazar pagos PENDING (actual: ${payment.status}).`);
+      throw new BadRequestException(
+        `Solo se pueden rechazar pagos PENDING (actual: ${payment.status}).`,
+      );
     }
     return this.prisma.consignmentPayment.update({
       where: { id },

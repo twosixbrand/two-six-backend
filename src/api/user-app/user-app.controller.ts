@@ -6,13 +6,17 @@ import {
   Patch,
   Param,
   Delete,
-  ParseIntPipe, UseGuards } from '@nestjs/common';
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { UserAppService } from './user-app.service';
-import { CreateUserAppDto, createUserAppSchema } from './dto/create-user-app.schema';
+import {
+  CreateUserAppDto,
+  createUserAppSchema,
+} from './dto/create-user-app.schema';
 import { UpdateUserAppDto } from './dto/update-user-app.dto';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-
 
 @UseGuards(JwtAuthGuard)
 @Controller('user-app')
@@ -20,7 +24,10 @@ export class UserAppController {
   constructor(private readonly userAppService: UserAppService) {}
 
   @Post()
-  create(@Body(new ZodValidationPipe(createUserAppSchema)) createUserAppDto: CreateUserAppDto) {
+  create(
+    @Body(new ZodValidationPipe(createUserAppSchema))
+    createUserAppDto: CreateUserAppDto,
+  ) {
     return this.userAppService.create(createUserAppDto);
   }
 
@@ -35,7 +42,10 @@ export class UserAppController {
   }
 
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateUserAppDto: UpdateUserAppDto) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateUserAppDto: UpdateUserAppDto,
+  ) {
     return this.userAppService.update(id, updateUserAppDto);
   }
 

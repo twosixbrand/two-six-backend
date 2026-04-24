@@ -7,7 +7,9 @@ import {
   Patch,
   Param,
   Delete,
-  ParseIntPipe, UseGuards } from '@nestjs/common';
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { ClothingService } from './clothing.service';
 import { CreateClothingDto } from './dto/create-clothing.dto';
 import { UpdateClothingDto } from './dto/update-clothing.dto';

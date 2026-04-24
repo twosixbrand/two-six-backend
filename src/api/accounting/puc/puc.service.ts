@@ -1,11 +1,16 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreatePucAccountDto } from './dto/create-puc-account.dto';
 import { UpdatePucAccountDto } from './dto/update-puc-account.dto';
 
 @Injectable()
 export class PucService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async findAll(search?: string) {
     const where: any = {};
@@ -70,7 +75,9 @@ export class PucService {
     });
 
     if (existing) {
-      throw new ConflictException(`Ya existe una cuenta con el código ${dto.code}`);
+      throw new ConflictException(
+        `Ya existe una cuenta con el código ${dto.code}`,
+      );
     }
 
     // Validate parent exists if provided
@@ -80,7 +87,9 @@ export class PucService {
       });
 
       if (!parent) {
-        throw new BadRequestException(`La cuenta padre con código ${dto.parent_code} no existe`);
+        throw new BadRequestException(
+          `La cuenta padre con código ${dto.parent_code} no existe`,
+        );
       }
     }
 
@@ -111,7 +120,9 @@ export class PucService {
       });
 
       if (!parent) {
-        throw new BadRequestException(`La cuenta padre con código ${dto.parent_code} no existe`);
+        throw new BadRequestException(
+          `La cuenta padre con código ${dto.parent_code} no existe`,
+        );
       }
     }
 

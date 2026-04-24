@@ -6,7 +6,12 @@
  *
  * Se registra como filtro global en `main.ts`.
  */
-import { Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Catch,
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
 import * as Sentry from '@sentry/nestjs';
 
@@ -14,9 +19,10 @@ import * as Sentry from '@sentry/nestjs';
 export class SentryExceptionFilter extends BaseExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     // Solo capturamos errores del servidor (5xx), no errores del cliente (4xx)
-    const status = exception instanceof HttpException
-      ? exception.getStatus()
-      : HttpStatus.INTERNAL_SERVER_ERROR;
+    const status =
+      exception instanceof HttpException
+        ? exception.getStatus()
+        : HttpStatus.INTERNAL_SERVER_ERROR;
 
     if (status >= 500) {
       Sentry.captureException(exception);

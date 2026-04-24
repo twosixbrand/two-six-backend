@@ -4,7 +4,7 @@ import { PqrController } from './pqr.controller';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Module({
-    controllers: [PqrController],
-    providers: [PqrService, PrismaService],
+  controllers: [PqrController],
+  providers: [PqrService, PrismaService],
 })
-export class PqrModule { }
+export class PqrModule {}

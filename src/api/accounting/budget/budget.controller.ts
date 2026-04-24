@@ -1,17 +1,11 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
 import { BudgetService } from './budget.service';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
-
 
 @UseGuards(JwtAuthGuard)
 @Controller('accounting/budget')
 export class BudgetController {
-  constructor(private readonly budgetService: BudgetService) { }
+  constructor(private readonly budgetService: BudgetService) {}
 
   @Get()
   findAll(@Query('year') year: string) {
@@ -20,7 +14,8 @@ export class BudgetController {
 
   @Post()
   upsert(
-    @Body() body: {
+    @Body()
+    body: {
       year: number;
       month: number;
       id_puc_account: number;
@@ -38,11 +33,11 @@ export class BudgetController {
   }
 
   @Get('comparison')
-  getComparison(
-    @Query('year') year: string,
-    @Query('month') month: string,
-  ) {
-    return this.budgetService.getComparison(parseInt(year, 10), parseInt(month, 10));
+  getComparison(@Query('year') year: string, @Query('month') month: string) {
+    return this.budgetService.getComparison(
+      parseInt(year, 10),
+      parseInt(month, 10),
+    );
   }
 
   @Get('comparison/annual')

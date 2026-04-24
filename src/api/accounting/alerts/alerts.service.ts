@@ -29,75 +29,86 @@ export class AlertsService {
     const unbilledCutoff = new Date();
     unbilledCutoff.setDate(unbilledCutoff.getDate() - 1); // > 1 día sin factura
 
-    const [staleDrafts, invalidLines, orphans, periodsToClose, unbilledOrders] = await Promise.all([
-      this.prisma.journalEntry.findMany({
-        where: { status: 'DRAFT', createdAt: { lt: draftCutoff } },
-        select: {
-          id: true,
-          entry_number: true,
-          createdAt: true,
-          description: true,
-          source_type: true,
-          total_debit: true,
-        },
-        orderBy: { createdAt: 'asc' },
-      }),
-      this.prisma.journalEntryLine.findMany({
-        where: {
-          journalEntry: { status: 'POSTED' },
-          pucAccount: { accepts_movements: false },
-        },
-        select: {
-          id: true,
-          debit: true,
-          credit: true,
-          pucAccount: { select: { code: true, name: true } },
-          journalEntry: { select: { entry_number: true, entry_date: true } },
-        },
-        take: 50,
-      }),
-      this.prisma.pucAccount.findMany({
-        where: {
-          parent_code: { not: null },
-        },
-        select: { id: true, code: true, name: true, parent_code: true },
-      }),
-      this.findUnclosedPeriods(),
-      this.prisma.order.findMany({
-        where: {
-          is_paid: true,
-          createdAt: { lt: unbilledCutoff },
-          dianEInvoicings: { none: {} },
-        },
-        select: {
-          id: true,
-          order_reference: true,
-          createdAt: true,
-          total_payment: true,
-          status: true,
-        },
-        orderBy: { createdAt: 'asc' },
-        take: 100,
-      }),
-    ]);
+    const [staleDrafts, invalidLines, orphans, periodsToClose, unbilledOrders] =
+      await Promise.all([
+        this.prisma.journalEntry.findMany({
+          where: { status: 'DRAFT', createdAt: { lt: draftCutoff } },
+          select: {
+            id: true,
+            entry_number: true,
+            createdAt: true,
+            description: true,
+            source_type: true,
+            total_debit: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        }),
+        this.prisma.journalEntryLine.findMany({
+          where: {
+            journalEntry: { status: 'POSTED' },
+            pucAccount: { accepts_movements: false },
+          },
+          select: {
+            id: true,
+            debit: true,
+            credit: true,
+            pucAccount: { select: { code: true, name: true } },
+            journalEntry: { select: { entry_number: true, entry_date: true } },
+          },
+          take: 50,
+        }),
+        this.prisma.pucAccount.findMany({
+          where: {
+            parent_code: { not: null },
+          },
+          select: { id: true, code: true, name: true, parent_code: true },
+        }),
+        this.findUnclosedPeriods(),
+        this.prisma.order.findMany({
+          where: {
+            is_paid: true,
+            createdAt: { lt: unbilledCutoff },
+            dianEInvoicings: { none: {} },
+          },
+          select: {
+            id: true,
+            order_reference: true,
+            createdAt: true,
+            total_payment: true,
+            status: true,
+          },
+          orderBy: { createdAt: 'asc' },
+          take: 100,
+        }),
+      ]);
 
     // Filtra cuentas PUC huérfanas
-    const allCodes = new Set((await this.prisma.pucAccount.findMany({ select: { code: true } })).map((a) => a.code));
-    const orphanAccounts = orphans.filter((a) => a.parent_code && !allCodes.has(a.parent_code));
+    const allCodes = new Set(
+      (await this.prisma.pucAccount.findMany({ select: { code: true } })).map(
+        (a) => a.code,
+      ),
+    );
+    const orphanAccounts = orphans.filter(
+      (a) => a.parent_code && !allCodes.has(a.parent_code),
+    );
 
     // Cuentas inactivas por uso (sin líneas en los últimos N meses)
     const recentlyUsedAccountIds = new Set(
-      (await this.prisma.journalEntryLine.findMany({
-        where: { journalEntry: { entry_date: { gte: idleCutoff } } },
-        distinct: ['id_puc_account'],
-        select: { id_puc_account: true },
-      })).map((l) => l.id_puc_account),
+      (
+        await this.prisma.journalEntryLine.findMany({
+          where: { journalEntry: { entry_date: { gte: idleCutoff } } },
+          distinct: ['id_puc_account'],
+          select: { id_puc_account: true },
+        })
+      ).map((l) => l.id_puc_account),
     );
     const allMovementAccounts = await this.prisma.pucAccount.findMany({
       where: { accepts_movements: true, is_active: true },
       select: { id: true, code: true, name: true },
     });
-    const idleAccounts = allMovementAccounts.filter((a) => !recentlyUsedAccountIds.has(a.id));
+    const idleAccounts = allMovementAccounts.filter(
+      (a) => !recentlyUsedAccountIds.has(a.id),
+    );
 
     // Próximos vencimientos fiscales (calendario aproximado)
     const fiscalDeadlines = this.computeFiscalDeadlines();
@@ -147,8 +158,14 @@ export class AlertsService {
         where: { year: now.getFullYear(), month: i, status: 'CLOSED' },
       });
       if (!closed) {
-        const daysOverdue = Math.floor((now.getTime() - cutoff.getTime()) / (1000 * 60 * 60 * 24));
-        result.push({ year: now.getFullYear(), month: i, days_overdue: daysOverdue });
+        const daysOverdue = Math.floor(
+          (now.getTime() - cutoff.getTime()) / (1000 * 60 * 60 * 24),
+        );
+        result.push({
+          year: now.getFullYear(),
+          month: i,
+          days_overdue: daysOverdue,
+        });
       }
     }
     return result;
@@ -172,7 +189,9 @@ export class AlertsService {
       .map((c) => {
         const date = new Date(now.getFullYear(), now.getMonth(), c.day);
         if (date < now) date.setMonth(date.getMonth() + 1);
-        const daysLeft = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        const daysLeft = Math.ceil(
+          (date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+        );
         return { name: c.name, date, days_left: daysLeft };
       })
       .sort((a, b) => a.days_left - b.days_left)

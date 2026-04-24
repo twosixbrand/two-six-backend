@@ -4,10 +4,11 @@ import {
   Post,
   Body,
   Param,
-  ParseIntPipe, UseGuards } from '@nestjs/common';
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { PermissionService } from './permission.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-
 
 @UseGuards(JwtAuthGuard)
 @Controller('permissions')
@@ -39,7 +40,10 @@ export class PermissionController {
     @Param('roleId', ParseIntPipe) roleId: number,
     @Body() body: { permissionIds: number[] },
   ) {
-    return this.permissionService.setRolePermissions(roleId, body.permissionIds);
+    return this.permissionService.setRolePermissions(
+      roleId,
+      body.permissionIds,
+    );
   }
 
   /**

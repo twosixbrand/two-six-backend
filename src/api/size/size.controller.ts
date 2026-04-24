@@ -7,7 +7,9 @@ import {
   Patch,
   Param,
   Delete,
-  ParseIntPipe, UseGuards } from '@nestjs/common';
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { SizeService } from './size.service';
 import { CreateSizeDto } from './dto/create-size.dto';
 import { UpdateSizeDto } from './dto/update-size.dto';

@@ -107,11 +107,14 @@ export class WithholdingService {
 
     // Clear and save
     await this.prisma.withholdingCertificate.deleteMany({ where: { year } });
-    
+
     let seq = 1;
     const created: any[] = [];
     for (const data of results.values()) {
-      const rate = data.base_amount > 0 ? (data.withheld_amount / data.base_amount) * 100 : 0;
+      const rate =
+        data.base_amount > 0
+          ? (data.withheld_amount / data.base_amount) * 100
+          : 0;
       const cert = await this.prisma.withholdingCertificate.create({
         data: {
           certificate_number: `CR-${year}-${String(seq).padStart(4, '0')}`,
@@ -122,7 +125,7 @@ export class WithholdingService {
           rate: Math.round(rate * 100) / 100,
           withheld_amount: Math.round(data.withheld_amount),
           issue_date: new Date(),
-        }
+        },
       });
       created.push(cert);
       seq++;
@@ -143,10 +146,15 @@ export class WithholdingService {
 
     const nit = this.configService.get<string>('DIAN_COMPANY_NIT') || '';
     const dv = this.configService.get<string>('DIAN_COMPANY_DV') || '';
-    const companyName = this.configService.get<string>('DIAN_COMPANY_NAME') || 'TWO SIX S.A.S.';
+    const companyName =
+      this.configService.get<string>('DIAN_COMPANY_NAME') || 'TWO SIX S.A.S.';
 
     const formatCOP = (n: number) =>
-      new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
+      new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 0,
+      }).format(n);
 
     const conceptLabels: Record<string, string> = {
       RETEFUENTE: 'Retenci\u00f3n en la Fuente',
@@ -154,7 +162,8 @@ export class WithholdingService {
       RETEIVA: 'Retenci\u00f3n de IVA',
     };
 
-    const conceptLabel = conceptLabels[certificate.concept] || certificate.concept;
+    const conceptLabel =
+      conceptLabels[certificate.concept] || certificate.concept;
 
     const html = `
     <!DOCTYPE html>
@@ -285,19 +294,29 @@ export class WithholdingService {
 
     const puppeteer = require('puppeteer');
     const fs = require('fs');
-    const executablePath = this.configService.get<string>('PUPPETEER_EXECUTABLE_PATH') || puppeteer.executablePath();
+    const executablePath =
+      this.configService.get<string>('PUPPETEER_EXECUTABLE_PATH') ||
+      puppeteer.executablePath();
 
-    console.log(`Lanzando Puppeteer (Withholding). ExecutablePath: ${executablePath}`);
+    console.log(
+      `Lanzando Puppeteer (Withholding). ExecutablePath: ${executablePath}`,
+    );
     if (fs.existsSync(executablePath)) {
       console.log(`El binario de Chrome EXISTE en: ${executablePath}`);
     } else {
-      console.error(`¡ERROR! El binario de Chrome NO EXISTE en: ${executablePath}`);
+      console.error(
+        `¡ERROR! El binario de Chrome NO EXISTE en: ${executablePath}`,
+      );
     }
 
     const browser = await puppeteer.launch({
       headless: 'new',
       executablePath,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+      ],
     });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
@@ -312,7 +331,9 @@ export class WithholdingService {
   }
 
   async remove(id: number) {
-    const certificate = await this.prisma.withholdingCertificate.findUnique({ where: { id } });
+    const certificate = await this.prisma.withholdingCertificate.findUnique({
+      where: { id },
+    });
 
     if (!certificate) {
       throw new NotFoundException(`Certificado con ID ${id} no encontrado`);

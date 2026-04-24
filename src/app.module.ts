@@ -61,18 +61,21 @@ import { ConsignmentPaymentModule } from './api/consignment-payment/consignment-
     ScheduleModule.forRoot(),
     LoggerModule.forRoot({
       pinoHttp: {
-        transport: process.env.NODE_ENV !== 'production'
-          ? { target: 'pino-pretty' }
-          : undefined,
+        transport:
+          process.env.NODE_ENV !== 'production'
+            ? { target: 'pino-pretty' }
+            : undefined,
       },
     }),
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 100,
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
     PrismaModule,
     ErrorLogModule,
     ProductModule,
@@ -140,8 +143,8 @@ import { ConsignmentPaymentModule } from './api/consignment-payment/consignment-
     AppService,
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard
-    }
+      useClass: ThrottlerGuard,
+    },
   ],
 })
-export class AppModule { }
+export class AppModule {}

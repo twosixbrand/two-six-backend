@@ -36,9 +36,8 @@ export class AccountingDashboardService {
     const gastosMes = expenseEntries.reduce((sum, e) => sum + e.total_debit, 0);
 
     const utilidadMes = ventasMes - gastosMes;
-    const margenUtilidad = ventasMes > 0
-      ? Math.round((utilidadMes / ventasMes) * 10000) / 100
-      : 0;
+    const margenUtilidad =
+      ventasMes > 0 ? Math.round((utilidadMes / ventasMes) * 10000) / 100 : 0;
 
     // ── IVA Generado: credit to 240801 this month ──
     const ivaGeneradoLines = await this.prisma.journalEntryLine.findMany({
@@ -66,7 +65,10 @@ export class AccountingDashboardService {
       },
       select: { debit: true },
     });
-    const ivaDescontable = ivaDescontableLines.reduce((sum, l) => sum + l.debit, 0);
+    const ivaDescontable = ivaDescontableLines.reduce(
+      (sum, l) => sum + l.debit,
+      0,
+    );
 
     const ivaPorPagar = ivaGenerado - ivaDescontable;
 

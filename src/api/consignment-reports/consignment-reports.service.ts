@@ -93,15 +93,16 @@ export class ConsignmentReportsService {
 
         // Novedades de recepción
         let reception_shortage = 0; // faltantes (cliente recibió menos)
-        let reception_surplus = 0;  // sobrantes (cliente recibió más)
-        let reception_pending = 0;  // pendientes de revisión
+        let reception_surplus = 0; // sobrantes (cliente recibió más)
+        let reception_pending = 0; // pendientes de revisión
         for (const d of w.dispatches) {
           for (const it of d.items) {
             if (it.received_qty != null && it.received_qty !== it.quantity) {
               const diff = it.received_qty - it.quantity;
               if (diff < 0) reception_shortage += Math.abs(diff);
               if (diff > 0) reception_surplus += diff;
-              if ((it as any).resolution_status === 'PENDING_REVIEW') reception_pending++;
+              if ((it as any).resolution_status === 'PENDING_REVIEW')
+                reception_pending++;
             }
           }
         }
@@ -129,7 +130,9 @@ export class ConsignmentReportsService {
         };
       });
 
-      const sellout = selloutOrdersByCustomer.find((r) => r.id_customer === c.id);
+      const sellout = selloutOrdersByCustomer.find(
+        (r) => r.id_customer === c.id,
+      );
 
       return {
         id: c.id,
@@ -265,10 +268,19 @@ export class ConsignmentReportsService {
       by_customer: Array.from(perCustomer.values()),
       summary: {
         total_merma_orders: mermaOrders.length,
-        total_merma_units: mermaOrders.reduce((s, o) => s + o.orderItems.reduce((a, it) => a + it.quantity, 0), 0),
-        total_merma_amount: mermaOrders.reduce((s, o) => s + o.total_payment, 0),
+        total_merma_units: mermaOrders.reduce(
+          (s, o) => s + o.orderItems.reduce((a, it) => a + it.quantity, 0),
+          0,
+        ),
+        total_merma_amount: mermaOrders.reduce(
+          (s, o) => s + o.total_payment,
+          0,
+        ),
         total_warranty_returns: warrantyReturns.length,
-        total_warranty_units: warrantyReturns.reduce((s, r) => s + r.items.reduce((a, it) => a + it.quantity, 0), 0),
+        total_warranty_units: warrantyReturns.reduce(
+          (s, r) => s + r.items.reduce((a, it) => a + it.quantity, 0),
+          0,
+        ),
       },
     };
   }
@@ -328,7 +340,9 @@ export class ConsignmentReportsService {
       threshold_days,
       cutoff_date: cutoff,
       pending_count: pending.length,
-      warehouses: pending.sort((a, b) => b.days_since_last_count - a.days_since_last_count),
+      warehouses: pending.sort(
+        (a, b) => b.days_since_last_count - a.days_since_last_count,
+      ),
     };
   }
 }

@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
@@ -15,7 +20,7 @@ export class ExpenseService {
     private readonly auditService: AuditService,
     private readonly closingService: ClosingService,
     private readonly withholdingService: WithholdingService,
-  ) { }
+  ) {}
 
   async findAll(query: {
     category?: string;
@@ -133,7 +138,10 @@ export class ExpenseService {
     try {
       await this.journalAutoService.onExpenseCreated(expense.id);
     } catch (error) {
-      console.error('Error generando asiento contable automático para gasto:', error.message);
+      console.error(
+        'Error generando asiento contable automático para gasto:',
+        error.message,
+      );
     }
 
     // Audit log
@@ -164,7 +172,9 @@ export class ExpenseService {
     }
 
     // Validate if period is closed
-    const isClosed = await this.closingService.isPeriodClosed(expense.expense_date);
+    const isClosed = await this.closingService.isPeriodClosed(
+      expense.expense_date,
+    );
     if (isClosed) {
       throw new ForbiddenException(
         `No se puede modificar el gasto. El periodo contable ya se encuentra cerrado.`,
@@ -227,7 +237,10 @@ export class ExpenseService {
         }),
       );
     } catch (err) {
-      console.error('Error registrando auditoría de pago de gasto:', err.message);
+      console.error(
+        'Error registrando auditoría de pago de gasto:',
+        err.message,
+      );
     }
 
     // Auto-regenera certificados de retención del año del pago.
@@ -281,7 +294,10 @@ export class ExpenseService {
         }),
       );
     } catch (err) {
-      console.error('Error registrando auditoría de eliminación de gasto:', err.message);
+      console.error(
+        'Error registrando auditoría de eliminación de gasto:',
+        err.message,
+      );
     }
 
     return deleted;

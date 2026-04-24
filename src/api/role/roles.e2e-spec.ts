@@ -78,7 +78,10 @@ describe('RolesController (e2e)', () => {
     await request(app.getHttpServer()).get(`/roles/${roleId}`).expect(200);
 
     // 3. Update
-    await request(app.getHttpServer()).patch(`/roles/${roleId}`).send({ name: 'Commentator' }).expect(200);
+    await request(app.getHttpServer())
+      .patch(`/roles/${roleId}`)
+      .send({ name: 'Commentator' })
+      .expect(200);
 
     // 4. Delete
     await request(app.getHttpServer()).delete(`/roles/${roleId}`).expect(200);

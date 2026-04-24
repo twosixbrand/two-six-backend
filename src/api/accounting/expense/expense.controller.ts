@@ -7,17 +7,18 @@ import {
   Param,
   Delete,
   ParseIntPipe,
-  Query, UseGuards } from '@nestjs/common';
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ExpenseService } from './expense.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 
-
 @UseGuards(JwtAuthGuard)
 @Controller('accounting/expenses')
 export class ExpenseController {
-  constructor(private readonly expenseService: ExpenseService) { }
+  constructor(private readonly expenseService: ExpenseService) {}
 
   @Get()
   findAll(
@@ -26,7 +27,12 @@ export class ExpenseController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    return this.expenseService.findAll({ category, status, startDate, endDate });
+    return this.expenseService.findAll({
+      category,
+      status,
+      startDate,
+      endDate,
+    });
   }
 
   @Get('categories')

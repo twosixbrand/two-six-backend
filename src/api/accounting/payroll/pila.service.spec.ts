@@ -34,9 +34,9 @@ describe('PilaService', () => {
 
   it('rejects when no approved period exists', async () => {
     prismaMock.payrollPeriod.findFirst.mockResolvedValue(null);
-    await expect(service.generatePila(2026, 4, '900000')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.generatePila(2026, 4, '900000'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('maps identification codes to PILA codes correctly', async () => {

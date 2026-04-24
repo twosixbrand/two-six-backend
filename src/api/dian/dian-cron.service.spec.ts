@@ -226,15 +226,27 @@ describe('DianCronService', () => {
 
     it('should handle errors gracefully without crashing the loop', async () => {
       const invoices = [
-        { id: 8, document_number: 'FE008', status: 'SENT', email_sent: false, dian_response: '<b:ZipKey>zip-err</b:ZipKey>' },
-        { id: 9, document_number: 'FE009', status: 'SENT', email_sent: false, dian_response: '<b:ZipKey>zip-ok</b:ZipKey>' },
+        {
+          id: 8,
+          document_number: 'FE008',
+          status: 'SENT',
+          email_sent: false,
+          dian_response: '<b:ZipKey>zip-err</b:ZipKey>',
+        },
+        {
+          id: 9,
+          document_number: 'FE009',
+          status: 'SENT',
+          email_sent: false,
+          dian_response: '<b:ZipKey>zip-ok</b:ZipKey>',
+        },
       ];
       mockPrisma.dianEInvoicing.findMany.mockResolvedValue(invoices);
 
       // First call errors, second succeeds
-      mockSoapService.getStatusZip
-        .mockRejectedValueOnce(new Error('SOAP timeout'))
-        .mockResolvedValueOnce(`
+      mockSoapService.getStatusZip.mockRejectedValueOnce(
+        new Error('SOAP timeout'),
+      ).mockResolvedValueOnce(`
           <b:IsValid>true</b:IsValid>
           <b:StatusCode>00</b:StatusCode>
           <b:StatusDescription>OK</b:StatusDescription>

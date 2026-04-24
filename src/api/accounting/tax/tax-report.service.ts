@@ -83,7 +83,10 @@ export class TaxReportService {
       }));
 
       // IVA Descontable is a debit-nature account (activo), sum debits minus credits
-      ivaDescontableTotal = lines.reduce((sum, l) => sum + l.debit - l.credit, 0);
+      ivaDescontableTotal = lines.reduce(
+        (sum, l) => sum + l.debit - l.credit,
+        0,
+      );
     }
 
     const ivaPorPagar = ivaGeneradoTotal - ivaDescontableTotal;
@@ -112,7 +115,10 @@ export class TaxReportService {
    * en Formulario 300 DIAN. Incluye cabecera con totales y detalle de cada
    * movimiento en hojas concatenadas.
    */
-  async exportIvaDeclarationCsv(startDate: string, endDate: string): Promise<{ filename: string; content: string }> {
+  async exportIvaDeclarationCsv(
+    startDate: string,
+    endDate: string,
+  ): Promise<{ filename: string; content: string }> {
     const declaration = await this.getIvaDeclaration(startDate, endDate);
     const money = (n: number) => n.toFixed(2);
     const esc = (s: any) => {
@@ -128,9 +134,15 @@ export class TaxReportService {
     lines.push('');
     lines.push('RESUMEN');
     lines.push('Renglón,Concepto,Valor');
-    lines.push(`32,IVA Generado (ventas),${money(declaration.ivaGenerado.total)}`);
-    lines.push(`50,IVA Descontable (compras),${money(declaration.ivaDescontable.total)}`);
-    lines.push(`60,IVA por Pagar / Saldo a Favor,${money(declaration.ivaPorPagar)}`);
+    lines.push(
+      `32,IVA Generado (ventas),${money(declaration.ivaGenerado.total)}`,
+    );
+    lines.push(
+      `50,IVA Descontable (compras),${money(declaration.ivaDescontable.total)}`,
+    );
+    lines.push(
+      `60,IVA por Pagar / Saldo a Favor,${money(declaration.ivaPorPagar)}`,
+    );
     lines.push('');
 
     lines.push('DETALLE IVA GENERADO');
@@ -215,7 +227,13 @@ export class TaxReportService {
     // Build concept map from journal lines grouped by PUC account
     const conceptMap: Record<
       string,
-      { concept: string; code: string; base: number; retencion: number; entries: any[] }
+      {
+        concept: string;
+        code: string;
+        base: number;
+        retencion: number;
+        entries: any[];
+      }
     > = {};
 
     // Predefined retention concepts with their typical rates
@@ -230,7 +248,10 @@ export class TaxReportService {
     for (const line of reteFuenteLines) {
       const code = line.pucAccount.code;
       if (!conceptMap[code]) {
-        const meta = conceptRates[code] || { concept: line.pucAccount.name, rate: 0 };
+        const meta = conceptRates[code] || {
+          concept: line.pucAccount.name,
+          rate: 0,
+        };
         conceptMap[code] = {
           concept: meta.concept,
           code,

@@ -70,10 +70,26 @@ export class AgingService {
     return {
       generatedAt: now.toISOString(),
       summary: {
-        current: { label: buckets.current.label, total: buckets.current.total, count: buckets.current.orders.length },
-        days31_60: { label: buckets.days31_60.label, total: buckets.days31_60.total, count: buckets.days31_60.orders.length },
-        days61_90: { label: buckets.days61_90.label, total: buckets.days61_90.total, count: buckets.days61_90.orders.length },
-        over90: { label: buckets.over90.label, total: buckets.over90.total, count: buckets.over90.orders.length },
+        current: {
+          label: buckets.current.label,
+          total: buckets.current.total,
+          count: buckets.current.orders.length,
+        },
+        days31_60: {
+          label: buckets.days31_60.label,
+          total: buckets.days31_60.total,
+          count: buckets.days31_60.orders.length,
+        },
+        days61_90: {
+          label: buckets.days61_90.label,
+          total: buckets.days61_90.total,
+          count: buckets.days61_90.orders.length,
+        },
+        over90: {
+          label: buckets.over90.label,
+          total: buckets.over90.total,
+          count: buckets.over90.orders.length,
+        },
       },
       totalOutstanding,
       totalOrders: orders.length,
@@ -153,10 +169,26 @@ export class AgingService {
     return {
       generatedAt: now.toISOString(),
       summary: {
-        current: { label: buckets.current.label, total: buckets.current.total, count: buckets.current.items.length },
-        days31_60: { label: buckets.days31_60.label, total: buckets.days31_60.total, count: buckets.days31_60.items.length },
-        days61_90: { label: buckets.days61_90.label, total: buckets.days61_90.total, count: buckets.days61_90.items.length },
-        over90: { label: buckets.over90.label, total: buckets.over90.total, count: buckets.over90.items.length },
+        current: {
+          label: buckets.current.label,
+          total: buckets.current.total,
+          count: buckets.current.items.length,
+        },
+        days31_60: {
+          label: buckets.days31_60.label,
+          total: buckets.days31_60.total,
+          count: buckets.days31_60.items.length,
+        },
+        days61_90: {
+          label: buckets.days61_90.label,
+          total: buckets.days61_90.total,
+          count: buckets.days61_90.items.length,
+        },
+        over90: {
+          label: buckets.over90.label,
+          total: buckets.over90.total,
+          count: buckets.over90.items.length,
+        },
       },
       totalOutstanding,
       totalExpenses: expenses.length,
@@ -206,13 +238,16 @@ export class AgingService {
     });
 
     // Group by category
-    const categoryMap: Record<string, {
-      categoryName: string;
-      totalUnits: number;
-      totalCostValue: number;
-      totalSaleValue: number;
-      items: any[];
-    }> = {};
+    const categoryMap: Record<
+      string,
+      {
+        categoryName: string;
+        totalUnits: number;
+        totalCostValue: number;
+        totalSaleValue: number;
+        items: any[];
+      }
+    > = {};
 
     let globalTotalUnits = 0;
     let globalTotalCostValue = 0;
@@ -278,8 +313,8 @@ export class AgingService {
     }
 
     // Convert map to sorted array
-    const categories = Object.values(categoryMap).sort((a, b) =>
-      b.totalCostValue - a.totalCostValue,
+    const categories = Object.values(categoryMap).sort(
+      (a, b) => b.totalCostValue - a.totalCostValue,
     );
 
     return {

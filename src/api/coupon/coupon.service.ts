@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCouponDto } from './dto/create-coupon.dto';
 import { UpdateCouponDto } from './dto/update-coupon.dto';
@@ -9,9 +13,10 @@ export class CouponService {
 
   async create(createCouponDto: CreateCouponDto) {
     const existing = await this.prisma.coupon.findUnique({
-      where: { code: createCouponDto.code.toUpperCase() }
+      where: { code: createCouponDto.code.toUpperCase() },
     });
-    if (existing) throw new BadRequestException('El código del cupón ya existe.');
+    if (existing)
+      throw new BadRequestException('El código del cupón ya existe.');
 
     return this.prisma.coupon.create({
       data: {
@@ -25,7 +30,7 @@ export class CouponService {
 
   findAll() {
     return this.prisma.coupon.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -53,7 +58,7 @@ export class CouponService {
 
     if (data.code) {
       const existing = await this.prisma.coupon.findFirst({
-        where: { code: data.code, id: { not: id } }
+        where: { code: data.code, id: { not: id } },
       });
       if (existing) throw new BadRequestException('El código ya está en uso');
     }

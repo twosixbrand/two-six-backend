@@ -44,9 +44,7 @@ describe('ConsignmentReportsService', () => {
                 { status: 'EN_CONSIGNACION', quantity: 10 },
                 { status: 'EN_CONSIGNACION', quantity: 4 }, // another bucket
               ],
-              dispatches: [
-                { items: [{ quantity: 3 }, { quantity: 2 }] },
-              ],
+              dispatches: [{ items: [{ quantity: 3 }, { quantity: 2 }] }],
               returns: [
                 { return_type: 'PORTFOLIO', items: [{ quantity: 1 }] },
                 { return_type: 'WARRANTY', items: [{ quantity: 2 }] },
@@ -98,7 +96,11 @@ describe('ConsignmentReportsService', () => {
           id: 3,
           processed_at: new Date('2026-04-05'),
           notes: null,
-          warehouse: { id: 1, name: 'Bodega', customer: { id: 5, name: 'Ally' } },
+          warehouse: {
+            id: 1,
+            name: 'Bodega',
+            customer: { id: 5, name: 'Ally' },
+          },
           items: [{ quantity: 1 }],
         },
       ]);

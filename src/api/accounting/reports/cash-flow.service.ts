@@ -13,7 +13,10 @@ export class CashFlowService {
     const end = new Date(endDate);
 
     // Helper: get balance of accounts matching a code prefix at a given date
-    const getBalanceAtDate = async (codePrefix: string, date: Date): Promise<number> => {
+    const getBalanceAtDate = async (
+      codePrefix: string,
+      date: Date,
+    ): Promise<number> => {
       const accounts = await this.prisma.pucAccount.findMany({
         where: { code: { startsWith: codePrefix } },
       });
@@ -32,14 +35,19 @@ export class CashFlowService {
 
       const nature = accounts[0].nature;
       return lines.reduce((sum, l) => {
-        return sum + (nature === 'DEBITO' ? l.debit - l.credit : l.credit - l.debit);
+        return (
+          sum + (nature === 'DEBITO' ? l.debit - l.credit : l.credit - l.debit)
+        );
       }, 0);
     };
 
     // Helper: get change in balance between two dates for a code prefix
     const getBalanceChange = async (codePrefix: string): Promise<number> => {
       const endBal = await getBalanceAtDate(codePrefix, end);
-      const startBal = await getBalanceAtDate(codePrefix, new Date(start.getTime() - 1));
+      const startBal = await getBalanceAtDate(
+        codePrefix,
+        new Date(start.getTime() - 1),
+      );
       return endBal - startBal;
     };
 
@@ -63,9 +71,12 @@ export class CashFlowService {
       });
 
       return lines.reduce((sum, l) => {
-        return sum + (l.pucAccount.nature === 'CREDITO'
-          ? l.credit - l.debit
-          : l.debit - l.credit);
+        return (
+          sum +
+          (l.pucAccount.nature === 'CREDITO'
+            ? l.credit - l.debit
+            : l.debit - l.credit)
+        );
       }, 0);
     };
 
@@ -84,16 +95,26 @@ export class CashFlowService {
     const operatingActivities = {
       netIncome,
       adjustments: [
-        { concept: 'Cambio en Cuentas por Cobrar (1305)', amount: -changeAccountsReceivable },
+        {
+          concept: 'Cambio en Cuentas por Cobrar (1305)',
+          amount: -changeAccountsReceivable,
+        },
         { concept: 'Cambio en Inventarios (1435)', amount: -changeInventory },
-        { concept: 'Cambio en Cuentas por Pagar (2205)', amount: changeAccountsPayable },
-        { concept: 'Cambio en Impuestos por Pagar (2408)', amount: changeTaxesPayable },
+        {
+          concept: 'Cambio en Cuentas por Pagar (2205)',
+          amount: changeAccountsPayable,
+        },
+        {
+          concept: 'Cambio en Impuestos por Pagar (2408)',
+          amount: changeTaxesPayable,
+        },
       ],
-      total: netIncome
-        - changeAccountsReceivable
-        - changeInventory
-        + changeAccountsPayable
-        + changeTaxesPayable,
+      total:
+        netIncome -
+        changeAccountsReceivable -
+        changeInventory +
+        changeAccountsPayable +
+        changeTaxesPayable,
     };
 
     // 3. Investing Activities — changes in fixed assets (15xx)
@@ -101,7 +122,10 @@ export class CashFlowService {
 
     const investingActivities = {
       items: [
-        { concept: 'Cambio en Propiedad, Planta y Equipo (15xx)', amount: -changeFixedAssets },
+        {
+          concept: 'Cambio en Propiedad, Planta y Equipo (15xx)',
+          amount: -changeFixedAssets,
+        },
       ],
       total: -changeFixedAssets,
     };
@@ -112,19 +136,30 @@ export class CashFlowService {
 
     const financingActivities = {
       items: [
-        { concept: 'Cambio en Obligaciones Financieras (21xx)', amount: changeLoans },
+        {
+          concept: 'Cambio en Obligaciones Financieras (21xx)',
+          amount: changeLoans,
+        },
         { concept: 'Cambio en Capital Social (31xx)', amount: changeEquity },
       ],
       total: changeLoans + changeEquity,
     };
 
     // 5. Cash balances
-    const openingCash1105 = await getBalanceAtDate('1105', new Date(start.getTime() - 1));
-    const openingCash1110 = await getBalanceAtDate('1110', new Date(start.getTime() - 1));
+    const openingCash1105 = await getBalanceAtDate(
+      '1105',
+      new Date(start.getTime() - 1),
+    );
+    const openingCash1110 = await getBalanceAtDate(
+      '1110',
+      new Date(start.getTime() - 1),
+    );
     const openingCash = openingCash1105 + openingCash1110;
 
     const netChange =
-      operatingActivities.total + investingActivities.total + financingActivities.total;
+      operatingActivities.total +
+      investingActivities.total +
+      financingActivities.total;
     const closingCash = openingCash + netChange;
 
     return {

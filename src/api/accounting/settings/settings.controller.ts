@@ -18,12 +18,31 @@ export class AccountingSettingsController {
   }
 
   @Post()
-  setOne(@Body() body: { key: string; value: string; description?: string; updated_by?: number }) {
-    return this.service.set(body.key, body.value, body.description, body.updated_by);
+  setOne(
+    @Body()
+    body: {
+      key: string;
+      value: string;
+      description?: string;
+      updated_by?: number;
+    },
+  ) {
+    return this.service.set(
+      body.key,
+      body.value,
+      body.description,
+      body.updated_by,
+    );
   }
 
   @Post('bulk')
-  setMany(@Body() body: { updates: Array<{ key: string; value: string }>; updated_by?: number }) {
+  setMany(
+    @Body()
+    body: {
+      updates: Array<{ key: string; value: string }>;
+      updated_by?: number;
+    },
+  ) {
     return this.service.setMany(body.updates, body.updated_by);
   }
 }

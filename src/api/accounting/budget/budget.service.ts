@@ -3,7 +3,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 
 @Injectable()
 export class BudgetService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async findAll(year: number) {
     return this.prisma.budget.findMany({
@@ -13,10 +13,20 @@ export class BudgetService {
     });
   }
 
-  async upsert(year: number, month: number, idPucAccount: number, amount: number, notes?: string) {
+  async upsert(
+    year: number,
+    month: number,
+    idPucAccount: number,
+    amount: number,
+    notes?: string,
+  ) {
     return this.prisma.budget.upsert({
       where: {
-        year_month_id_puc_account: { year, month, id_puc_account: idPucAccount },
+        year_month_id_puc_account: {
+          year,
+          month,
+          id_puc_account: idPucAccount,
+        },
       },
       update: {
         budgeted_amount: amount,
@@ -55,10 +65,17 @@ export class BudgetService {
     });
 
     // Aggregate actual amounts by account
-    const actualByAccount: Record<number, { debit: number; credit: number; nature: string }> = {};
+    const actualByAccount: Record<
+      number,
+      { debit: number; credit: number; nature: string }
+    > = {};
     for (const line of journalLines) {
       if (!actualByAccount[line.id_puc_account]) {
-        actualByAccount[line.id_puc_account] = { debit: 0, credit: 0, nature: line.pucAccount.nature };
+        actualByAccount[line.id_puc_account] = {
+          debit: 0,
+          credit: 0,
+          nature: line.pucAccount.nature,
+        };
       }
       actualByAccount[line.id_puc_account].debit += line.debit;
       actualByAccount[line.id_puc_account].credit += line.credit;
@@ -68,15 +85,15 @@ export class BudgetService {
       const actual = actualByAccount[b.id_puc_account];
       let executedAmount = 0;
       if (actual) {
-        executedAmount = actual.nature === 'DEBITO'
-          ? actual.debit - actual.credit
-          : actual.credit - actual.debit;
+        executedAmount =
+          actual.nature === 'DEBITO'
+            ? actual.debit - actual.credit
+            : actual.credit - actual.debit;
       }
 
       const variance = executedAmount - b.budgeted_amount;
-      const variancePercentage = b.budgeted_amount !== 0
-        ? (variance / b.budgeted_amount) * 100
-        : 0;
+      const variancePercentage =
+        b.budgeted_amount !== 0 ? (variance / b.budgeted_amount) * 100 : 0;
 
       return {
         id_puc_account: b.id_puc_account,
@@ -127,7 +144,10 @@ export class BudgetService {
 
     // Map budgets by account and month
     const budgetMap: Record<number, Record<number, number>> = {};
-    const accountInfo: Record<number, { code: string; name: string; nature: string }> = {};
+    const accountInfo: Record<
+      number,
+      { code: string; name: string; nature: string }
+    > = {};
 
     for (const b of budgets) {
       if (!budgetMap[b.id_puc_account]) {
@@ -142,7 +162,10 @@ export class BudgetService {
     }
 
     // Aggregate execution by account and month
-    const executionMap: Record<number, Record<number, { debit: number; credit: number }>> = {};
+    const executionMap: Record<
+      number,
+      Record<number, { debit: number; credit: number }>
+    > = {};
     for (const line of journalLines) {
       const month = new Date(line.journalEntry.entry_date).getMonth() + 1;
       if (!executionMap[line.id_puc_account]) {
@@ -164,51 +187,65 @@ export class BudgetService {
       }
     }
 
-    const accountIds = Array.from(new Set([...Object.keys(budgetMap), ...Object.keys(executionMap)])).map(Number);
+    const accountIds = Array.from(
+      new Set([...Object.keys(budgetMap), ...Object.keys(executionMap)]),
+    ).map(Number);
 
-    const items = accountIds.map((id) => {
-      const info = accountInfo[id];
-      const months: { month: number; budgeted: number; executed: number; variance: number }[] = [];
-      let annualBudgeted = 0;
-      let annualExecuted = 0;
+    const items = accountIds
+      .map((id) => {
+        const info = accountInfo[id];
+        const months: {
+          month: number;
+          budgeted: number;
+          executed: number;
+          variance: number;
+        }[] = [];
+        let annualBudgeted = 0;
+        let annualExecuted = 0;
 
-      for (let m = 1; m <= 12; m++) {
-        const budgeted = budgetMap[id]?.[m] || 0;
-        const actual = executionMap[id]?.[m];
-        let executed = 0;
-        if (actual) {
-          executed = info.nature === 'DEBITO'
-            ? actual.debit - actual.credit
-            : actual.credit - actual.debit;
+        for (let m = 1; m <= 12; m++) {
+          const budgeted = budgetMap[id]?.[m] || 0;
+          const actual = executionMap[id]?.[m];
+          let executed = 0;
+          if (actual) {
+            executed =
+              info.nature === 'DEBITO'
+                ? actual.debit - actual.credit
+                : actual.credit - actual.debit;
+          }
+
+          const variance = executed - budgeted;
+          months.push({
+            month: m,
+            budgeted,
+            executed,
+            variance,
+          });
+
+          annualBudgeted += budgeted;
+          annualExecuted += executed;
         }
 
-        const variance = executed - budgeted;
-        months.push({
-          month: m,
-          budgeted,
-          executed,
-          variance,
-        });
-
-        annualBudgeted += budgeted;
-        annualExecuted += executed;
-      }
-
-      return {
-        id_puc_account: id,
-        code: info.code,
-        name: info.name,
-        months,
-        totals: {
-          budgeted: annualBudgeted,
-          executed: annualExecuted,
-          variance: annualExecuted - annualBudgeted,
-          variancePercentage: annualBudgeted !== 0
-            ? Math.round(((annualExecuted - annualBudgeted) / annualBudgeted) * 10000) / 100
-            : 0,
-        },
-      };
-    }).sort((a, b) => a.code.localeCompare(b.code));
+        return {
+          id_puc_account: id,
+          code: info.code,
+          name: info.name,
+          months,
+          totals: {
+            budgeted: annualBudgeted,
+            executed: annualExecuted,
+            variance: annualExecuted - annualBudgeted,
+            variancePercentage:
+              annualBudgeted !== 0
+                ? Math.round(
+                    ((annualExecuted - annualBudgeted) / annualBudgeted) *
+                      10000,
+                  ) / 100
+                : 0,
+          },
+        };
+      })
+      .sort((a, b) => a.code.localeCompare(b.code));
 
     return {
       year,

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JournalAutoService } from '../accounting/journal/journal-auto.service';
 
@@ -12,30 +16,38 @@ export class InventoryService {
   /**
    * Registra un movimiento en el Kardex y actualiza las cantidades disponibles.
    */
-  async recordMovement(prisma: any, data: {
-    clothingSizeId: number;
-    type: 'IN' | 'OUT';
-    sourceType: 'SALE' | 'PURCHASE' | 'ADJUSTMENT' | 'RETURN';
-    sourceId?: number;
-    quantity: number;
-    description?: string;
-    unitCost?: number;
-  }) {
+  async recordMovement(
+    prisma: any,
+    data: {
+      clothingSizeId: number;
+      type: 'IN' | 'OUT';
+      sourceType: 'SALE' | 'PURCHASE' | 'ADJUSTMENT' | 'RETURN';
+      sourceId?: number;
+      quantity: number;
+      description?: string;
+      unitCost?: number;
+    },
+  ) {
     const clothingSize = await prisma.clothingSize.findUnique({
       where: { id: data.clothingSizeId },
     });
 
     if (!clothingSize) {
-      throw new NotFoundException(`Producto (Size ID: ${data.clothingSizeId}) no encontrado.`);
+      throw new NotFoundException(
+        `Producto (Size ID: ${data.clothingSizeId}) no encontrado.`,
+      );
     }
 
     const balanceBefore = clothingSize.quantity_available;
-    const balanceAfter = data.type === 'IN' 
-      ? balanceBefore + data.quantity 
-      : balanceBefore - data.quantity;
+    const balanceAfter =
+      data.type === 'IN'
+        ? balanceBefore + data.quantity
+        : balanceBefore - data.quantity;
 
     if (balanceAfter < 0 && data.type === 'OUT') {
-      throw new BadRequestException(`Stock insuficiente. Disponible: ${balanceBefore}, Requerido: ${data.quantity}`);
+      throw new BadRequestException(
+        `Stock insuficiente. Disponible: ${balanceBefore}, Requerido: ${data.quantity}`,
+      );
     }
 
     // 1. Actualizar Stock
@@ -43,7 +55,9 @@ export class InventoryService {
       where: { id: data.clothingSizeId },
       data: {
         quantity_available: balanceAfter,
-        ...(data.sourceType === 'SALE' && { quantity_sold: { increment: data.quantity } }),
+        ...(data.sourceType === 'SALE' && {
+          quantity_sold: { increment: data.quantity },
+        }),
       },
     });
 
@@ -87,10 +101,11 @@ export class InventoryService {
         // Obtener costo unitario desde el diseño
         const productInfo = await prisma.clothingSize.findUnique({
           where: { id: item.clothingSizeId },
-          include: { clothingColor: { include: { design: true } } }
+          include: { clothingColor: { include: { design: true } } },
         });
 
-        const unitCost = productInfo?.clothingColor?.design?.manufactured_cost || 0;
+        const unitCost =
+          productInfo?.clothingColor?.design?.manufactured_cost || 0;
         const type = item.quantity > 0 ? 'IN' : 'OUT';
         const absoluteQty = Math.abs(item.quantity);
 
@@ -107,7 +122,7 @@ export class InventoryService {
         // 3. Registrar Movimiento Kardex y Actualizar Stock
         await this.recordMovement(prisma, {
           clothingSizeId: item.clothingSizeId,
-          type: type as 'IN' | 'OUT',
+          type: type,
           sourceType: 'ADJUSTMENT',
           sourceId: adjustment.id,
           quantity: absoluteQty,
@@ -120,7 +135,7 @@ export class InventoryService {
       // Se realiza fuera de la transaccion de inventario o dentro si se desea integridad total
       // Aqui lo hacemos al final para asegurar que el ajuste ya existe.
       await this.journalAuto.onInventoryAdjustment(adjustment.id);
-      
+
       return adjustment;
     });
   }

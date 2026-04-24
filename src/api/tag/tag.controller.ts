@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { TagService } from './tag.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
@@ -24,7 +34,10 @@ export class TagController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateTagDto: { name: string }) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateTagDto: { name: string },
+  ) {
     return this.tagService.update(id, updateTagDto);
   }
 

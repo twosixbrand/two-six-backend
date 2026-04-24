@@ -27,13 +27,37 @@ describe('ReconciliationService', () => {
     it('calcula balance recursivo de la cuenta mayor sumando auxiliares', async () => {
       prismaMock.journalEntryLine.groupBy.mockResolvedValue([
         { id_puc_account: 101, _sum: { debit: 1000, credit: 400 } }, // 143505: saldo 600
-        { id_puc_account: 102, _sum: { debit: 500, credit: 100 } },  // 143510: saldo 400
+        { id_puc_account: 102, _sum: { debit: 500, credit: 100 } }, // 143510: saldo 400
       ]);
       prismaMock.pucAccount.findMany.mockResolvedValue([
-        { id: 1, code: '14', name: 'Inventarios', parent_code: null, accepts_movements: false },
-        { id: 2, code: '1435', name: 'Mercancías', parent_code: '14', accepts_movements: false },
-        { id: 101, code: '143505', name: 'Propia', parent_code: '1435', accepts_movements: true },
-        { id: 102, code: '143510', name: 'Consignación', parent_code: '1435', accepts_movements: true },
+        {
+          id: 1,
+          code: '14',
+          name: 'Inventarios',
+          parent_code: null,
+          accepts_movements: false,
+        },
+        {
+          id: 2,
+          code: '1435',
+          name: 'Mercancías',
+          parent_code: '14',
+          accepts_movements: false,
+        },
+        {
+          id: 101,
+          code: '143505',
+          name: 'Propia',
+          parent_code: '1435',
+          accepts_movements: true,
+        },
+        {
+          id: 102,
+          code: '143510',
+          name: 'Consignación',
+          parent_code: '1435',
+          accepts_movements: true,
+        },
       ]);
       prismaMock.journalEntryLine.findMany.mockResolvedValue([]);
 
@@ -53,7 +77,13 @@ describe('ReconciliationService', () => {
     it('reporta movimientos inválidos sobre cuentas que no aceptan movimientos', async () => {
       prismaMock.journalEntryLine.groupBy.mockResolvedValue([]);
       prismaMock.pucAccount.findMany.mockResolvedValue([
-        { id: 1, code: '14', name: 'Inventarios', parent_code: null, accepts_movements: false },
+        {
+          id: 1,
+          code: '14',
+          name: 'Inventarios',
+          parent_code: null,
+          accepts_movements: false,
+        },
       ]);
       prismaMock.journalEntryLine.findMany.mockResolvedValue([
         {
@@ -73,7 +103,13 @@ describe('ReconciliationService', () => {
     it('reporta cuentas huérfanas (parent_code inexistente)', async () => {
       prismaMock.journalEntryLine.groupBy.mockResolvedValue([]);
       prismaMock.pucAccount.findMany.mockResolvedValue([
-        { id: 1, code: '999999', name: 'Huérfana', parent_code: 'NO-EXISTE', accepts_movements: true },
+        {
+          id: 1,
+          code: '999999',
+          name: 'Huérfana',
+          parent_code: 'NO-EXISTE',
+          accepts_movements: true,
+        },
       ]);
       prismaMock.journalEntryLine.findMany.mockResolvedValue([]);
 

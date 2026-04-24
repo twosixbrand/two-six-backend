@@ -20,7 +20,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @Controller('products')
 export class ProductController {
-  constructor(private readonly productService: ProductService) { }
+  constructor(private readonly productService: ProductService) {}
 
   @UseGuards(JwtAuthGuard)
   @Post()
@@ -53,12 +53,19 @@ export class ProductController {
     @Query('category') category?: string,
     @Query('tag') tag?: string,
     @Query('page') page?: string,
-    @Query('limit') limit?: string
+    @Query('limit') limit?: string,
   ) {
     const pageNumber = page ? parseInt(page, 10) : 1;
     const limitNumber = limit ? parseInt(limit, 10) : 12;
     // Cast gender string to Enum if present
-    return this.productService.findDesignsForStore(gender, is_outlet, category, tag, pageNumber, limitNumber);
+    return this.productService.findDesignsForStore(
+      gender,
+      is_outlet,
+      category,
+      tag,
+      pageNumber,
+      limitNumber,
+    );
   }
 
   @Get(':id')
@@ -74,9 +81,10 @@ export class ProductController {
   }
 
   @Get('by-slug/:slug')
-  findByClothingColorSlug(
-    @Param('slug') slug: string,
-  ): Promise<{ products: (Product & { clothingSize: any })[], colorId: number | null }> {
+  findByClothingColorSlug(@Param('slug') slug: string): Promise<{
+    products: (Product & { clothingSize: any })[];
+    colorId: number | null;
+  }> {
     return this.productService.findByClothingColorSlug(slug);
   }
 

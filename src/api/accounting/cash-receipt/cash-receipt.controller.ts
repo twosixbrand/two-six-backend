@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { CashReceiptService } from './cash-receipt.service';
 import { CreateCashReceiptDto } from './dto/create-cash-receipt.dto';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
@@ -25,6 +34,10 @@ export class CashReceiptController {
   ) {
     return this.service
       .getAvailableBalance(journalEntryId, advancePucCode)
-      .then((balance) => ({ journal_entry_id: journalEntryId, advance_puc_code: advancePucCode, balance }));
+      .then((balance) => ({
+        journal_entry_id: journalEntryId,
+        advance_puc_code: advancePucCode,
+        balance,
+      }));
   }
 }

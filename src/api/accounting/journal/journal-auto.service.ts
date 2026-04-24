@@ -11,7 +11,7 @@ export class JournalAutoService {
     private configService: ConfigService,
     private taxConfigService: TaxConfigService,
     private closingService: ClosingService,
-  ) { }
+  ) {}
 
   /**
    * Genera el próximo entry_number (formato AC-000001) usando una Postgres sequence
@@ -23,7 +23,9 @@ export class JournalAutoService {
   private async getNextEntryNumber(prisma: any): Promise<string> {
     try {
       const result: Array<{ nextval: bigint | number }> =
-        await prisma.$queryRawUnsafe(`SELECT nextval('journal_entry_number_seq')`);
+        await prisma.$queryRawUnsafe(
+          `SELECT nextval('journal_entry_number_seq')`,
+        );
       const n = Number(result[0].nextval);
       return `AC-${String(n).padStart(6, '0')}`;
     } catch (_err) {
@@ -50,11 +52,15 @@ export class JournalAutoService {
     });
 
     if (!account) {
-      throw new NotFoundException(`Cuenta PUC ${code} no encontrada. Asegúrese de que el PUC esté configurado.`);
+      throw new NotFoundException(
+        `Cuenta PUC ${code} no encontrada. Asegúrese de que el PUC esté configurado.`,
+      );
     }
 
     if (!account.accepts_movements) {
-      throw new Error(`La cuenta PUC ${code} es una cuenta mayor y no acepta movimientos directos.`);
+      throw new Error(
+        `La cuenta PUC ${code} es una cuenta mayor y no acepta movimientos directos.`,
+      );
     }
 
     if (!account.is_active) {
@@ -74,11 +80,11 @@ export class JournalAutoService {
   async onSaleCompleted(orderId: number) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      include: { 
+      include: {
         customer: {
-          include: { addresses: { where: { is_default: true } } }
-        }
-      }
+          include: { addresses: { where: { is_default: true } } },
+        },
+      },
     });
 
     if (!order) {
@@ -88,7 +94,9 @@ export class JournalAutoService {
     const entryDate = new Date();
     const isClosed = await this.closingService.isPeriodClosed(entryDate);
     if (isClosed) {
-      console.error(`Cierre preventivo: No se puede generar asiento de venta para Orden ${orderId} porque el periodo actual ya está cerrado contablemente.`);
+      console.error(
+        `Cierre preventivo: No se puede generar asiento de venta para Orden ${orderId} porque el periodo actual ya está cerrado contablemente.`,
+      );
       return null;
     }
 
@@ -111,10 +119,14 @@ export class JournalAutoService {
       if (order.payment_method?.startsWith('WOMPI')) {
         const feePercentage = 0.0285; // 2.85%
         const fixedFee = 800; // $800 COP
-        
-        commissionExpense = Number((totalPayment * feePercentage + fixedFee).toFixed(2));
+
+        commissionExpense = Number(
+          (totalPayment * feePercentage + fixedFee).toFixed(2),
+        );
         commissionIva = Number((commissionExpense * 0.19).toFixed(2));
-        netToBank = Number((totalPayment - (commissionExpense + commissionIva)).toFixed(2));
+        netToBank = Number(
+          (totalPayment - (commissionExpense + commissionIva)).toFixed(2),
+        );
       }
 
       const lines: any[] = [
@@ -140,8 +152,14 @@ export class JournalAutoService {
 
       // Add commission lines if applicable
       if (commissionExpense > 0) {
-        const commissionAccount = await this.findAccountByCode(prisma, '530515');
-        const ivaDescontableAccount = await this.findAccountByCode(prisma, '240802');
+        const commissionAccount = await this.findAccountByCode(
+          prisma,
+          '530515',
+        );
+        const ivaDescontableAccount = await this.findAccountByCode(
+          prisma,
+          '240802',
+        );
 
         lines.push({
           id_puc_account: commissionAccount.id,
@@ -166,15 +184,19 @@ export class JournalAutoService {
       let cityId: number | undefined = undefined;
       if (order.customer?.addresses?.length > 0) {
         const city = await prisma.city.findFirst({
-          where: { name: order.customer.addresses[0].city }
+          where: { name: order.customer.addresses[0].city },
         });
         cityId = city?.id;
       }
 
-      const calculatedTaxes: any[] = await this.taxConfigService.calculateTaxes(ingresos, cityId, {
-        customerTaxStatus: order.customer?.tax_status as any,
-        ivaAmount: iva,
-      });
+      const calculatedTaxes: any[] = await this.taxConfigService.calculateTaxes(
+        ingresos,
+        cityId,
+        {
+          customerTaxStatus: order.customer?.tax_status as any,
+          ivaAmount: iva,
+        },
+      );
       const taxTransactionsData: any[] = [];
 
       for (const tax of calculatedTaxes) {
@@ -255,7 +277,9 @@ export class JournalAutoService {
     const entryDate = new Date();
     const isClosed = await this.closingService.isPeriodClosed(entryDate);
     if (isClosed) {
-      console.error(`Cierre preventivo: No se puede generar asiento de gasto para ID ${expenseId} porque el periodo actual ya está cerrado contablemente.`);
+      console.error(
+        `Cierre preventivo: No se puede generar asiento de gasto para ID ${expenseId} porque el periodo actual ya está cerrado contablemente.`,
+      );
       return null;
     }
 
@@ -355,14 +379,14 @@ export class JournalAutoService {
                 clothingSize: {
                   include: {
                     clothingColor: {
-                      include: { design: true }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+                      include: { design: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -373,7 +397,9 @@ export class JournalAutoService {
     const entryDate = new Date();
     const isClosed = await this.closingService.isPeriodClosed(entryDate);
     if (isClosed) {
-      console.error(`Cierre preventivo: No se puede generar asiento de costo para Orden ${orderId} porque el periodo actual ya está cerrado contablemente.`);
+      console.error(
+        `Cierre preventivo: No se puede generar asiento de costo para Orden ${orderId} porque el periodo actual ya está cerrado contablemente.`,
+      );
       return null;
     }
 
@@ -382,14 +408,16 @@ export class JournalAutoService {
     let itemsWithMissingCost = 0;
 
     for (const item of order.orderItems) {
-      const manufacturedCost = item.product?.clothingSize?.clothingColor?.design?.manufactured_cost;
+      const manufacturedCost =
+        item.product?.clothingSize?.clothingColor?.design?.manufactured_cost;
       if (manufacturedCost && manufacturedCost > 0) {
         totalActualCost += manufacturedCost * item.quantity;
       } else {
         itemsWithMissingCost++;
         // Fallback to estimated cost for this specific item if design cost is missing
-        const fallbackPercentage = (this.configService.get<number>('COST_PERCENTAGE') || 60) / 100;
-        totalActualCost += (item.unit_price * item.quantity) * fallbackPercentage;
+        const fallbackPercentage =
+          (this.configService.get<number>('COST_PERCENTAGE') || 60) / 100;
+        totalActualCost += item.unit_price * item.quantity * fallbackPercentage;
       }
     }
 
@@ -403,25 +431,41 @@ export class JournalAutoService {
       const entryNumber = await this.getNextEntryNumber(prisma);
 
       // Find COGS account (613535) or closest 6135xx
-      let cogsAccount = await prisma.pucAccount.findUnique({ where: { code: '613535' } });
+      let cogsAccount = await prisma.pucAccount.findUnique({
+        where: { code: '613535' },
+      });
       if (!cogsAccount) {
         cogsAccount = await prisma.pucAccount.findFirst({
-          where: { code: { startsWith: '6135' }, accepts_movements: true, is_active: true },
+          where: {
+            code: { startsWith: '6135' },
+            accepts_movements: true,
+            is_active: true,
+          },
         });
       }
       if (!cogsAccount) {
-        throw new NotFoundException('Cuenta PUC 613535 (Costo de mercancía vendida) no encontrada');
+        throw new NotFoundException(
+          'Cuenta PUC 613535 (Costo de mercancía vendida) no encontrada',
+        );
       }
 
       // Find Inventory account (143505) or closest 1435xx
-      let inventoryAccount = await prisma.pucAccount.findUnique({ where: { code: '143505' } });
+      let inventoryAccount = await prisma.pucAccount.findUnique({
+        where: { code: '143505' },
+      });
       if (!inventoryAccount) {
         inventoryAccount = await prisma.pucAccount.findFirst({
-          where: { code: { startsWith: '1435' }, accepts_movements: true, is_active: true },
+          where: {
+            code: { startsWith: '1435' },
+            accepts_movements: true,
+            is_active: true,
+          },
         });
       }
       if (!inventoryAccount) {
-        throw new NotFoundException('Cuenta PUC 143505 (Inventario de mercancía) no encontrada');
+        throw new NotFoundException(
+          'Cuenta PUC 143505 (Inventario de mercancía) no encontrada',
+        );
       }
 
       const entry = await prisma.journalEntry.create({
@@ -483,16 +527,21 @@ export class JournalAutoService {
     if (isClosed) return null;
 
     // Calculate total cost
-    const totalCost = adjustment.items.reduce((sum, item) => sum + (item.unit_cost * Math.abs(item.quantity)), 0);
+    const totalCost = adjustment.items.reduce(
+      (sum, item) => sum + item.unit_cost * Math.abs(item.quantity),
+      0,
+    );
     if (totalCost <= 0) return null;
 
     return this.prisma.$transaction(async (prisma) => {
       const entryNumber = await this.getNextEntryNumber(prisma);
       const inventoryAccount = await this.findAccountByCode(prisma, '143505');
-      
+
       let debitAccountCode: string;
       let creditAccountCode: string;
-      let isInventoryDebit = adjustment.reason === 'SOBRANTE' || adjustment.reason === 'ERROR_CONTEO';
+      const isInventoryDebit =
+        adjustment.reason === 'SOBRANTE' ||
+        adjustment.reason === 'ERROR_CONTEO';
 
       if (adjustment.reason === 'REGALO') {
         debitAccountCode = '523560'; // Publicidad
@@ -524,17 +573,27 @@ export class JournalAutoService {
           total_credit: Number(totalCost.toFixed(2)),
           lines: {
             create: [
-              { id_puc_account: dAcc.id, debit: totalCost, credit: 0, description: `Ajuste ${adjustment.reason}` },
-              { id_puc_account: cAcc.id, debit: 0, credit: totalCost, description: `Ajuste ${adjustment.reason}` },
-            ]
-          }
-        }
+              {
+                id_puc_account: dAcc.id,
+                debit: totalCost,
+                credit: 0,
+                description: `Ajuste ${adjustment.reason}`,
+              },
+              {
+                id_puc_account: cAcc.id,
+                debit: 0,
+                credit: totalCost,
+                description: `Ajuste ${adjustment.reason}`,
+              },
+            ],
+          },
+        },
       });
 
       // Link adjustment to entry
       await prisma.inventoryAdjustment.update({
         where: { id: adjustmentId },
-        data: { id_journal_entry: entry.id }
+        data: { id_journal_entry: entry.id },
       });
 
       return entry;
@@ -549,9 +608,13 @@ export class JournalAutoService {
    * Costo unitario de un item, usando manufactured_cost con fallback al % del precio.
    * Misma regla que onCostOfGoodsSold (línea 373-383).
    */
-  private costOfItem(manufacturedCost?: number | null, fallbackPrice?: number): number {
+  private costOfItem(
+    manufacturedCost?: number | null,
+    fallbackPrice?: number,
+  ): number {
     if (manufacturedCost && manufacturedCost > 0) return manufacturedCost;
-    const fallbackPercentage = (this.configService.get<number>('COST_PERCENTAGE') || 60) / 100;
+    const fallbackPercentage =
+      (this.configService.get<number>('COST_PERCENTAGE') || 60) / 100;
     return (fallbackPrice ?? 0) * fallbackPercentage;
   }
 
@@ -583,9 +646,11 @@ export class JournalAutoService {
 
     let totalCost = 0;
     for (const it of dispatch.items) {
-      const manufacturedCost = it.clothingSize.clothingColor.design.manufactured_cost;
+      const manufacturedCost =
+        it.clothingSize.clothingColor.design.manufactured_cost;
       const fallbackPrice = it.clothingSize.product?.price;
-      totalCost += this.costOfItem(manufacturedCost, fallbackPrice) * it.quantity;
+      totalCost +=
+        this.costOfItem(manufacturedCost, fallbackPrice) * it.quantity;
     }
     totalCost = Number(totalCost.toFixed(2));
     if (totalCost <= 0) return null;
@@ -647,7 +712,8 @@ export class JournalAutoService {
         },
       },
     });
-    if (!ret || ret.return_type !== 'PORTFOLIO' || ret.items.length === 0) return null;
+    if (!ret || ret.return_type !== 'PORTFOLIO' || ret.items.length === 0)
+      return null;
 
     const entryDate = new Date();
     if (await this.closingService.isPeriodClosed(entryDate)) return null;
@@ -655,7 +721,8 @@ export class JournalAutoService {
     let totalCost = 0;
     for (const it of ret.items) {
       const mc = it.clothingSize.clothingColor.design.manufactured_cost;
-      totalCost += this.costOfItem(mc, it.clothingSize.product?.price) * it.quantity;
+      totalCost +=
+        this.costOfItem(mc, it.clothingSize.product?.price) * it.quantity;
     }
     totalCost = Number(totalCost.toFixed(2));
     if (totalCost <= 0) return null;
@@ -677,8 +744,18 @@ export class JournalAutoService {
           total_credit: totalCost,
           lines: {
             create: [
-              { id_puc_account: ownInv.id, description: 'Reingreso inventario propio', debit: totalCost, credit: 0 },
-              { id_puc_account: consignmentInv.id, description: 'Salida de consignación', debit: 0, credit: totalCost },
+              {
+                id_puc_account: ownInv.id,
+                description: 'Reingreso inventario propio',
+                debit: totalCost,
+                credit: 0,
+              },
+              {
+                id_puc_account: consignmentInv.id,
+                description: 'Salida de consignación',
+                debit: 0,
+                credit: totalCost,
+              },
             ],
           },
         },
@@ -707,7 +784,8 @@ export class JournalAutoService {
         },
       },
     });
-    if (!ret || ret.return_type !== 'WARRANTY' || ret.items.length === 0) return null;
+    if (!ret || ret.return_type !== 'WARRANTY' || ret.items.length === 0)
+      return null;
 
     const entryDate = new Date();
     if (await this.closingService.isPeriodClosed(entryDate)) return null;
@@ -715,7 +793,8 @@ export class JournalAutoService {
     let totalCost = 0;
     for (const it of ret.items) {
       const mc = it.clothingSize.clothingColor.design.manufactured_cost;
-      totalCost += this.costOfItem(mc, it.clothingSize.product?.price) * it.quantity;
+      totalCost +=
+        this.costOfItem(mc, it.clothingSize.product?.price) * it.quantity;
     }
     totalCost = Number(totalCost.toFixed(2));
     if (totalCost <= 0) return null;
@@ -737,8 +816,18 @@ export class JournalAutoService {
           total_credit: totalCost,
           lines: {
             create: [
-              { id_puc_account: warrantyExpense.id, description: 'Baja por garantía', debit: totalCost, credit: 0 },
-              { id_puc_account: consignmentInv.id, description: 'Salida de consignación', debit: 0, credit: totalCost },
+              {
+                id_puc_account: warrantyExpense.id,
+                description: 'Baja por garantía',
+                debit: totalCost,
+                credit: 0,
+              },
+              {
+                id_puc_account: consignmentInv.id,
+                description: 'Salida de consignación',
+                debit: 0,
+                credit: totalCost,
+              },
             ],
           },
         },
@@ -772,7 +861,8 @@ export class JournalAutoService {
         order: true,
       },
     });
-    if (!ret || ret.return_type !== 'POST_SALE' || ret.items.length === 0) return null;
+    if (!ret || ret.return_type !== 'POST_SALE' || ret.items.length === 0)
+      return null;
 
     const entryDate = new Date();
     if (await this.closingService.isPeriodClosed(entryDate)) return null;
@@ -803,7 +893,9 @@ export class JournalAutoService {
       const ownInv = await this.findAccountByCode(prisma, '143505');
       const cogs = await this.findAccountByCode(prisma, '613524');
 
-      const totalDebit = Number((salesSubtotal + iva + salesCostTotal).toFixed(2));
+      const totalDebit = Number(
+        (salesSubtotal + iva + salesCostTotal).toFixed(2),
+      );
       const totalCredit = Number((total + salesCostTotal).toFixed(2));
 
       return prisma.journalEntry.create({
@@ -818,11 +910,36 @@ export class JournalAutoService {
           total_credit: totalCredit,
           lines: {
             create: [
-              { id_puc_account: ingresos.id, description: 'Reverso ingresos por devolución', debit: salesSubtotal, credit: 0 },
-              { id_puc_account: ivaGenerado.id, description: 'Reverso IVA generado', debit: iva, credit: 0 },
-              { id_puc_account: clientes.id, description: 'Saldo a favor del cliente (nota crédito)', debit: 0, credit: total },
-              { id_puc_account: ownInv.id, description: 'Reingreso inventario propio', debit: salesCostTotal, credit: 0 },
-              { id_puc_account: cogs.id, description: 'Reverso costo venta', debit: 0, credit: salesCostTotal },
+              {
+                id_puc_account: ingresos.id,
+                description: 'Reverso ingresos por devolución',
+                debit: salesSubtotal,
+                credit: 0,
+              },
+              {
+                id_puc_account: ivaGenerado.id,
+                description: 'Reverso IVA generado',
+                debit: iva,
+                credit: 0,
+              },
+              {
+                id_puc_account: clientes.id,
+                description: 'Saldo a favor del cliente (nota crédito)',
+                debit: 0,
+                credit: total,
+              },
+              {
+                id_puc_account: ownInv.id,
+                description: 'Reingreso inventario propio',
+                debit: salesCostTotal,
+                credit: 0,
+              },
+              {
+                id_puc_account: cogs.id,
+                description: 'Reverso costo venta',
+                debit: 0,
+                credit: salesCostTotal,
+              },
             ],
           },
         },
@@ -862,9 +979,24 @@ export class JournalAutoService {
       const subtotal = totalPayment - iva;
 
       const lines: any[] = [
-        { id_puc_account: clientes.id, description: `CxC Sell-out ${order.order_reference}`, debit: totalPayment, credit: 0 },
-        { id_puc_account: ingresos.id, description: 'Ingresos venta consignación', debit: 0, credit: subtotal },
-        { id_puc_account: ivaGenerado.id, description: 'IVA generado venta consignación', debit: 0, credit: iva },
+        {
+          id_puc_account: clientes.id,
+          description: `CxC Sell-out ${order.order_reference}`,
+          debit: totalPayment,
+          credit: 0,
+        },
+        {
+          id_puc_account: ingresos.id,
+          description: 'Ingresos venta consignación',
+          debit: 0,
+          credit: subtotal,
+        },
+        {
+          id_puc_account: ivaGenerado.id,
+          description: 'IVA generado venta consignación',
+          debit: 0,
+          credit: iva,
+        },
       ];
       let totalDebit = totalPayment;
       let totalCredit = subtotal + iva;
@@ -877,15 +1009,29 @@ export class JournalAutoService {
         });
         cityId = city?.id;
       }
-      const calculatedTaxes: any[] = await this.taxConfigService.calculateTaxes(subtotal, cityId, {
-        customerTaxStatus: (order.customer as any)?.tax_status,
-        ivaAmount: iva,
-      });
+      const calculatedTaxes: any[] = await this.taxConfigService.calculateTaxes(
+        subtotal,
+        cityId,
+        {
+          customerTaxStatus: (order.customer as any)?.tax_status,
+          ivaAmount: iva,
+        },
+      );
       const taxTransactionsData: any[] = [];
       for (const tax of calculatedTaxes) {
         if (tax.config.puc_account_debit && tax.config.puc_account_credit) {
-          lines.push({ id_puc_account: tax.config.puc_account_debit, description: `${tax.config.name} (Gasto)`, debit: tax.amount, credit: 0 });
-          lines.push({ id_puc_account: tax.config.puc_account_credit, description: `${tax.config.name} (Pasivo/Anticipo)`, debit: 0, credit: tax.amount });
+          lines.push({
+            id_puc_account: tax.config.puc_account_debit,
+            description: `${tax.config.name} (Gasto)`,
+            debit: tax.amount,
+            credit: 0,
+          });
+          lines.push({
+            id_puc_account: tax.config.puc_account_credit,
+            description: `${tax.config.name} (Pasivo/Anticipo)`,
+            debit: 0,
+            credit: tax.amount,
+          });
           totalDebit += tax.amount;
           totalCredit += tax.amount;
           taxTransactionsData.push({
@@ -911,7 +1057,10 @@ export class JournalAutoService {
           lines: { create: lines },
           taxTransactions: { create: taxTransactionsData },
         },
-        include: { lines: { include: { pucAccount: true } }, taxTransactions: true },
+        include: {
+          lines: { include: { pucAccount: true } },
+          taxTransactions: true,
+        },
       });
     });
   }
@@ -923,7 +1072,9 @@ export class JournalAutoService {
    *  Cr 240801 IVA generado
    */
   async onConsignmentMermaCompleted(orderId: number) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
     if (!order) return null;
     if (order.status !== 'MERMA') return null;
 
@@ -952,9 +1103,24 @@ export class JournalAutoService {
           total_credit: Number((subtotal + iva).toFixed(2)),
           lines: {
             create: [
-              { id_puc_account: clientes.id, description: `CxC Merma ${order.order_reference}`, debit: totalPayment, credit: 0 },
-              { id_puc_account: otrosIngresos.id, description: 'Aprovechamiento por merma facturada', debit: 0, credit: subtotal },
-              { id_puc_account: ivaGenerado.id, description: 'IVA generado merma', debit: 0, credit: iva },
+              {
+                id_puc_account: clientes.id,
+                description: `CxC Merma ${order.order_reference}`,
+                debit: totalPayment,
+                credit: 0,
+              },
+              {
+                id_puc_account: otrosIngresos.id,
+                description: 'Aprovechamiento por merma facturada',
+                debit: 0,
+                credit: subtotal,
+              },
+              {
+                id_puc_account: ivaGenerado.id,
+                description: 'IVA generado merma',
+                debit: 0,
+                credit: iva,
+              },
             ],
           },
         },
@@ -994,7 +1160,8 @@ export class JournalAutoService {
       if (diff >= 0) continue; // solo faltantes
       const shortQty = -diff;
       const mc = it.clothingSize.clothingColor.design.manufactured_cost;
-      totalCost += this.costOfItem(mc, it.clothingSize.product?.price) * shortQty;
+      totalCost +=
+        this.costOfItem(mc, it.clothingSize.product?.price) * shortQty;
     }
     totalCost = Number(totalCost.toFixed(2));
     if (totalCost <= 0) return null;
@@ -1016,8 +1183,18 @@ export class JournalAutoService {
           total_credit: totalCost,
           lines: {
             create: [
-              { id_puc_account: gastoMerma.id, description: 'Faltante conteo cíclico', debit: totalCost, credit: 0 },
-              { id_puc_account: consignmentInv.id, description: 'Salida inventario consignación', debit: 0, credit: totalCost },
+              {
+                id_puc_account: gastoMerma.id,
+                description: 'Faltante conteo cíclico',
+                debit: totalCost,
+                credit: 0,
+              },
+              {
+                id_puc_account: consignmentInv.id,
+                description: 'Salida inventario consignación',
+                debit: 0,
+                credit: totalCost,
+              },
             ],
           },
         },
@@ -1078,8 +1255,18 @@ export class JournalAutoService {
           total_credit: totalCost,
           lines: {
             create: [
-              { id_puc_account: consignmentInv.id, description: 'Ingreso inventario consignación', debit: totalCost, credit: 0 },
-              { id_puc_account: otrosIngresos.id, description: 'Aprovechamiento sobrante conteo', debit: 0, credit: totalCost },
+              {
+                id_puc_account: consignmentInv.id,
+                description: 'Ingreso inventario consignación',
+                debit: totalCost,
+                credit: 0,
+              },
+              {
+                id_puc_account: otrosIngresos.id,
+                description: 'Aprovechamiento sobrante conteo',
+                debit: 0,
+                credit: totalCost,
+              },
             ],
           },
         },

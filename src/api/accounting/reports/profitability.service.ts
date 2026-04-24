@@ -12,7 +12,7 @@ export class ProfitabilityService {
         order: {
           order_date: { gte: startDate, lte: endDate },
           status: 'PAID',
-        }
+        },
       },
       include: {
         product: {
@@ -21,17 +21,17 @@ export class ProfitabilityService {
               include: {
                 clothingColor: {
                   include: {
-                    design: { include: { collection: true } }
-                  }
-                }
-              }
-            }
-          }
+                    design: { include: { collection: true } },
+                  },
+                },
+              },
+            },
+          },
         },
         order: {
-          include: { taxTransactions: true }
-        }
-      }
+          include: { taxTransactions: true },
+        },
+      },
     });
 
     // 2. Agrupar por Diseño
@@ -67,22 +67,34 @@ export class ProfitabilityService {
       const weight = itemSubtotal / (orderSubtotal || 1);
 
       // @ts-ignore
-      const orderTaxes = item.order.taxTransactions.reduce((acc, t) => acc + t.tax_amount, 0);
+      const orderTaxes = item.order.taxTransactions.reduce(
+        (acc, t) => acc + t.tax_amount,
+        0,
+      );
       node.taxes += orderTaxes * weight;
 
       // Estimar comisión de pasarela
-      const estimatedCommission = (itemSubtotal * 0.0349) + (900 * weight);
+      const estimatedCommission = itemSubtotal * 0.0349 + 900 * weight;
       node.gatewayCommissions += estimatedCommission;
     }
 
     // 3. Formatear resultados finales
-    return Object.values(analysis).map(d => ({
-      ...d,
-      netProfit: d.grossRevenue - d.manufacturedCost - d.taxes - d.gatewayCommissions,
-      marginPercentage: d.grossRevenue > 0 
-        ? ((d.grossRevenue - d.manufacturedCost - d.taxes - d.gatewayCommissions) / d.grossRevenue) * 100 
-        : 0
-    })).sort((a, b) => b.netProfit - a.netProfit);
+    return Object.values(analysis)
+      .map((d) => ({
+        ...d,
+        netProfit:
+          d.grossRevenue - d.manufacturedCost - d.taxes - d.gatewayCommissions,
+        marginPercentage:
+          d.grossRevenue > 0
+            ? ((d.grossRevenue -
+                d.manufacturedCost -
+                d.taxes -
+                d.gatewayCommissions) /
+                d.grossRevenue) *
+              100
+            : 0,
+      }))
+      .sort((a, b) => b.netProfit - a.netProfit);
   }
 
   async getProfitabilityByCollection(startDate: Date, endDate: Date) {
@@ -110,9 +122,12 @@ export class ProfitabilityService {
       c.netProfit += d.netProfit;
     }
 
-    return Object.values(collections).map(c => ({
-      ...c,
-      marginPercentage: c.grossRevenue > 0 ? (c.netProfit / c.grossRevenue) * 100 : 0
-    })).sort((a, b) => b.netProfit - a.netProfit);
+    return Object.values(collections)
+      .map((c) => ({
+        ...c,
+        marginPercentage:
+          c.grossRevenue > 0 ? (c.netProfit / c.grossRevenue) * 100 : 0,
+      }))
+      .sort((a, b) => b.netProfit - a.netProfit);
   }
 }

@@ -110,7 +110,9 @@ describe('ConsignmentCycleCountService', () => {
     it('refuses when warehouse has no stock', async () => {
       mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue({ id: 1 });
       mock.prisma.consignmentStock.findMany.mockResolvedValue([]);
-      await expect(service.create({ id_warehouse: 1 })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.create({ id_warehouse: 1 })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
   });
 
@@ -125,7 +127,9 @@ describe('ConsignmentCycleCountService', () => {
           { id: 2, id_clothing_size: 11, theoretical_qty: 3, real_qty: null },
         ],
       });
-      await expect(service.approve(1)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.approve(1)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('applies shortage: decrements consignment stock and records kardex OUT', async () => {
@@ -141,8 +145,14 @@ describe('ConsignmentCycleCountService', () => {
         id: 10,
         quantity_available: 100,
       });
-      mock.tx.consignmentStock.findUnique.mockResolvedValue({ id: 200, quantity: 10 });
-      mock.tx.inventoryCycleCount.update.mockResolvedValue({ id: 1, status: 'APPROVED' });
+      mock.tx.consignmentStock.findUnique.mockResolvedValue({
+        id: 200,
+        quantity: 10,
+      });
+      mock.tx.inventoryCycleCount.update.mockResolvedValue({
+        id: 1,
+        status: 'APPROVED',
+      });
 
       await service.approve(1);
 
@@ -172,9 +182,18 @@ describe('ConsignmentCycleCountService', () => {
           { id: 1, id_clothing_size: 10, theoretical_qty: 5, real_qty: 7 }, // sobrante 2
         ],
       });
-      mock.tx.clothingSize.findUnique.mockResolvedValue({ id: 10, quantity_available: 100 });
-      mock.tx.consignmentStock.findUnique.mockResolvedValue({ id: 200, quantity: 5 });
-      mock.tx.inventoryCycleCount.update.mockResolvedValue({ id: 2, status: 'APPROVED' });
+      mock.tx.clothingSize.findUnique.mockResolvedValue({
+        id: 10,
+        quantity_available: 100,
+      });
+      mock.tx.consignmentStock.findUnique.mockResolvedValue({
+        id: 200,
+        quantity: 5,
+      });
+      mock.tx.inventoryCycleCount.update.mockResolvedValue({
+        id: 2,
+        status: 'APPROVED',
+      });
 
       await service.approve(2);
 
@@ -196,9 +215,14 @@ describe('ConsignmentCycleCountService', () => {
         id: 3,
         status: 'DRAFT',
         id_warehouse: 2,
-        items: [{ id: 1, id_clothing_size: 10, theoretical_qty: 5, real_qty: 5 }],
+        items: [
+          { id: 1, id_clothing_size: 10, theoretical_qty: 5, real_qty: 5 },
+        ],
       });
-      mock.tx.inventoryCycleCount.update.mockResolvedValue({ id: 3, status: 'APPROVED' });
+      mock.tx.inventoryCycleCount.update.mockResolvedValue({
+        id: 3,
+        status: 'APPROVED',
+      });
 
       await service.approve(3);
 
@@ -245,7 +269,10 @@ describe('ConsignmentCycleCountService', () => {
             real_qty: 2,
             clothingSize: {
               size: { name: 'M' },
-              clothingColor: { color: { name: 'Azul' }, design: { reference: 'REF-1' } },
+              clothingColor: {
+                color: { name: 'Azul' },
+                design: { reference: 'REF-1' },
+              },
               product: { id: 50, id_clothing_size: 10, price: 30000 },
             },
           },
@@ -269,7 +296,10 @@ describe('ConsignmentCycleCountService', () => {
             real_qty: 5, // sin faltante
             clothingSize: {
               size: { name: 'M' },
-              clothingColor: { color: { name: 'Azul' }, design: { reference: 'REF-1' } },
+              clothingColor: {
+                color: { name: 'Azul' },
+                design: { reference: 'REF-1' },
+              },
               product: { id: 50 },
             },
           },

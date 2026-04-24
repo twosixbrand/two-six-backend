@@ -1,10 +1,6 @@
-import {
-  Controller,
-  Get,
-  Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { CashFlowService } from './cash-flow.service';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
-
 
 @UseGuards(JwtAuthGuard)
 @Controller('accounting/reports')

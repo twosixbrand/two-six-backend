@@ -70,8 +70,14 @@ describe('JournalAutoService — Consignment methods', () => {
       providers: [
         JournalAutoService,
         { provide: PrismaService, useValue: mock.prisma },
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue(60) } },
-        { provide: TaxConfigService, useValue: { calculateTaxes: jest.fn().mockResolvedValue([]) } },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue(60) },
+        },
+        {
+          provide: TaxConfigService,
+          useValue: { calculateTaxes: jest.fn().mockResolvedValue([]) },
+        },
         { provide: ClosingService, useValue: closingService },
       ],
     }).compile();
@@ -104,7 +110,9 @@ describe('JournalAutoService — Consignment methods', () => {
   // ─── onConsignmentDispatchSent ────────────────────────────────────────
   describe('onConsignmentDispatchSent', () => {
     it('debita 143510 y acredita 143505 al costo', async () => {
-      mock.prisma.consignmentDispatch.findUnique.mockResolvedValue(dispatchWithItems);
+      mock.prisma.consignmentDispatch.findUnique.mockResolvedValue(
+        dispatchWithItems,
+      );
 
       await service.onConsignmentDispatchSent(1);
 
@@ -127,7 +135,9 @@ describe('JournalAutoService — Consignment methods', () => {
     });
 
     it('retorna null si el periodo está cerrado', async () => {
-      mock.prisma.consignmentDispatch.findUnique.mockResolvedValue(dispatchWithItems);
+      mock.prisma.consignmentDispatch.findUnique.mockResolvedValue(
+        dispatchWithItems,
+      );
       closingService.isPeriodClosed.mockResolvedValue(true);
 
       const result = await service.onConsignmentDispatchSent(1);
@@ -261,7 +271,7 @@ describe('JournalAutoService — Consignment methods', () => {
 
       // subtotal venta: 50000*2 = 100000, IVA: 19000, total: 119000
       // costo: 30000*2 = 60000
-      const callArg = (mock.tx.journalEntry.create as jest.Mock).mock.calls[0][0];
+      const callArg = mock.tx.journalEntry.create.mock.calls[0][0];
       expect(callArg.data.source_type).toBe('CONSIGNMENT_RETURN_POST_SALE');
       expect(callArg.data.lines.create).toHaveLength(5);
       // Débito total = subtotal + iva + cost = 100000 + 19000 + 60000 = 179000
@@ -304,7 +314,10 @@ describe('JournalAutoService — Consignment methods', () => {
     });
 
     it('rechaza órdenes que no sean SELLOUT', async () => {
-      mock.prisma.order.findUnique.mockResolvedValue({ id: 1, status: 'APPROVED' });
+      mock.prisma.order.findUnique.mockResolvedValue({
+        id: 1,
+        status: 'APPROVED',
+      });
       const result = await service.onConsignmentSelloutCompleted(1);
       expect(result).toBeNull();
       expect(mock.tx.journalEntry.create).not.toHaveBeenCalled();
@@ -343,7 +356,10 @@ describe('JournalAutoService — Consignment methods', () => {
     });
 
     it('rechaza órdenes que no sean MERMA', async () => {
-      mock.prisma.order.findUnique.mockResolvedValue({ id: 1, status: 'SELLOUT' });
+      mock.prisma.order.findUnique.mockResolvedValue({
+        id: 1,
+        status: 'SELLOUT',
+      });
       const result = await service.onConsignmentMermaCompleted(1);
       expect(result).toBeNull();
     });

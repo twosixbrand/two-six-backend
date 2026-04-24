@@ -23,9 +23,17 @@ export class GatewayReconciliationService {
     for (const tx of transactions) {
       try {
         const result = await this.reconcileSingleTransaction(tx);
-        results.push({ reference: tx.reference, status: 'SUCCESS', entryId: result.id });
+        results.push({
+          reference: tx.reference,
+          status: 'SUCCESS',
+          entryId: result.id,
+        });
       } catch (error) {
-        results.push({ reference: tx.reference, status: 'ERROR', message: error.message });
+        results.push({
+          reference: tx.reference,
+          status: 'ERROR',
+          message: error.message,
+        });
       }
     }
 
@@ -47,7 +55,9 @@ export class GatewayReconciliationService {
     });
 
     if (!order) {
-      throw new NotFoundException(`Orden con referencia ${tx.reference} no encontrada en el sistema.`);
+      throw new NotFoundException(
+        `Orden con referencia ${tx.reference} no encontrada en el sistema.`,
+      );
     }
 
     // 2. Crear asiento contable de conciliación
@@ -55,7 +65,10 @@ export class GatewayReconciliationService {
       // Necesitamos las cuentas PUC estándar para esto
       // Nota: En una fase posterior, estas cuentas se pueden parametrizar en el CMS
       const bancosAccount = await this.findAccountByCode(prisma, '111005');
-      const gastoComisionAccount = await this.findAccountByCode(prisma, '530505');
+      const gastoComisionAccount = await this.findAccountByCode(
+        prisma,
+        '530505',
+      );
       const clientesAccount = await this.findAccountByCode(prisma, '130505'); // O la cuenta donde se registró la venta originalmente
 
       const entryNumber = await this.getNextEntryNumber(prisma);
@@ -101,7 +114,8 @@ export class GatewayReconciliationService {
   // Métodos auxiliares copiados de JournalAutoService (Refactorizar después a un BaseService si es necesario)
   private async findAccountByCode(prisma: any, code: string) {
     const account = await prisma.pucAccount.findUnique({ where: { code } });
-    if (!account) throw new NotFoundException(`Cuenta PUC ${code} no encontrada.`);
+    if (!account)
+      throw new NotFoundException(`Cuenta PUC ${code} no encontrada.`);
     return account;
   }
 

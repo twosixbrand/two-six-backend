@@ -107,7 +107,10 @@ describe('OrderService', () => {
         { provide: DianSoapService, useValue: mockSoapService },
         { provide: DianPdfService, useValue: mockPdfService },
         { provide: DianEmailService, useValue: mockDianEmailService },
-        { provide: JournalAutoService, useValue: { logSalesInvoice: jest.fn() } },
+        {
+          provide: JournalAutoService,
+          useValue: { logSalesInvoice: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -135,7 +138,15 @@ describe('OrderService', () => {
         department: 'Antioquia',
       },
       items: [
-        { productId: 1, quantity: 2, price: 50000, productName: 'Camiseta', size: 'M', color: 'Negro', image: '' },
+        {
+          productId: 1,
+          quantity: 2,
+          price: 50000,
+          productName: 'Camiseta',
+          size: 'M',
+          color: 'Negro',
+          image: '',
+        },
       ],
       total: 115000,
       shippingCost: 15000,
@@ -219,7 +230,9 @@ describe('OrderService', () => {
           },
           orderItem: { create: jest.fn() },
           product: {
-            findUnique: jest.fn().mockResolvedValue({ id: 1, clothingSize: { id: 10 } }),
+            findUnique: jest
+              .fn()
+              .mockResolvedValue({ id: 1, clothingSize: { id: 10 } }),
           },
           clothingSize: { update: jest.fn() },
           subscriber: { findUnique: jest.fn().mockResolvedValue(null) },
@@ -261,7 +274,9 @@ describe('OrderService', () => {
           },
           orderItem: { create: jest.fn() },
           product: {
-            findUnique: jest.fn().mockResolvedValue({ id: 1, clothingSize: { id: 10 } }),
+            findUnique: jest
+              .fn()
+              .mockResolvedValue({ id: 1, clothingSize: { id: 10 } }),
           },
           clothingSize: { update: jest.fn() },
           subscriber: { findUnique: jest.fn().mockResolvedValue(null) },
@@ -293,7 +308,10 @@ describe('OrderService', () => {
       const result = await service.findOne(1);
 
       expect(result).toBeDefined();
-      expect(result!.dianEInvoicing).toEqual({ id: 10, document_number: 'FE001' });
+      expect(result!.dianEInvoicing).toEqual({
+        id: 10,
+        document_number: 'FE001',
+      });
     });
 
     it('should return null when order does not exist', async () => {
@@ -356,7 +374,10 @@ describe('OrderService', () => {
       mockPrisma.order.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.trackOrder({ orderReference: 'TS-000000-0000', email: 'a@b.com' }),
+        service.trackOrder({
+          orderReference: 'TS-000000-0000',
+          email: 'a@b.com',
+        }),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -380,7 +401,7 @@ describe('OrderService', () => {
   describe('verifyPayment', () => {
     beforeEach(() => {
       // Mock global fetch
-      global.fetch = jest.fn() as jest.Mock;
+      global.fetch = jest.fn();
     });
 
     afterEach(() => {
@@ -442,7 +463,10 @@ describe('OrderService', () => {
       mockPrisma.order.findUnique.mockResolvedValue(order);
       mockPrisma.order.update.mockResolvedValue({});
       mockPrisma.payments.findFirst.mockResolvedValue(null);
-      mockPrisma.paymentMethod.findFirst.mockResolvedValue({ id: 1, name: 'Wompi' });
+      mockPrisma.paymentMethod.findFirst.mockResolvedValue({
+        id: 1,
+        name: 'Wompi',
+      });
       mockPrisma.payments.create.mockResolvedValue({});
       mockPrisma.subscriber.findUnique.mockResolvedValue(null);
       mockPrisma.dianEInvoicing.findFirst.mockResolvedValue(null);
@@ -462,7 +486,9 @@ describe('OrderService', () => {
       mockPrisma.dianResolution.update.mockResolvedValue({});
 
       mockCufeService.generateCufe.mockReturnValue('cufe-abc-123');
-      mockUblService.generateInvoiceXml.mockReturnValue('<xml>CUFE_PLACEHOLDER</xml>');
+      mockUblService.generateInvoiceXml.mockReturnValue(
+        '<xml>CUFE_PLACEHOLDER</xml>',
+      );
       mockSignerService.signXml.mockReturnValue('<xml>cufe-abc-123</xml>');
       mockSoapService.sendInvoice.mockResolvedValue('<soap>response</soap>');
       mockPdfService.generateQrBase64.mockResolvedValue('qr-base64');
@@ -571,22 +597,37 @@ describe('OrderService', () => {
       mockPrisma.order.findUnique.mockResolvedValue(order);
       mockPrisma.order.update.mockResolvedValue({});
       mockPrisma.payments.findFirst.mockResolvedValue(null);
-      mockPrisma.paymentMethod.findFirst.mockResolvedValue({ id: 1, name: 'Wompi' });
+      mockPrisma.paymentMethod.findFirst.mockResolvedValue({
+        id: 1,
+        name: 'Wompi',
+      });
       mockPrisma.payments.create.mockResolvedValue({});
       mockPrisma.subscriber.findUnique.mockResolvedValue(null);
       mockPrisma.dianEInvoicing.findFirst.mockResolvedValue(null);
       mockPrisma.dianResolution.findFirst.mockResolvedValue({
-        id: 1, prefix: 'FE', currentNumber: 200, endNumber: 999,
-        resolutionNumber: 'RES-001', startDate: new Date(), endDate: new Date(),
-        startNumber: 1, technicalKey: 'tk',
+        id: 1,
+        prefix: 'FE',
+        currentNumber: 200,
+        endNumber: 999,
+        resolutionNumber: 'RES-001',
+        startDate: new Date(),
+        endDate: new Date(),
+        startNumber: 1,
+        technicalKey: 'tk',
       });
       mockPrisma.dianResolution.update.mockResolvedValue({});
       mockCufeService.generateCufe.mockReturnValue('cufe-cod');
-      mockUblService.generateInvoiceXml.mockReturnValue('<xml>CUFE_PLACEHOLDER</xml>');
+      mockUblService.generateInvoiceXml.mockReturnValue(
+        '<xml>CUFE_PLACEHOLDER</xml>',
+      );
       mockSignerService.signXml.mockReturnValue('<xml>signed</xml>');
       mockSoapService.sendInvoice.mockResolvedValue('ok');
       mockPdfService.generateQrBase64.mockResolvedValue('qr');
-      mockPrisma.dianEInvoicing.create.mockResolvedValue({ id: 60, document_number: 'FE201', status: 'SENT' });
+      mockPrisma.dianEInvoicing.create.mockResolvedValue({
+        id: 60,
+        document_number: 'FE201',
+        status: 'SENT',
+      });
       mockMailerService.sendMail.mockResolvedValue(undefined);
 
       const result = await service.verifyPayment('txn_cod');
@@ -696,7 +737,12 @@ describe('OrderService', () => {
       });
 
       const result = await service.validateDiscountCode('abcd', 'A@B.COM');
-      expect(result).toEqual({ valid: true, percentage: 10, code: 'ABCD', freeShipping: false });
+      expect(result).toEqual({
+        valid: true,
+        percentage: 10,
+        code: 'ABCD',
+        freeShipping: false,
+      });
     });
   });
 
@@ -714,7 +760,15 @@ describe('OrderService', () => {
         department: 'Cundinamarca',
       },
       items: [
-        { productId: 100, quantity: 3, price: 60000, productName: 'Hoodie Test', size: 'L', color: 'Blanco', image: '' },
+        {
+          productId: 100,
+          quantity: 3,
+          price: 60000,
+          productName: 'Hoodie Test',
+          size: 'L',
+          color: 'Blanco',
+          image: '',
+        },
       ],
       total: 180000,
       shippingCost: 0,
@@ -783,7 +837,9 @@ describe('OrderService', () => {
         return cb(txProxy);
       });
 
-      await expect(service.checkout(stockCheckoutDto)).rejects.toThrow(BadRequestException);
+      await expect(service.checkout(stockCheckoutDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should apply free shipping when subtotal >= 150000', async () => {
@@ -862,7 +918,10 @@ describe('OrderService', () => {
         free_shipping: true,
       });
 
-      const result = await service.validateDiscountCode('SUMMER20', 'user@test.com');
+      const result = await service.validateDiscountCode(
+        'SUMMER20',
+        'user@test.com',
+      );
 
       expect(result.valid).toBe(true);
       expect(result.percentage).toBe(20);

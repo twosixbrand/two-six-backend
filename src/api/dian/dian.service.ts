@@ -32,21 +32,30 @@ export class DianService implements OnModuleInit {
 
       if (certBase64) {
         // PRIORIDAD 1: Certificado embebido como Base64 en variable de entorno
-        this.logger.log('Cargando certificado DIAN desde variable de entorno Base64...');
+        this.logger.log(
+          'Cargando certificado DIAN desde variable de entorno Base64...',
+        );
         const buffer = Buffer.from(certBase64, 'base64');
         p12Der = buffer.toString('binary');
-      } else if (certPath && (certPath.startsWith('http://') || certPath.startsWith('https://'))) {
+      } else if (
+        certPath &&
+        (certPath.startsWith('http://') || certPath.startsWith('https://'))
+      ) {
         // PRIORIDAD 2: Descargar certificado desde DigitalOcean Spaces usando S3 SDK
         p12Der = await this.downloadFromSpaces(certPath);
       } else if (certPath) {
         // PRIORIDAD 3: Leer certificado desde archivo local
         if (!fs.existsSync(certPath)) {
-          this.logger.error(`No se encontró el certificado en la ruta: ${certPath}`);
+          this.logger.error(
+            `No se encontró el certificado en la ruta: ${certPath}`,
+          );
           return;
         }
         p12Der = fs.readFileSync(certPath, 'binary');
       } else {
-        this.logger.warn('No se configuró ninguna fuente para el certificado DIAN (DIAN_CERT_BASE64 o DIAN_CERT_PATH)');
+        this.logger.warn(
+          'No se configuró ninguna fuente para el certificado DIAN (DIAN_CERT_BASE64 o DIAN_CERT_PATH)',
+        );
         return;
       }
 
@@ -58,7 +67,10 @@ export class DianService implements OnModuleInit {
 
       for (const safeContents of p12.safeContents) {
         for (const safeBag of safeContents.safeBags) {
-          if (safeBag.type === forge.pki.oids.keyBag || safeBag.type === forge.pki.oids.pkcs8ShroudedKeyBag) {
+          if (
+            safeBag.type === forge.pki.oids.keyBag ||
+            safeBag.type === forge.pki.oids.pkcs8ShroudedKeyBag
+          ) {
             privateKey = safeBag.key as forge.pki.PrivateKey;
           } else if (safeBag.type === forge.pki.oids.certBag) {
             cert = safeBag.cert as forge.pki.Certificate;
@@ -67,15 +79,21 @@ export class DianService implements OnModuleInit {
       }
 
       if (!privateKey || !cert) {
-        throw new Error('El archivo p12 no contiene una llave privada y/o certificado válido.');
+        throw new Error(
+          'El archivo p12 no contiene una llave privada y/o certificado válido.',
+        );
       }
 
       this.privateKeyPem = forge.pki.privateKeyToPem(privateKey);
       this.certificatePem = forge.pki.certificateToPem(cert);
 
-      this.logger.log('Certificado DIAN (GSE) cargado y descifrado exitosamente.');
+      this.logger.log(
+        'Certificado DIAN (GSE) cargado y descifrado exitosamente.',
+      );
     } catch (error) {
-      this.logger.error(`Error al cargar el certificado DIAN: ${error.message}`);
+      this.logger.error(
+        `Error al cargar el certificado DIAN: ${error.message}`,
+      );
     }
   }
 
@@ -93,9 +111,13 @@ export class DianService implements OnModuleInit {
 
     // Extraer el key del archivo desde la URL
     const urlObj = new URL(url);
-    const key = urlObj.pathname.startsWith('/') ? urlObj.pathname.slice(1) : urlObj.pathname;
+    const key = urlObj.pathname.startsWith('/')
+      ? urlObj.pathname.slice(1)
+      : urlObj.pathname;
 
-    this.logger.log(`Descargando certificado desde Spaces: bucket=${bucket}, key=${key}`);
+    this.logger.log(
+      `Descargando certificado desde Spaces: bucket=${bucket}, key=${key}`,
+    );
 
     const s3 = new S3Client({
       endpoint: s3Endpoint,

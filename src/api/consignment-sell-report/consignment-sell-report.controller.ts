@@ -9,7 +9,10 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
-import { ConsignmentSellReportService, CreateSellReportDto } from './consignment-sell-report.service';
+import {
+  ConsignmentSellReportService,
+  CreateSellReportDto,
+} from './consignment-sell-report.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @Controller('consignment/sell-reports')
@@ -33,9 +36,15 @@ export class ConsignmentSellReportController {
    * El cliente envía un reporte de venta.
    */
   @Post()
-  create(@Request() req: any, @Body() dto: Omit<CreateSellReportDto, 'id_customer'>) {
+  create(
+    @Request() req: any,
+    @Body() dto: Omit<CreateSellReportDto, 'id_customer'>,
+  ) {
     const customerId = req.user?.sub;
-    return this.service.create({ ...dto, id_customer: customerId } as CreateSellReportDto);
+    return this.service.create({
+      ...dto,
+      id_customer: customerId,
+    } as CreateSellReportDto);
   }
 
   /**
@@ -51,7 +60,10 @@ export class ConsignmentSellReportController {
   // ================ Endpoints del CMS (operador Two Six) ================
 
   @Get()
-  findAll(@Query('status') status?: string, @Query('id_customer') id_customer?: string) {
+  findAll(
+    @Query('status') status?: string,
+    @Query('id_customer') id_customer?: string,
+  ) {
     return this.service.findAll({
       status,
       id_customer: id_customer ? Number(id_customer) : undefined,
@@ -76,6 +88,10 @@ export class ConsignmentSellReportController {
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { reason: string; rejected_by?: string },
   ) {
-    return this.service.reject(id, body.reason, body.rejected_by || 'Operador CMS');
+    return this.service.reject(
+      id,
+      body.reason,
+      body.rejected_by || 'Operador CMS',
+    );
   }
 }

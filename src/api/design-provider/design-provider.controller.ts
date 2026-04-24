@@ -6,12 +6,13 @@ import {
   Patch,
   Param,
   Delete,
-  ParseIntPipe, UseGuards } from '@nestjs/common';
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { DesignProviderService } from './design-provider.service';
 import { CreateDesignProviderDto } from './dto/create-design-provider.dto';
 import { UpdateDesignProviderDto } from './dto/update-design-provider.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-
 
 @UseGuards(JwtAuthGuard)
 @Controller('design-provider')
@@ -19,8 +20,11 @@ export class DesignProviderController {
   constructor(private readonly designProviderService: DesignProviderService) {}
 
   @Post()
-  create(@Body() createDesignProviderDto: CreateDesignProviderDto) { // El método del controlador se mantiene como 'create' para la ruta POST estándar
-    return this.designProviderService.createDesignProvider(createDesignProviderDto);
+  create(@Body() createDesignProviderDto: CreateDesignProviderDto) {
+    // El método del controlador se mantiene como 'create' para la ruta POST estándar
+    return this.designProviderService.createDesignProvider(
+      createDesignProviderDto,
+    );
   }
 
   @Get('design/:id_design')
@@ -39,7 +43,10 @@ export class DesignProviderController {
   }
 
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateDesignProviderDto: UpdateDesignProviderDto) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateDesignProviderDto: UpdateDesignProviderDto,
+  ) {
     return this.designProviderService.update(id, updateDesignProviderDto);
   }
 

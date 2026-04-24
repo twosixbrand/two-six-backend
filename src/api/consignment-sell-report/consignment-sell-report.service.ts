@@ -37,7 +37,9 @@ export class ConsignmentSellReportService {
     // Validar que cada item esté en stock EN_CONSIGNACION
     for (const item of dto.items) {
       if (!(item.quantity > 0)) {
-        throw new BadRequestException('Todas las cantidades deben ser mayores a 0.');
+        throw new BadRequestException(
+          'Todas las cantidades deben ser mayores a 0.',
+        );
       }
       const stock = await this.prisma.consignmentStock.findUnique({
         where: {
@@ -88,7 +90,11 @@ export class ConsignmentSellReportService {
                 clothingColor: {
                   include: {
                     color: true,
-                    imageClothing: { orderBy: { position: 'asc' as const }, take: 1, select: { image_url: true } },
+                    imageClothing: {
+                      orderBy: { position: 'asc' as const },
+                      take: 1,
+                      select: { image_url: true },
+                    },
                     design: { select: { reference: true } },
                   },
                 },
@@ -122,7 +128,11 @@ export class ConsignmentSellReportService {
                 clothingColor: {
                   include: {
                     color: true,
-                    imageClothing: { orderBy: { position: 'asc' as const }, take: 1, select: { image_url: true } },
+                    imageClothing: {
+                      orderBy: { position: 'asc' as const },
+                      take: 1,
+                      select: { image_url: true },
+                    },
                     design: { select: { reference: true } },
                   },
                 },
@@ -150,7 +160,11 @@ export class ConsignmentSellReportService {
                 clothingColor: {
                   include: {
                     color: true,
-                    imageClothing: { orderBy: { position: 'asc' as const }, take: 1, select: { image_url: true } },
+                    imageClothing: {
+                      orderBy: { position: 'asc' as const },
+                      take: 1,
+                      select: { image_url: true },
+                    },
                     design: { select: { reference: true } },
                   },
                 },
@@ -172,7 +186,9 @@ export class ConsignmentSellReportService {
   async approve(id: number, approvedBy: string) {
     const report = await this.findOne(id);
     if (report.status !== 'PENDING') {
-      throw new BadRequestException(`Solo se pueden aprobar reportes PENDING (actual: ${report.status}).`);
+      throw new BadRequestException(
+        `Solo se pueden aprobar reportes PENDING (actual: ${report.status}).`,
+      );
     }
     return this.prisma.consignmentSellReport.update({
       where: { id },
@@ -190,7 +206,9 @@ export class ConsignmentSellReportService {
   async reject(id: number, reason: string, rejectedBy: string) {
     const report = await this.findOne(id);
     if (report.status !== 'PENDING') {
-      throw new BadRequestException(`Solo se pueden rechazar reportes PENDING (actual: ${report.status}).`);
+      throw new BadRequestException(
+        `Solo se pueden rechazar reportes PENDING (actual: ${report.status}).`,
+      );
     }
     return this.prisma.consignmentSellReport.update({
       where: { id },
@@ -220,7 +238,11 @@ export class ConsignmentSellReportService {
                 clothingColor: {
                   include: {
                     color: true,
-                    imageClothing: { orderBy: { position: 'asc' as const }, take: 1, select: { image_url: true } },
+                    imageClothing: {
+                      orderBy: { position: 'asc' as const },
+                      take: 1,
+                      select: { image_url: true },
+                    },
                     design: { select: { reference: true, description: true } },
                   },
                 },
@@ -236,19 +258,24 @@ export class ConsignmentSellReportService {
     for (const wh of warehouses) {
       for (const stock of wh.stocks as any[]) {
         const productId = stock.clothingSize?.product?.id;
-        if (!productId) { stock.unit_price = 0; continue; }
+        if (!productId) {
+          stock.unit_price = 0;
+          continue;
+        }
 
-        const consignmentPrice = await this.prisma.customerConsignmentPrice.findFirst({
-          where: {
-            id_customer,
-            id_product: productId,
-            valid_from: { lte: now },
-            OR: [{ valid_to: null }, { valid_to: { gte: now } }],
-          },
-          orderBy: { valid_from: 'desc' },
-        });
+        const consignmentPrice =
+          await this.prisma.customerConsignmentPrice.findFirst({
+            where: {
+              id_customer,
+              id_product: productId,
+              valid_from: { lte: now },
+              OR: [{ valid_to: null }, { valid_to: { gte: now } }],
+            },
+            orderBy: { valid_from: 'desc' },
+          });
 
-        stock.unit_price = consignmentPrice?.price ?? stock.clothingSize.product.price ?? 0;
+        stock.unit_price =
+          consignmentPrice?.price ?? stock.clothingSize.product.price ?? 0;
       }
     }
 

@@ -39,7 +39,12 @@ describe('ConsignmentSelloutService', () => {
   let priceService: { getEffectivePrice: jest.Mock };
 
   const ally = { id: 1, name: 'Ally', is_consignment_ally: true };
-  const warehouse = { id: 2, id_customer: 1, name: 'Bodega A', address: 'Calle 1' };
+  const warehouse = {
+    id: 2,
+    id_customer: 1,
+    name: 'Bodega A',
+    address: 'Calle 1',
+  };
   const product = {
     id: 50,
     id_clothing_size: 10,
@@ -78,7 +83,10 @@ describe('ConsignmentSelloutService', () => {
 
   describe('preview', () => {
     it('rejects non-ally customer', async () => {
-      mock.prisma.customer.findUnique.mockResolvedValue({ ...ally, is_consignment_ally: false });
+      mock.prisma.customer.findUnique.mockResolvedValue({
+        ...ally,
+        is_consignment_ally: false,
+      });
       await expect(
         service.preview({ id_customer: 1, id_warehouse: 2, rows: [] }),
       ).rejects.toBeInstanceOf(BadRequestException);
@@ -86,9 +94,16 @@ describe('ConsignmentSelloutService', () => {
 
     it('rejects warehouse not belonging to customer', async () => {
       mock.prisma.customer.findUnique.mockResolvedValue(ally);
-      mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue({ ...warehouse, id_customer: 99 });
+      mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue({
+        ...warehouse,
+        id_customer: 99,
+      });
       await expect(
-        service.preview({ id_customer: 1, id_warehouse: 2, rows: [{ sku: 'X', quantity: 1 }] }),
+        service.preview({
+          id_customer: 1,
+          id_warehouse: 2,
+          rows: [{ sku: 'X', quantity: 1 }],
+        }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
@@ -112,7 +127,9 @@ describe('ConsignmentSelloutService', () => {
       mock.prisma.customer.findUnique.mockResolvedValue(ally);
       mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue(warehouse);
       mock.prisma.product.findFirst.mockResolvedValue(product);
-      mock.prisma.consignmentStock.findUnique.mockResolvedValue({ quantity: 10 });
+      mock.prisma.consignmentStock.findUnique.mockResolvedValue({
+        quantity: 10,
+      });
       priceService.getEffectivePrice.mockResolvedValue({ price: 40000 });
 
       const result = await service.preview({
@@ -132,7 +149,9 @@ describe('ConsignmentSelloutService', () => {
       mock.prisma.customer.findUnique.mockResolvedValue(ally);
       mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue(warehouse);
       mock.prisma.product.findFirst.mockResolvedValue(product);
-      mock.prisma.consignmentStock.findUnique.mockResolvedValue({ quantity: 5 });
+      mock.prisma.consignmentStock.findUnique.mockResolvedValue({
+        quantity: 5,
+      });
       priceService.getEffectivePrice.mockResolvedValue(null);
 
       const result = await service.preview({
@@ -148,7 +167,9 @@ describe('ConsignmentSelloutService', () => {
       mock.prisma.customer.findUnique.mockResolvedValue(ally);
       mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue(warehouse);
       mock.prisma.product.findFirst.mockResolvedValue(product);
-      mock.prisma.consignmentStock.findUnique.mockResolvedValue({ quantity: 5 });
+      mock.prisma.consignmentStock.findUnique.mockResolvedValue({
+        quantity: 5,
+      });
       priceService.getEffectivePrice.mockResolvedValue({ price: 40000 });
 
       const result = await service.preview({
@@ -164,7 +185,9 @@ describe('ConsignmentSelloutService', () => {
       mock.prisma.customer.findUnique.mockResolvedValue(ally);
       mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue(warehouse);
       mock.prisma.product.findFirst.mockResolvedValue(product);
-      mock.prisma.consignmentStock.findUnique.mockResolvedValue({ quantity: 1 });
+      mock.prisma.consignmentStock.findUnique.mockResolvedValue({
+        quantity: 1,
+      });
 
       const result = await service.preview({
         id_customer: 1,

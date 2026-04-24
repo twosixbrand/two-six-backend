@@ -70,7 +70,10 @@ export class TaxConfigService {
   async calculateTaxes(
     baseAmount: number,
     cityId?: number,
-    opts: { customerTaxStatus?: 'NORMAL' | 'GRAN_CONTRIBUYENTE' | 'AUTORETENEDOR'; ivaAmount?: number } = {},
+    opts: {
+      customerTaxStatus?: 'NORMAL' | 'GRAN_CONTRIBUYENTE' | 'AUTORETENEDOR';
+      ivaAmount?: number;
+    } = {},
   ) {
     const results: any[] = [];
 
@@ -95,10 +98,17 @@ export class TaxConfigService {
     }
 
     // 2. Autorretención de renta — global, siempre
-    const autoretencionConfigs = await this.findActiveByType(TaxType.AUTORETENCION_RENTA);
+    const autoretencionConfigs = await this.findActiveByType(
+      TaxType.AUTORETENCION_RENTA,
+    );
     for (const config of autoretencionConfigs) {
       const amount = Number(baseAmount) * Number(config.rate);
-      results.push({ config, type: TaxType.AUTORETENCION_RENTA, base: baseAmount, amount });
+      results.push({
+        config,
+        type: TaxType.AUTORETENCION_RENTA,
+        base: baseAmount,
+        amount,
+      });
     }
 
     // 3. ReteIVA — solo si el cliente practica retención y nos pasaron el IVA generado

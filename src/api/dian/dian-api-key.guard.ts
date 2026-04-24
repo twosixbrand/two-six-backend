@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 /**
@@ -15,13 +20,17 @@ export class DianApiKeyGuard implements CanActivate {
     const validKey = this.configService.get<string>('DIAN_API_KEY');
 
     if (!validKey) {
-      throw new UnauthorizedException('API Key de integración no configurada en el servidor');
+      throw new UnauthorizedException(
+        'API Key de integración no configurada en el servidor',
+      );
     }
 
     if (apiKey && apiKey === validKey) {
       return true;
     }
-    
-    throw new UnauthorizedException('API Key inválida o no proporcionada en el header x-api-key');
+
+    throw new UnauthorizedException(
+      'API Key inválida o no proporcionada en el header x-api-key',
+    );
   }
 }

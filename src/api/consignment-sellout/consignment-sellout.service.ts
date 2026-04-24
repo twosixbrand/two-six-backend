@@ -65,7 +65,11 @@ export class ConsignmentSelloutService {
               clothingColor: {
                 include: {
                   color: true,
-                  imageClothing: { orderBy: { position: "asc" as const }, take: 1, select: { image_url: true } },
+                  imageClothing: {
+                    orderBy: { position: 'asc' as const },
+                    take: 1,
+                    select: { image_url: true },
+                  },
                   design: { select: { id: true, reference: true } },
                 },
               },
@@ -94,7 +98,11 @@ export class ConsignmentSelloutService {
               clothingColor: {
                 include: {
                   color: true,
-                  imageClothing: { orderBy: { position: "asc" as const }, take: 1, select: { image_url: true } },
+                  imageClothing: {
+                    orderBy: { position: 'asc' as const },
+                    take: 1,
+                    select: { image_url: true },
+                  },
                   design: { select: { id: true, reference: true } },
                 },
               },
@@ -123,7 +131,8 @@ export class ConsignmentSelloutService {
       where: { id: dto.id_customer },
       select: { id: true, name: true, is_consignment_ally: true },
     });
-    if (!customer) throw new NotFoundException(`Cliente #${dto.id_customer} no encontrado.`);
+    if (!customer)
+      throw new NotFoundException(`Cliente #${dto.id_customer} no encontrado.`);
     if (!customer.is_consignment_ally) {
       throw new BadRequestException('El cliente no es aliado de consignación.');
     }
@@ -133,7 +142,9 @@ export class ConsignmentSelloutService {
     });
     if (!warehouse) throw new NotFoundException('Bodega no encontrada.');
     if (warehouse.id_customer !== dto.id_customer) {
-      throw new BadRequestException('La bodega no pertenece al cliente indicado.');
+      throw new BadRequestException(
+        'La bodega no pertenece al cliente indicado.',
+      );
     }
 
     if (!dto.rows?.length) {
@@ -247,130 +258,135 @@ export class ConsignmentSelloutService {
 
     const okRows = preview.resolved.filter((r) => r.status === 'ok');
 
-    return this.prisma.$transaction(async (tx) => {
-      const warehouse = await tx.consignmentWarehouse.findUnique({
-        where: { id: dto.id_warehouse },
-        include: { customer: true },
-      });
-      if (!warehouse) throw new NotFoundException('Bodega no encontrada.');
+    return this.prisma
+      .$transaction(async (tx) => {
+        const warehouse = await tx.consignmentWarehouse.findUnique({
+          where: { id: dto.id_warehouse },
+          include: { customer: true },
+        });
+        if (!warehouse) throw new NotFoundException('Bodega no encontrada.');
 
-      // Genera referencia única para la orden
-      const orderReference = `SO-${Date.now()}`;
+        // Genera referencia única para la orden
+        const orderReference = `SO-${Date.now()}`;
 
-      const order = await tx.order.create({
-        data: {
-          id_customer: dto.id_customer,
-          order_date: new Date(),
-          purchase_date: new Date(),
-          status: 'SELLOUT',
-          is_paid: false, // CxC: el aliado paga después
-          shipping_address: warehouse.address ?? `${warehouse.name} (Sell-out Consignación)`,
-          shipping_cost: 0,
-          iva: preview.summary.iva,
-          total_payment: preview.summary.total,
-          payment_method: 'CONSIGNMENT_SELLOUT',
-          delivery_method: 'CONSIGNMENT',
-          order_reference: orderReference,
-          discount_amount: 0,
-          cod_amount: 0,
-        },
-      });
-
-      for (const r of okRows) {
-        const p = r.product!;
-        const unitPrice = r.effective_price!;
-        const qty = r.row.quantity;
-
-        // Crea OrderItem
-        await tx.orderItem.create({
+        const order = await tx.order.create({
           data: {
-            id_order: order.id,
-            id_product: p.id,
-            product_name: `${p.reference} ${p.color} ${p.size}`,
-            size: p.size,
-            color: p.color,
-            quantity: qty,
-            unit_price: unitPrice,
-            iva_item: Number((unitPrice * IVA_RATE).toFixed(2)),
+            id_customer: dto.id_customer,
+            order_date: new Date(),
+            purchase_date: new Date(),
+            status: 'SELLOUT',
+            is_paid: false, // CxC: el aliado paga después
+            shipping_address:
+              warehouse.address ?? `${warehouse.name} (Sell-out Consignación)`,
+            shipping_cost: 0,
+            iva: preview.summary.iva,
+            total_payment: preview.summary.total,
+            payment_method: 'CONSIGNMENT_SELLOUT',
+            delivery_method: 'CONSIGNMENT',
+            order_reference: orderReference,
+            discount_amount: 0,
+            cod_amount: 0,
           },
         });
 
-        // Descuenta ConsignmentStock EN_CONSIGNACION
-        const stock = await tx.consignmentStock.findUnique({
-          where: {
-            id_warehouse_id_clothing_size_status: {
-              id_warehouse: dto.id_warehouse,
-              id_clothing_size: p.id_clothing_size,
-              status: 'EN_CONSIGNACION',
+        for (const r of okRows) {
+          const p = r.product!;
+          const unitPrice = r.effective_price!;
+          const qty = r.row.quantity;
+
+          // Crea OrderItem
+          await tx.orderItem.create({
+            data: {
+              id_order: order.id,
+              id_product: p.id,
+              product_name: `${p.reference} ${p.color} ${p.size}`,
+              size: p.size,
+              color: p.color,
+              quantity: qty,
+              unit_price: unitPrice,
+              iva_item: Number((unitPrice * IVA_RATE).toFixed(2)),
             },
-          },
-        });
-        if (!stock || stock.quantity < qty) {
-          throw new BadRequestException(
-            `Stock insuficiente durante el procesamiento para ${p.reference} ${p.color} ${p.size}.`,
-          );
-        }
-        if (stock.quantity === qty) {
-          await tx.consignmentStock.delete({ where: { id: stock.id } });
-        } else {
-          await tx.consignmentStock.update({
-            where: { id: stock.id },
-            data: { quantity: { decrement: qty } },
+          });
+
+          // Descuenta ConsignmentStock EN_CONSIGNACION
+          const stock = await tx.consignmentStock.findUnique({
+            where: {
+              id_warehouse_id_clothing_size_status: {
+                id_warehouse: dto.id_warehouse,
+                id_clothing_size: p.id_clothing_size,
+                status: 'EN_CONSIGNACION',
+              },
+            },
+          });
+          if (!stock || stock.quantity < qty) {
+            throw new BadRequestException(
+              `Stock insuficiente durante el procesamiento para ${p.reference} ${p.color} ${p.size}.`,
+            );
+          }
+          if (stock.quantity === qty) {
+            await tx.consignmentStock.delete({ where: { id: stock.id } });
+          } else {
+            await tx.consignmentStock.update({
+              where: { id: stock.id },
+              data: { quantity: { decrement: qty } },
+            });
+          }
+
+          // Actualiza caches en ClothingSize
+          const size = await tx.clothingSize.findUnique({
+            where: { id: p.id_clothing_size },
+          });
+          if (!size) continue;
+
+          await tx.clothingSize.update({
+            where: { id: p.id_clothing_size },
+            data: {
+              quantity_on_consignment: { decrement: qty },
+              quantity_sold: { increment: qty },
+            },
+          });
+
+          // Kardex (ya estaba OUT al enviar; esto registra la venta real)
+          await tx.inventoryKardex.create({
+            data: {
+              id_clothing_size: p.id_clothing_size,
+              type: 'OUT',
+              source_type: 'CONSIGNMENT_SELLOUT',
+              source_id: order.id,
+              quantity: qty,
+              balance_before: size.quantity_available, // disponible no cambia en sell-out
+              balance_after: size.quantity_available,
+              unit_cost: null,
+              description: `Sell-out orden ${orderReference}`,
+            },
           });
         }
 
-        // Actualiza caches en ClothingSize
-        const size = await tx.clothingSize.findUnique({
-          where: { id: p.id_clothing_size },
+        return tx.order.findUnique({
+          where: { id: order.id },
+          include: { orderItems: true, customer: true },
         });
-        if (!size) continue;
-
-        await tx.clothingSize.update({
-          where: { id: p.id_clothing_size },
-          data: {
-            quantity_on_consignment: { decrement: qty },
-            quantity_sold: { increment: qty },
-          },
-        });
-
-        // Kardex (ya estaba OUT al enviar; esto registra la venta real)
-        await tx.inventoryKardex.create({
-          data: {
-            id_clothing_size: p.id_clothing_size,
-            type: 'OUT',
-            source_type: 'CONSIGNMENT_SELLOUT',
-            source_id: order.id,
-            quantity: qty,
-            balance_before: size.quantity_available, // disponible no cambia en sell-out
-            balance_after: size.quantity_available,
-            unit_cost: null,
-            description: `Sell-out orden ${orderReference}`,
-          },
-        });
-      }
-
-      return tx.order.findUnique({
-        where: { id: order.id },
-        include: { orderItems: true, customer: true },
+      })
+      .then(async (createdOrder) => {
+        if (!createdOrder) return createdOrder;
+        // Asiento contable: venta a crédito (130505) + COGS. Best-effort, no bloquea.
+        try {
+          await this.journalAutoService.onConsignmentSelloutCompleted(
+            createdOrder.id,
+          );
+        } catch (err: any) {
+          console.error(
+            `[JournalAuto] Error generando asiento de sell-out orden ${createdOrder.id}: ${err.message}`,
+          );
+        }
+        try {
+          await this.journalAutoService.onCostOfGoodsSold(createdOrder.id);
+        } catch (err: any) {
+          console.error(
+            `[JournalAuto] Error generando asiento COGS orden ${createdOrder.id}: ${err.message}`,
+          );
+        }
+        return createdOrder;
       });
-    }).then(async (createdOrder) => {
-      if (!createdOrder) return createdOrder;
-      // Asiento contable: venta a crédito (130505) + COGS. Best-effort, no bloquea.
-      try {
-        await this.journalAutoService.onConsignmentSelloutCompleted(createdOrder.id);
-      } catch (err: any) {
-        console.error(
-          `[JournalAuto] Error generando asiento de sell-out orden ${createdOrder.id}: ${err.message}`,
-        );
-      }
-      try {
-        await this.journalAutoService.onCostOfGoodsSold(createdOrder.id);
-      } catch (err: any) {
-        console.error(
-          `[JournalAuto] Error generando asiento COGS orden ${createdOrder.id}: ${err.message}`,
-        );
-      }
-      return createdOrder;
-    });
   }
 }

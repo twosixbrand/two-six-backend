@@ -39,14 +39,22 @@ describe('ConsignmentWarehouseService', () => {
         name: 'Retail X',
         is_consignment_ally: true,
       });
-      mockPrisma.consignmentWarehouse.create.mockResolvedValue({ id: 10, id_customer: 1, name: 'Bodega A' });
+      mockPrisma.consignmentWarehouse.create.mockResolvedValue({
+        id: 10,
+        id_customer: 1,
+        name: 'Bodega A',
+      });
 
       const result = await service.create({ id_customer: 1, name: 'Bodega A' });
 
       expect(result.id).toBe(10);
       expect(mockPrisma.consignmentWarehouse.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ id_customer: 1, name: 'Bodega A', is_active: true }),
+          data: expect.objectContaining({
+            id_customer: 1,
+            name: 'Bodega A',
+            is_active: true,
+          }),
         }),
       );
     });
@@ -72,13 +80,18 @@ describe('ConsignmentWarehouseService', () => {
 
   describe('findOne', () => {
     it('returns warehouse when found', async () => {
-      mockPrisma.consignmentWarehouse.findUnique.mockResolvedValue({ id: 1, name: 'B1' });
+      mockPrisma.consignmentWarehouse.findUnique.mockResolvedValue({
+        id: 1,
+        name: 'B1',
+      });
       await expect(service.findOne(1)).resolves.toEqual({ id: 1, name: 'B1' });
     });
 
     it('throws NotFound when missing', async () => {
       mockPrisma.consignmentWarehouse.findUnique.mockResolvedValue(null);
-      await expect(service.findOne(99)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.findOne(99)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 
@@ -89,13 +102,17 @@ describe('ConsignmentWarehouseService', () => {
       mockPrisma.consignmentWarehouse.delete.mockResolvedValue({ id: 1 });
 
       await service.remove(1);
-      expect(mockPrisma.consignmentWarehouse.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(mockPrisma.consignmentWarehouse.delete).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
     });
 
     it('refuses to delete warehouse with stock', async () => {
       mockPrisma.consignmentWarehouse.findUnique.mockResolvedValue({ id: 1 });
       mockPrisma.consignmentStock.count.mockResolvedValue(3);
-      await expect(service.remove(1)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.remove(1)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
       expect(mockPrisma.consignmentWarehouse.delete).not.toHaveBeenCalled();
     });
   });

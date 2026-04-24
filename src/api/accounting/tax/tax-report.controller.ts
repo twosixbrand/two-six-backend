@@ -3,7 +3,6 @@ import type { Response } from 'express';
 import { TaxReportService } from './tax-report.service';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 
-
 @UseGuards(JwtAuthGuard)
 @Controller('accounting/tax')
 export class TaxReportController {
@@ -26,9 +25,15 @@ export class TaxReportController {
     @Query('endDate') endDate: string,
     @Res() res: Response,
   ) {
-    const file = await this.taxReportService.exportIvaDeclarationCsv(startDate, endDate);
+    const file = await this.taxReportService.exportIvaDeclarationCsv(
+      startDate,
+      endDate,
+    );
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${file.filename}"`,
+    );
     res.send(file.content);
   }
 

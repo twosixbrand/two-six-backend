@@ -1,11 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { CreateClothingColorDto } from './dto/create-clothing-color.dto';
 import { UpdateClothingColorDto } from './dto/update-clothing-color.dto';
 @Injectable()
 export class ClothingColorService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   create(createClothingColorDto: CreateClothingColorDto) {
     return this.prisma.clothingColor.create({
@@ -17,13 +21,17 @@ export class ClothingColorService {
     id_design: number,
     id_color: number,
     slug: string | undefined,
-    sizes: { id_size: number; quantity_produced: number; quantity_available: number }[]
+    sizes: {
+      id_size: number;
+      quantity_produced: number;
+      quantity_available: number;
+    }[],
   ) {
     try {
       console.log('createContextual called with:', {
         id_design,
         id_color,
-        sizesCount: sizes?.length
+        sizesCount: sizes?.length,
       });
 
       // 1. Get Metadata
@@ -38,9 +46,12 @@ export class ClothingColorService {
       });
 
       if (!design) throw new NotFoundException('Design not found');
-      if (!design.clothing) throw new BadRequestException('Design has no associated clothing');
+      if (!design.clothing)
+        throw new BadRequestException('Design has no associated clothing');
 
-      const color = await this.prisma.color.findUnique({ where: { id: id_color } });
+      const color = await this.prisma.color.findUnique({
+        where: { id: id_color },
+      });
       if (!color) throw new NotFoundException('Color not found');
 
       // 2. Create Database Records (Parent + Children)
@@ -75,10 +86,12 @@ export class ClothingColorService {
       });
 
       return result;
-
     } catch (error) {
       console.error('Error in createContextual service:', error);
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new BadRequestException(`Processing failed: ${error.message}`);
@@ -107,12 +120,12 @@ export class ClothingColorService {
         },
         clothingSizes: {
           include: {
-            size: true
-          }
+            size: true,
+          },
         },
         _count: {
-          select: { imageClothing: true }
-        }
+          select: { imageClothing: true },
+        },
       },
     });
   }
@@ -140,9 +153,9 @@ export class ClothingColorService {
         },
         clothingSizes: {
           include: {
-            size: true
-          }
-        }
+            size: true,
+          },
+        },
       },
     });
     if (!clothingColor) {
@@ -166,7 +179,7 @@ export class ClothingColorService {
       include: {
         design: true,
         color: true,
-        clothingSizes: true
+        clothingSizes: true,
       },
     });
   }
@@ -177,19 +190,21 @@ export class ClothingColorService {
     try {
       return await this.prisma.$transaction(async (tx) => {
         // 1. Find all sizes
-        const sizes = await tx.clothingSize.findMany({ where: { id_clothing_color: id } });
+        const sizes = await tx.clothingSize.findMany({
+          where: { id_clothing_color: id },
+        });
 
         // 2. Delete stock dependent on sizes
         // 2. Delete Products? (If exist)
         if (sizes.length > 0) {
           await tx.product.deleteMany({
-            where: { id_clothing_size: { in: sizes.map(s => s.id) } }
+            where: { id_clothing_size: { in: sizes.map((s) => s.id) } },
           });
         }
 
         // 4. Delete ClothingSizes
         await tx.clothingSize.deleteMany({
-          where: { id_clothing_color: id }
+          where: { id_clothing_color: id },
         });
 
         // 5. Delete Parent
@@ -201,7 +216,7 @@ export class ClothingColorService {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2003') {
           throw new BadRequestException(
-            `No se puede eliminar la variante porque tiene registros relacionados.`
+            `No se puede eliminar la variante porque tiene registros relacionados.`,
           );
         }
       }

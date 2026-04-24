@@ -15,14 +15,24 @@ describe('AlertsService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AlertsService, { provide: PrismaService, useValue: prismaMock }],
+      providers: [
+        AlertsService,
+        { provide: PrismaService, useValue: prismaMock },
+      ],
     }).compile();
     service = module.get(AlertsService);
   });
 
   it('aggregates all alert categories and returns summary counts', async () => {
     prismaMock.journalEntry.findMany.mockResolvedValue([
-      { id: 1, entry_number: 'AC-001', createdAt: new Date('2026-01-01'), description: 'x', source_type: 'SALE', total_debit: 100 },
+      {
+        id: 1,
+        entry_number: 'AC-001',
+        createdAt: new Date('2026-01-01'),
+        description: 'x',
+        source_type: 'SALE',
+        total_debit: 100,
+      },
     ]);
     // journalEntryLine.findMany se llama dos veces:
     //   1) invalid lines sobre cuentas no-movimiento
@@ -30,7 +40,9 @@ describe('AlertsService', () => {
     prismaMock.journalEntryLine.findMany
       .mockResolvedValueOnce([
         {
-          id: 99, debit: 100, credit: 0,
+          id: 99,
+          debit: 100,
+          credit: 0,
           pucAccount: { code: '14', name: 'Inventarios' },
           journalEntry: { entry_number: 'AC-002', entry_date: new Date() },
         },
@@ -53,7 +65,13 @@ describe('AlertsService', () => {
       ]);
 
     prismaMock.order.findMany.mockResolvedValue([
-      { id: 1, order_reference: 'ORD-1', createdAt: new Date('2026-01-01'), total_payment: 100, status: 'APPROVED' },
+      {
+        id: 1,
+        order_reference: 'ORD-1',
+        createdAt: new Date('2026-01-01'),
+        total_payment: 100,
+        status: 'APPROVED',
+      },
     ]);
     prismaMock.accountingClosing.findFirst.mockResolvedValue(null);
 

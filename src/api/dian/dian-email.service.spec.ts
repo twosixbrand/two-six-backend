@@ -49,7 +49,9 @@ describe('DianEmailService', () => {
   };
 
   const mockUblService = {
-    generateInvoiceXml: jest.fn().mockReturnValue('<xml>CUFE_PLACEHOLDER</xml>'),
+    generateInvoiceXml: jest
+      .fn()
+      .mockReturnValue('<xml>CUFE_PLACEHOLDER</xml>'),
   };
 
   const mockSignerService = {

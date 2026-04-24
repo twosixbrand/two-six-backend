@@ -3,13 +3,17 @@ import { PrismaService } from '../../../prisma/prisma.service';
 
 @Injectable()
 export class AccountingReportService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   /**
    * Balance General comparativo: balance del período actual + período anterior
    * (mes inmediatamente anterior O mismo mes año anterior según `compareWith`).
    */
-  async getBalanceSheetCompared(year: number, month: number, compareWith: 'PREVIOUS_MONTH' | 'PREVIOUS_YEAR' = 'PREVIOUS_YEAR') {
+  async getBalanceSheetCompared(
+    year: number,
+    month: number,
+    compareWith: 'PREVIOUS_MONTH' | 'PREVIOUS_YEAR' = 'PREVIOUS_YEAR',
+  ) {
     let prevYear = year;
     let prevMonth = month;
     if (compareWith === 'PREVIOUS_YEAR') {
@@ -70,7 +74,11 @@ export class AccountingReportService {
 
     // Cuentas de patrimonio (clase 3)
     const equityAccounts = await this.prisma.pucAccount.findMany({
-      where: { code: { startsWith: '3' }, accepts_movements: true, is_active: true },
+      where: {
+        code: { startsWith: '3' },
+        accepts_movements: true,
+        is_active: true,
+      },
       orderBy: { code: 'asc' },
     });
 
@@ -98,15 +106,22 @@ export class AccountingReportService {
       const period = await this.prisma.journalEntryLine.aggregate({
         where: {
           id_puc_account: acc.id,
-          journalEntry: { status: 'POSTED', entry_date: { gte: startOfYear, lte: endOfYear } },
+          journalEntry: {
+            status: 'POSTED',
+            entry_date: { gte: startOfYear, lte: endOfYear },
+          },
         },
         _sum: { debit: true, credit: true },
       });
 
       const periodIncrease =
-        acc.nature === 'CREDITO' ? (period._sum.credit ?? 0) : (period._sum.debit ?? 0);
+        acc.nature === 'CREDITO'
+          ? (period._sum.credit ?? 0)
+          : (period._sum.debit ?? 0);
       const periodDecrease =
-        acc.nature === 'CREDITO' ? (period._sum.debit ?? 0) : (period._sum.credit ?? 0);
+        acc.nature === 'CREDITO'
+          ? (period._sum.debit ?? 0)
+          : (period._sum.credit ?? 0);
 
       const closingBalance = openingBalance + periodIncrease - periodDecrease;
 
@@ -169,14 +184,20 @@ export class AccountingReportService {
     });
 
     // Aggregate by PUC class (first digit of code)
-    const classMap: Record<string, { code: string; name: string; total: number; accounts: any[] }> = {
+    const classMap: Record<
+      string,
+      { code: string; name: string; total: number; accounts: any[] }
+    > = {
       '1': { code: '1', name: 'Activos', total: 0, accounts: [] },
       '2': { code: '2', name: 'Pasivos', total: 0, accounts: [] },
       '3': { code: '3', name: 'Patrimonio', total: 0, accounts: [] },
     };
 
     // Group by account
-    const accountTotals: Record<number, { account: any; debit: number; credit: number }> = {};
+    const accountTotals: Record<
+      number,
+      { account: any; debit: number; credit: number }
+    > = {};
 
     for (const line of lines) {
       if (!accountTotals[line.id_puc_account]) {
@@ -194,9 +215,10 @@ export class AccountingReportService {
       const classDigit = data.account.code.charAt(0);
       if (!classMap[classDigit]) continue;
 
-      const balance = data.account.nature === 'DEBITO'
-        ? data.debit - data.credit
-        : data.credit - data.debit;
+      const balance =
+        data.account.nature === 'DEBITO'
+          ? data.debit - data.credit
+          : data.credit - data.debit;
 
       classMap[classDigit].accounts.push({
         code: data.account.code,
@@ -218,7 +240,10 @@ export class AccountingReportService {
       balanceCheck: {
         totalActivos: classMap['1'].total,
         totalPasivosPatrimonio: classMap['2'].total + classMap['3'].total,
-        balanced: Math.abs(classMap['1'].total - (classMap['2'].total + classMap['3'].total)) < 0.01,
+        balanced:
+          Math.abs(
+            classMap['1'].total - (classMap['2'].total + classMap['3'].total),
+          ) < 0.01,
       },
     };
   }
@@ -242,13 +267,19 @@ export class AccountingReportService {
       },
     });
 
-    const classMap: Record<string, { code: string; name: string; total: number; accounts: any[] }> = {
+    const classMap: Record<
+      string,
+      { code: string; name: string; total: number; accounts: any[] }
+    > = {
       '4': { code: '4', name: 'Ingresos', total: 0, accounts: [] },
       '5': { code: '5', name: 'Gastos', total: 0, accounts: [] },
       '6': { code: '6', name: 'Costos de Ventas', total: 0, accounts: [] },
     };
 
-    const accountTotals: Record<number, { account: any; debit: number; credit: number }> = {};
+    const accountTotals: Record<
+      number,
+      { account: any; debit: number; credit: number }
+    > = {};
 
     for (const line of lines) {
       if (!accountTotals[line.id_puc_account]) {
@@ -266,9 +297,10 @@ export class AccountingReportService {
       const classDigit = data.account.code.charAt(0);
       if (!classMap[classDigit]) continue;
 
-      const balance = data.account.nature === 'CREDITO'
-        ? data.credit - data.debit
-        : data.debit - data.credit;
+      const balance =
+        data.account.nature === 'CREDITO'
+          ? data.credit - data.debit
+          : data.debit - data.credit;
 
       classMap[classDigit].accounts.push({
         code: data.account.code,
@@ -298,7 +330,11 @@ export class AccountingReportService {
   /**
    * Libro Mayor — per-account transactions with running balance
    */
-  async getGeneralLedger(accountCode: string, startDate: string, endDate: string) {
+  async getGeneralLedger(
+    accountCode: string,
+    startDate: string,
+    endDate: string,
+  ) {
     const account = await this.prisma.pucAccount.findUnique({
       where: { code: accountCode },
     });
@@ -381,7 +417,11 @@ export class AccountingReportService {
   /**
    * Auxiliar — detailed sub-account view
    */
-  async getSubsidiaryLedger(accountCode: string, startDate: string, endDate: string) {
+  async getSubsidiaryLedger(
+    accountCode: string,
+    startDate: string,
+    endDate: string,
+  ) {
     // Find all accounts that start with the given code (the account and all sub-accounts)
     const accounts = await this.prisma.pucAccount.findMany({
       where: {
@@ -447,9 +487,10 @@ export class AccountingReportService {
     // Calculate balances
     const subAccounts = Object.values(grouped).map((acc: any) => ({
       ...acc,
-      balance: acc.nature === 'DEBITO'
-        ? acc.totalDebit - acc.totalCredit
-        : acc.totalCredit - acc.totalDebit,
+      balance:
+        acc.nature === 'DEBITO'
+          ? acc.totalDebit - acc.totalCredit
+          : acc.totalCredit - acc.totalDebit,
     }));
 
     return {

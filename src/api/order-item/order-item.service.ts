@@ -11,9 +11,13 @@ export class OrderItemService {
     const { id_order, id_product } = createOrderItemDto;
 
     // Validar que la orden y el producto existen
-    const order = await this.prisma.order.findUnique({ where: { id: id_order } });
+    const order = await this.prisma.order.findUnique({
+      where: { id: id_order },
+    });
     if (!order) {
-      throw new NotFoundException(`La orden con ID #${id_order} no fue encontrada.`);
+      throw new NotFoundException(
+        `La orden con ID #${id_order} no fue encontrada.`,
+      );
     }
 
     const product = await this.prisma.product.findUnique({

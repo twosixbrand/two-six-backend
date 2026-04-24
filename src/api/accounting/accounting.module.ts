@@ -117,6 +117,14 @@ import { ManualInvoiceService } from './manual-invoice/manual-invoice.service';
     CashReceiptService,
     ManualInvoiceService,
   ],
-  exports: [JournalAutoService, AuditService, TaxConfigService, BudgetService, AccountingSettingsService, CashReceiptService, ManualInvoiceService],
+  exports: [
+    JournalAutoService,
+    AuditService,
+    TaxConfigService,
+    BudgetService,
+    AccountingSettingsService,
+    CashReceiptService,
+    ManualInvoiceService,
+  ],
 })
-export class AccountingModule { }
+export class AccountingModule {}

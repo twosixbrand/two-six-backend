@@ -44,13 +44,25 @@ export class DianCufeService {
    */
   generateCufe(params: CufeParamsDto): string {
     const {
-      NumFac, FecFac, HorFac, ValFac, CodImp1, ValImp1,
-      CodImp2, ValImp2, CodImp3, ValImp3, ValTot,
-      NitOfe, NumAdq, ClTec, TipoAmb,
+      NumFac,
+      FecFac,
+      HorFac,
+      ValFac,
+      CodImp1,
+      ValImp1,
+      CodImp2,
+      ValImp2,
+      CodImp3,
+      ValImp3,
+      ValTot,
+      NitOfe,
+      NumAdq,
+      ClTec,
+      TipoAmb,
     } = params;
 
     const cufeString = `${NumFac}${FecFac}${HorFac}${ValFac}${CodImp1}${ValImp1}${CodImp2}${ValImp2}${CodImp3}${ValImp3}${ValTot}${NitOfe}${NumAdq}${ClTec}${TipoAmb}`;
-    
+
     // El CUFE siempre es un SHA-384 convertido a HEX
     return crypto.createHash('sha384').update(cufeString).digest('hex');
   }
@@ -60,13 +72,25 @@ export class DianCufeService {
    */
   generateCude(params: CudeParamsDto): string {
     const {
-      NumNota, FecNota, HorNota, ValNota, CodImp1, ValImp1,
-      CodImp2, ValImp2, CodImp3, ValImp3, ValTot,
-      NitOfe, NumAdq, PinSoftware, TipoAmb,
+      NumNota,
+      FecNota,
+      HorNota,
+      ValNota,
+      CodImp1,
+      ValImp1,
+      CodImp2,
+      ValImp2,
+      CodImp3,
+      ValImp3,
+      ValTot,
+      NitOfe,
+      NumAdq,
+      PinSoftware,
+      TipoAmb,
     } = params;
 
     const cudeString = `${NumNota}${FecNota}${HorNota}${ValNota}${CodImp1}${ValImp1}${CodImp2}${ValImp2}${CodImp3}${ValImp3}${ValTot}${NitOfe}${NumAdq}${PinSoftware}${TipoAmb}`;
-    
+
     // El CUDE también es un SHA-384 convertido a HEX
     return crypto.createHash('sha384').update(cudeString).digest('hex');
   }

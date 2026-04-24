@@ -59,7 +59,10 @@ export class PilaService {
 
     // ============ Registro tipo 1: Encabezado ============
     const totalEntries: number = period.entries.length;
-    const totalGross: number = period.entries.reduce((s: number, e: any) => s + e.gross_salary, 0);
+    const totalGross: number = period.entries.reduce(
+      (s: number, e: any) => s + e.gross_salary,
+      0,
+    );
     const totalAportes: number = period.entries.reduce(
       (s: number, e: any) =>
         s +
@@ -75,7 +78,8 @@ export class PilaService {
     );
 
     // Razón social desde settings
-    const companyName = (await this.settingsService.get('COMPANY_NAME')) || 'TWO SIX';
+    const companyName =
+      (await this.settingsService.get('COMPANY_NAME')) || 'TWO SIX';
 
     // Precarga de tipos de identificación para mapping → código PILA
     const idTypes = await this.prisma.identificationType.findMany();
@@ -86,17 +90,17 @@ export class PilaService {
     // Tipo 1: 01|TipoDoc|NumDoc|RazonSocial|TipoPlanilla|NumPlanilla|FechaPlanilla
     //        |PeriodoPension|PeriodoSalud|TotalCotizantes|TotalAportes
     const tipo1 = [
-      '01',                       // tipo registro
-      'NI',                       // tipo documento (NIT)
-      pad(employerNit, 16),       // número documento
-      padR(companyName, 200),     // razón social
-      'E',                        // tipo planilla (E = empleados)
+      '01', // tipo registro
+      'NI', // tipo documento (NIT)
+      pad(employerNit, 16), // número documento
+      padR(companyName, 200), // razón social
+      'E', // tipo planilla (E = empleados)
       pad(`${year}${String(month).padStart(2, '0')}001`, 10), // número planilla
       new Date().toISOString().slice(0, 10), // fecha
-      periodoLiquidacion,         // periodo pensión
-      periodoLiquidacion,         // periodo salud
-      pad(totalEntries, 5),       // total cotizantes
-      num(totalAportes, 12),      // total aportes
+      periodoLiquidacion, // periodo pensión
+      periodoLiquidacion, // periodo salud
+      pad(totalEntries, 5), // total cotizantes
+      num(totalAportes, 12), // total aportes
     ].join('|');
 
     // ============ Registros tipo 2: Detalle por empleado ============
@@ -105,26 +109,28 @@ export class PilaService {
     for (const entry of period.entries) {
       const e = entry.employee;
       // Mapping de tipo documento a código PILA oficial
-      const internalCode = (idTypeById.get(e.id_identification_type) || 'CC').toUpperCase();
+      const internalCode = (
+        idTypeById.get(e.id_identification_type) || 'CC'
+      ).toUpperCase();
       const idType = PilaService.PILA_ID_CODE[internalCode] || 'CC';
       const line = [
-        '02',                          // tipo registro
-        pad(seq, 5),                   // secuencia
-        idType,                        // tipo documento
-        pad(e.document_number, 16),    // número documento
-        padR(e.name, 60),              // nombre
-        padR(e.position, 20),          // cargo / dependencia
-        '1',                           // tipo cotizante (1 = dependiente)
-        '0',                           // subtipo
-        '30',                          // días cotizados pensión (mes)
-        '30',                          // días cotizados salud
-        num(entry.ibc, 9),             // IBC
+        '02', // tipo registro
+        pad(seq, 5), // secuencia
+        idType, // tipo documento
+        pad(e.document_number, 16), // número documento
+        padR(e.name, 60), // nombre
+        padR(e.position, 20), // cargo / dependencia
+        '1', // tipo cotizante (1 = dependiente)
+        '0', // subtipo
+        '30', // días cotizados pensión (mes)
+        '30', // días cotizados salud
+        num(entry.ibc, 9), // IBC
         num(entry.pension_employee + entry.pension_employer, 9), // cotización pensión
-        num(entry.health_employee + entry.health_employer, 9),   // cotización salud
-        num(entry.arl_employer, 9),    // ARL
-        num(entry.caja_employer, 9),   // CCF
-        num(entry.sena_employer, 9),   // SENA
-        num(entry.icbf_employer, 9),   // ICBF
+        num(entry.health_employee + entry.health_employer, 9), // cotización salud
+        num(entry.arl_employer, 9), // ARL
+        num(entry.caja_employer, 9), // CCF
+        num(entry.sena_employer, 9), // SENA
+        num(entry.icbf_employer, 9), // ICBF
       ].join('|');
       tipo2Lines.push(line);
       seq++;

@@ -97,7 +97,10 @@ export class PermissionService {
     }));
 
     // Collect unique permissions across all roles
-    const permissionMap = new Map<number, (typeof userRoles)[0]['role']['rolePermissions'][0]['permission']>();
+    const permissionMap = new Map<
+      number,
+      (typeof userRoles)[0]['role']['rolePermissions'][0]['permission']
+    >();
     for (const ur of userRoles) {
       for (const rp of ur.role.rolePermissions) {
         permissionMap.set(rp.permission.id, rp.permission);

@@ -32,8 +32,18 @@ export class ExportService {
     const data = await this.reportService.getBalanceSheet(year, month);
 
     const months = [
-      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
     ];
 
     const rows: any[][] = [
@@ -57,12 +67,36 @@ export class ExportService {
     addSection('PATRIMONIO', data.patrimonio);
 
     rows.push([]);
-    rows.push(['', 'Total Activos', '', '', data.balanceCheck?.totalActivos || 0]);
-    rows.push(['', 'Total Pasivos + Patrimonio', '', '', data.balanceCheck?.totalPasivosPatrimonio || 0]);
-    rows.push(['', 'Cuadrado', '', '', data.balanceCheck?.balanced ? 'SI' : 'NO']);
+    rows.push([
+      '',
+      'Total Activos',
+      '',
+      '',
+      data.balanceCheck?.totalActivos || 0,
+    ]);
+    rows.push([
+      '',
+      'Total Pasivos + Patrimonio',
+      '',
+      '',
+      data.balanceCheck?.totalPasivosPatrimonio || 0,
+    ]);
+    rows.push([
+      '',
+      'Cuadrado',
+      '',
+      '',
+      data.balanceCheck?.balanced ? 'SI' : 'NO',
+    ]);
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [{ wch: 12 }, { wch: 40 }, { wch: 18 }, { wch: 18 }, { wch: 18 }];
+    ws['!cols'] = [
+      { wch: 12 },
+      { wch: 40 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+    ];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Balance General');
@@ -70,11 +104,20 @@ export class ExportService {
     return Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
   }
 
-  async generateIncomeStatement(startDate: string, endDate: string): Promise<Buffer> {
-    const data = await this.reportService.getIncomeStatement(startDate, endDate);
+  async generateIncomeStatement(
+    startDate: string,
+    endDate: string,
+  ): Promise<Buffer> {
+    const data = await this.reportService.getIncomeStatement(
+      startDate,
+      endDate,
+    );
 
     const rows: any[][] = [
-      ...this.companyHeader('Estado de Resultados', `${startDate} a ${endDate}`),
+      ...this.companyHeader(
+        'Estado de Resultados',
+        `${startDate} a ${endDate}`,
+      ),
       ['Código', 'Cuenta', 'Valor'],
     ];
 
@@ -106,8 +149,16 @@ export class ExportService {
     return Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
   }
 
-  async generateGeneralLedger(account: string, startDate: string, endDate: string): Promise<Buffer> {
-    const data = await this.reportService.getGeneralLedger(account, startDate, endDate);
+  async generateGeneralLedger(
+    account: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<Buffer> {
+    const data = await this.reportService.getGeneralLedger(
+      account,
+      startDate,
+      endDate,
+    );
 
     const accountInfo = (data as any).account || {};
     const rows: any[][] = [
@@ -132,10 +183,24 @@ export class ExportService {
     }
 
     rows.push([]);
-    rows.push(['', '', `Saldo Final: ${(data as any).closingBalance || 0}`, '', '', (data as any).closingBalance || 0]);
+    rows.push([
+      '',
+      '',
+      `Saldo Final: ${(data as any).closingBalance || 0}`,
+      '',
+      '',
+      (data as any).closingBalance || 0,
+    ]);
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 40 }, { wch: 18 }, { wch: 18 }, { wch: 18 }];
+    ws['!cols'] = [
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 40 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+    ];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Libro Mayor');
@@ -143,7 +208,10 @@ export class ExportService {
     return Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
   }
 
-  async generateJournalEntries(startDate: string, endDate: string): Promise<Buffer> {
+  async generateJournalEntries(
+    startDate: string,
+    endDate: string,
+  ): Promise<Buffer> {
     const entries = await this.journalService.findAll({ startDate, endDate });
 
     const rows: any[][] = [
@@ -163,7 +231,9 @@ export class ExportService {
             date,
             line.description || entry.description,
             entry.source_type || '',
-            line.pucAccount ? `${line.pucAccount.code} - ${line.pucAccount.name}` : '',
+            line.pucAccount
+              ? `${line.pucAccount.code} - ${line.pucAccount.name}`
+              : '',
             line.debit || 0,
             line.credit || 0,
           ]);
@@ -183,7 +253,15 @@ export class ExportService {
     }
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 40 }, { wch: 12 }, { wch: 35 }, { wch: 18 }, { wch: 18 }];
+    ws['!cols'] = [
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 40 },
+      { wch: 12 },
+      { wch: 35 },
+      { wch: 18 },
+      { wch: 18 },
+    ];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Asientos Contables');
@@ -196,14 +274,27 @@ export class ExportService {
 
     const rows: any[][] = [
       ...this.companyHeader('Reporte de Gastos', `${startDate} a ${endDate}`),
-      ['Nro', 'Fecha', 'Categoría', 'Proveedor', 'Descripción', 'Subtotal', 'IVA', 'Retención', 'Total', 'Estado'],
+      [
+        'Nro',
+        'Fecha',
+        'Categoría',
+        'Proveedor',
+        'Descripción',
+        'Subtotal',
+        'IVA',
+        'Retención',
+        'Total',
+        'Estado',
+      ],
     ];
 
     const expenseList = Array.isArray(expenses) ? expenses : [];
     for (const exp of expenseList) {
       rows.push([
         exp.expense_number || '',
-        exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('es-CO') : '',
+        exp.expense_date
+          ? new Date(exp.expense_date).toLocaleDateString('es-CO')
+          : '',
         exp.expenseCategory?.name || '',
         exp.provider?.company_name || '',
         exp.description || '',
@@ -227,12 +318,31 @@ export class ExportService {
     );
 
     rows.push([]);
-    rows.push(['', '', '', '', 'TOTALES', totals.subtotal, totals.tax, totals.retention, totals.total, '']);
+    rows.push([
+      '',
+      '',
+      '',
+      '',
+      'TOTALES',
+      totals.subtotal,
+      totals.tax,
+      totals.retention,
+      totals.total,
+      '',
+    ]);
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws['!cols'] = [
-      { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 25 }, { wch: 35 },
-      { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 12 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 25 },
+      { wch: 35 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 12 },
     ];
 
     const wb = XLSX.utils.book_new();
@@ -249,8 +359,15 @@ export class ExportService {
     const rows: any[][] = [
       ...this.companyHeader('Nómina', periodLabel),
       [
-        'Empleado', 'Cargo', 'Salario Base', 'Días', 'Devengado',
-        'Salud Emp', 'Pensión Emp', 'Neto', 'Costo Total Empleador',
+        'Empleado',
+        'Cargo',
+        'Salario Base',
+        'Días',
+        'Devengado',
+        'Salud Emp',
+        'Pensión Emp',
+        'Neto',
+        'Costo Total Empleador',
       ],
     ];
 
@@ -285,15 +402,29 @@ export class ExportService {
 
       rows.push([]);
       rows.push([
-        'TOTALES', '', totals.base, '', totals.gross,
-        totals.health, totals.pension, totals.net, totals.total,
+        'TOTALES',
+        '',
+        totals.base,
+        '',
+        totals.gross,
+        totals.health,
+        totals.pension,
+        totals.net,
+        totals.total,
       ]);
     }
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws['!cols'] = [
-      { wch: 30 }, { wch: 20 }, { wch: 16 }, { wch: 8 }, { wch: 16 },
-      { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 20 },
+      { wch: 30 },
+      { wch: 20 },
+      { wch: 16 },
+      { wch: 8 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 20 },
     ];
 
     const wb = XLSX.utils.book_new();
@@ -309,12 +440,27 @@ export class ExportService {
     const date = new Date().toLocaleDateString('es-CO');
 
     const rows: any[][] = [
-      ...this.companyHeader('Cartera por Edades - Cuentas por Cobrar (CxC)', `Generado: ${date}`),
-      ['Referencia', 'Cliente', 'Fecha Pedido', 'Estado', 'Dias Vencidos', 'Monto'],
+      ...this.companyHeader(
+        'Cartera por Edades - Cuentas por Cobrar (CxC)',
+        `Generado: ${date}`,
+      ),
+      [
+        'Referencia',
+        'Cliente',
+        'Fecha Pedido',
+        'Estado',
+        'Dias Vencidos',
+        'Monto',
+      ],
     ];
 
     const bucketKeys = ['current', 'days31_60', 'days61_90', 'over90'] as const;
-    const bucketLabels = { current: '0-30 Dias', days31_60: '31-60 Dias', days61_90: '61-90 Dias', over90: 'Mas de 90 Dias' };
+    const bucketLabels = {
+      current: '0-30 Dias',
+      days31_60: '31-60 Dias',
+      days61_90: '61-90 Dias',
+      over90: 'Mas de 90 Dias',
+    };
 
     for (const key of bucketKeys) {
       const orders = data.detail[key] || [];
@@ -325,13 +471,22 @@ export class ExportService {
           rows.push([
             o.orderReference || `#${o.orderId}`,
             o.customerName,
-            o.orderDate ? new Date(o.orderDate).toLocaleDateString('es-CO') : '',
+            o.orderDate
+              ? new Date(o.orderDate).toLocaleDateString('es-CO')
+              : '',
             o.status,
             o.daysOutstanding,
             o.amount,
           ]);
         }
-        rows.push(['', '', '', '', `Subtotal ${bucketLabels[key]}:`, data.summary[key]?.total || 0]);
+        rows.push([
+          '',
+          '',
+          '',
+          '',
+          `Subtotal ${bucketLabels[key]}:`,
+          data.summary[key]?.total || 0,
+        ]);
       }
     }
 
@@ -340,7 +495,14 @@ export class ExportService {
     rows.push(['', '', '', '', 'Total Pedidos:', data.totalOrders]);
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [{ wch: 18 }, { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 18 }];
+    ws['!cols'] = [
+      { wch: 18 },
+      { wch: 30 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 18 },
+    ];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'CxC Cartera');
@@ -353,12 +515,30 @@ export class ExportService {
     const date = new Date().toLocaleDateString('es-CO');
 
     const rows: any[][] = [
-      ...this.companyHeader('Cartera por Edades - Cuentas por Pagar (CxP)', `Generado: ${date}`),
-      ['Nro Gasto', 'Proveedor', 'NIT', 'Factura', 'Categoría', 'Fecha Gasto', 'Fecha Vencimiento', 'Dias Vencidos', 'Monto'],
+      ...this.companyHeader(
+        'Cartera por Edades - Cuentas por Pagar (CxP)',
+        `Generado: ${date}`,
+      ),
+      [
+        'Nro Gasto',
+        'Proveedor',
+        'NIT',
+        'Factura',
+        'Categoría',
+        'Fecha Gasto',
+        'Fecha Vencimiento',
+        'Dias Vencidos',
+        'Monto',
+      ],
     ];
 
     const bucketKeys = ['current', 'days31_60', 'days61_90', 'over90'] as const;
-    const bucketLabels = { current: '0-30 Dias', days31_60: '31-60 Dias', days61_90: '61-90 Dias', over90: 'Mas de 90 Dias' };
+    const bucketLabels = {
+      current: '0-30 Dias',
+      days31_60: '31-60 Dias',
+      days61_90: '61-90 Dias',
+      over90: 'Mas de 90 Dias',
+    };
 
     for (const key of bucketKeys) {
       const items = data.detail[key] || [];
@@ -372,24 +552,65 @@ export class ExportService {
             item.providerNit,
             item.invoiceNumber,
             item.category,
-            item.expenseDate ? new Date(item.expenseDate).toLocaleDateString('es-CO') : '',
-            item.dueDate ? new Date(item.dueDate).toLocaleDateString('es-CO') : 'Sin fecha',
+            item.expenseDate
+              ? new Date(item.expenseDate).toLocaleDateString('es-CO')
+              : '',
+            item.dueDate
+              ? new Date(item.dueDate).toLocaleDateString('es-CO')
+              : 'Sin fecha',
             item.daysOutstanding,
             item.amount,
           ]);
         }
-        rows.push(['', '', '', '', '', '', '', `Subtotal ${bucketLabels[key]}:`, data.summary[key]?.total || 0]);
+        rows.push([
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          `Subtotal ${bucketLabels[key]}:`,
+          data.summary[key]?.total || 0,
+        ]);
       }
     }
 
     rows.push([]);
-    rows.push(['', '', '', '', '', '', '', 'TOTAL POR PAGAR:', data.totalOutstanding]);
-    rows.push(['', '', '', '', '', '', '', 'Total Gastos:', data.totalExpenses]);
+    rows.push([
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      'TOTAL POR PAGAR:',
+      data.totalOutstanding,
+    ]);
+    rows.push([
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      'Total Gastos:',
+      data.totalExpenses,
+    ]);
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws['!cols'] = [
-      { wch: 14 }, { wch: 30 }, { wch: 16 }, { wch: 16 }, { wch: 18 },
-      { wch: 16 }, { wch: 18 }, { wch: 16 }, { wch: 18 },
+      { wch: 14 },
+      { wch: 30 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 18 },
     ];
 
     const wb = XLSX.utils.book_new();
@@ -403,7 +624,10 @@ export class ExportService {
     const date = new Date().toLocaleDateString('es-CO');
 
     const rows: any[][] = [
-      ...this.companyHeader('Valoración de Inventario (NIC 2 - Costo de Producción)', `Generado: ${date}`),
+      ...this.companyHeader(
+        'Valoración de Inventario (NIC 2 - Costo de Producción)',
+        `Generado: ${date}`,
+      ),
     ];
 
     // Summary section
@@ -419,8 +643,18 @@ export class ExportService {
     rows.push(['DETALLE POR CATEGORÍA']);
     rows.push([]);
     rows.push([
-      'Categoría', 'SKU', 'Producto', 'Tipo', 'Color', 'Talla',
-      'Cantidad', 'Costo Unitario', 'Precio Venta', 'Valor Costo Total', 'Valor Venta Total', 'Outlet',
+      'Categoría',
+      'SKU',
+      'Producto',
+      'Tipo',
+      'Color',
+      'Talla',
+      'Cantidad',
+      'Costo Unitario',
+      'Precio Venta',
+      'Valor Costo Total',
+      'Valor Venta Total',
+      'Outlet',
     ]);
 
     for (const cat of data.categories) {
@@ -443,21 +677,51 @@ export class ExportService {
         ]);
       }
       rows.push([
-        '', '', '', '', '', `Subtotal ${cat.categoryName}:`,
-        cat.totalUnits, '', '', cat.totalCostValue, cat.totalSaleValue, '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        `Subtotal ${cat.categoryName}:`,
+        cat.totalUnits,
+        '',
+        '',
+        cat.totalCostValue,
+        cat.totalSaleValue,
+        '',
       ]);
     }
 
     rows.push([]);
     rows.push([
-      '', '', '', '', '', 'TOTAL GENERAL:',
-      data.summary.totalUnits, '', '', data.summary.totalCostValue, data.summary.totalSaleValue, '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      'TOTAL GENERAL:',
+      data.summary.totalUnits,
+      '',
+      '',
+      data.summary.totalCostValue,
+      data.summary.totalSaleValue,
+      '',
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws['!cols'] = [
-      { wch: 18 }, { wch: 14 }, { wch: 30 }, { wch: 14 }, { wch: 14 }, { wch: 10 },
-      { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 18 }, { wch: 8 },
+      { wch: 18 },
+      { wch: 14 },
+      { wch: 30 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 8 },
     ];
 
     const wb = XLSX.utils.book_new();
@@ -470,7 +734,20 @@ export class ExportService {
     const data = await this.budgetService.getAnnualComparison(year);
 
     const headers = ['Código', 'Cuenta'];
-    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const months = [
+      'Ene',
+      'Feb',
+      'Mar',
+      'Abr',
+      'May',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dic',
+    ];
 
     for (const m of months) {
       headers.push(`${m} Pres`);
@@ -480,7 +757,10 @@ export class ExportService {
     headers.push('Total Pres', 'Total Ejec', 'Total Var', '% Var');
 
     const rows: any[][] = [
-      ...this.companyHeader('Comparativo Presupuesto vs Ejecución ANUAL', `Año: ${year}`),
+      ...this.companyHeader(
+        'Comparativo Presupuesto vs Ejecución ANUAL',
+        `Año: ${year}`,
+      ),
       headers,
     ];
 
@@ -489,18 +769,38 @@ export class ExportService {
       for (const m of item.months) {
         row.push(m.budgeted, m.executed, m.variance);
       }
-      row.push(item.totals.budgeted, item.totals.executed, item.totals.variance, `${item.totals.variancePercentage}%`);
+      row.push(
+        item.totals.budgeted,
+        item.totals.executed,
+        item.totals.variance,
+        `${item.totals.variancePercentage}%`,
+      );
       rows.push(row);
     }
 
     // Grand Totals row
     const totalsRow: any[] = ['', 'TOTAL GENERAL'];
     for (let m = 0; m < 12; m++) {
-      const monthBudgeted = data.items.reduce((s, i) => s + i.months[m].budgeted, 0);
-      const monthExecuted = data.items.reduce((s, i) => s + i.months[m].executed, 0);
-      totalsRow.push(monthBudgeted, monthExecuted, monthExecuted - monthBudgeted);
+      const monthBudgeted = data.items.reduce(
+        (s, i) => s + i.months[m].budgeted,
+        0,
+      );
+      const monthExecuted = data.items.reduce(
+        (s, i) => s + i.months[m].executed,
+        0,
+      );
+      totalsRow.push(
+        monthBudgeted,
+        monthExecuted,
+        monthExecuted - monthBudgeted,
+      );
     }
-    totalsRow.push(data.grandTotals.budgeted, data.grandTotals.executed, data.grandTotals.variance, '');
+    totalsRow.push(
+      data.grandTotals.budgeted,
+      data.grandTotals.executed,
+      data.grandTotals.variance,
+      '',
+    );
     rows.push([]);
     rows.push(totalsRow);
 

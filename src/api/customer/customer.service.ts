@@ -4,42 +4,42 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 
 @Injectable()
 export class CustomerService {
-    constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
-    async findAll() {
-        return this.prisma.customer.findMany({
-            include: {
-                customerType: true,
-                identificationType: true,
-            },
-            orderBy: { createdAt: 'desc' },
-        });
-    }
+  async findAll() {
+    return this.prisma.customer.findMany({
+      include: {
+        customerType: true,
+        identificationType: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 
-    async findOne(id: number) {
-        return this.prisma.customer.findUnique({
-            where: { id },
-            include: {
-                customerType: true,
-                identificationType: true,
-            },
-        });
-    }
+  async findOne(id: number) {
+    return this.prisma.customer.findUnique({
+      where: { id },
+      include: {
+        customerType: true,
+        identificationType: true,
+      },
+    });
+  }
 
-    async findByDocument(document: string) {
-        return this.prisma.customer.findUnique({
-            where: { document_number: document },
-            include: {
-                customerType: true,
-                identificationType: true,
-            },
-        });
-    }
+  async findByDocument(document: string) {
+    return this.prisma.customer.findUnique({
+      where: { document_number: document },
+      include: {
+        customerType: true,
+        identificationType: true,
+      },
+    });
+  }
 
-    async update(id: number, updateCustomerDto: UpdateCustomerDto) {
-        return this.prisma.customer.update({
-            where: { id },
-            data: updateCustomerDto,
-        });
-    }
+  async update(id: number, updateCustomerDto: UpdateCustomerDto) {
+    return this.prisma.customer.update({
+      where: { id },
+      data: updateCustomerDto,
+    });
+  }
 }

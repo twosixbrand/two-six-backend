@@ -20,7 +20,10 @@ describe('PayrollNovedadService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
-      providers: [PayrollNovedadService, { provide: PrismaService, useValue: prismaMock }],
+      providers: [
+        PayrollNovedadService,
+        { provide: PrismaService, useValue: prismaMock },
+      ],
     }).compile();
     service = module.get(PayrollNovedadService);
   });
@@ -29,27 +32,51 @@ describe('PayrollNovedadService', () => {
     it('rejects when period not found', async () => {
       prismaMock.payrollPeriod.findUnique.mockResolvedValue(null);
       await expect(
-        service.create({ id_employee: 1, id_payroll_period: 99, type: 'COMISION', amount: 100 }),
+        service.create({
+          id_employee: 1,
+          id_payroll_period: 99,
+          type: 'COMISION',
+          amount: 100,
+        }),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('rejects when period is not DRAFT', async () => {
-      prismaMock.payrollPeriod.findUnique.mockResolvedValue({ id: 1, status: 'APPROVED' });
+      prismaMock.payrollPeriod.findUnique.mockResolvedValue({
+        id: 1,
+        status: 'APPROVED',
+      });
       await expect(
-        service.create({ id_employee: 1, id_payroll_period: 1, type: 'COMISION', amount: 100 }),
+        service.create({
+          id_employee: 1,
+          id_payroll_period: 1,
+          type: 'COMISION',
+          amount: 100,
+        }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('rejects when employee not found', async () => {
-      prismaMock.payrollPeriod.findUnique.mockResolvedValue({ id: 1, status: 'DRAFT' });
+      prismaMock.payrollPeriod.findUnique.mockResolvedValue({
+        id: 1,
+        status: 'DRAFT',
+      });
       prismaMock.employee.findUnique.mockResolvedValue(null);
       await expect(
-        service.create({ id_employee: 99, id_payroll_period: 1, type: 'COMISION', amount: 100 }),
+        service.create({
+          id_employee: 99,
+          id_payroll_period: 1,
+          type: 'COMISION',
+          amount: 100,
+        }),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('creates successfully when valid', async () => {
-      prismaMock.payrollPeriod.findUnique.mockResolvedValue({ id: 1, status: 'DRAFT' });
+      prismaMock.payrollPeriod.findUnique.mockResolvedValue({
+        id: 1,
+        status: 'DRAFT',
+      });
       prismaMock.employee.findUnique.mockResolvedValue({ id: 1 });
       prismaMock.payrollNovedad.create.mockResolvedValue({ id: 10 });
 
@@ -78,7 +105,9 @@ describe('PayrollNovedadService', () => {
         id: 1,
         payrollPeriod: { status: 'APPROVED' },
       });
-      await expect(service.remove(1)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.remove(1)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('deletes when in DRAFT', async () => {
@@ -88,7 +117,9 @@ describe('PayrollNovedadService', () => {
       });
       prismaMock.payrollNovedad.delete.mockResolvedValue({ id: 1 });
       await service.remove(1);
-      expect(prismaMock.payrollNovedad.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(prismaMock.payrollNovedad.delete).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
     });
   });
 });

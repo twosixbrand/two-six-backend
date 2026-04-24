@@ -59,7 +59,9 @@ export class ConsignmentDispatchController {
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { adjust_to_available?: boolean },
   ) {
-    return this.service.send(id, { adjust_to_available: body?.adjust_to_available });
+    return this.service.send(id, {
+      adjust_to_available: body?.adjust_to_available,
+    });
   }
 
   @UseGuards(JwtAuthGuard)
@@ -82,7 +84,11 @@ export class ConsignmentDispatchController {
     @Param('itemId', ParseIntPipe) itemId: number,
     @Body() body: { action: 'ACCEPT' | 'REJECT'; resolved_by: string },
   ) {
-    return this.service.resolveReceptionItem(itemId, body.action, body.resolved_by);
+    return this.service.resolveReceptionItem(
+      itemId,
+      body.action,
+      body.resolved_by,
+    );
   }
 
   // ================= Endpoints públicos (QR) =================

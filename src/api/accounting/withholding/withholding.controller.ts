@@ -7,12 +7,13 @@ import {
   Query,
   Body,
   ParseIntPipe,
-  Res, UseGuards } from '@nestjs/common';
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { Response } from 'express';
 import { WithholdingService } from './withholding.service';
 import { GenerateCertificatesDto } from './dto/generate-certificates.dto';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
-
 
 @UseGuards(JwtAuthGuard)
 @Controller('accounting/withholding-certificates')

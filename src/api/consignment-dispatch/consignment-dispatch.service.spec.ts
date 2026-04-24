@@ -64,7 +64,9 @@ describe('ConsignmentDispatchService', () => {
         { provide: PrismaService, useValue: mock.prisma },
         {
           provide: JournalAutoService,
-          useValue: { onConsignmentDispatchSent: jest.fn().mockResolvedValue(null) },
+          useValue: {
+            onConsignmentDispatchSent: jest.fn().mockResolvedValue(null),
+          },
         },
       ],
     }).compile();
@@ -80,32 +82,52 @@ describe('ConsignmentDispatchService', () => {
 
     it('rejects non-positive quantities', async () => {
       await expect(
-        service.create({ id_warehouse: 1, items: [{ id_clothing_size: 1, quantity: 0 }] }),
+        service.create({
+          id_warehouse: 1,
+          items: [{ id_clothing_size: 1, quantity: 0 }],
+        }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('rejects missing warehouse', async () => {
       mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue(null);
       await expect(
-        service.create({ id_warehouse: 99, items: [{ id_clothing_size: 1, quantity: 1 }] }),
+        service.create({
+          id_warehouse: 99,
+          items: [{ id_clothing_size: 1, quantity: 1 }],
+        }),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('rejects inactive warehouse', async () => {
-      mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue({ id: 1, is_active: false });
+      mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue({
+        id: 1,
+        is_active: false,
+      });
       await expect(
-        service.create({ id_warehouse: 1, items: [{ id_clothing_size: 1, quantity: 1 }] }),
+        service.create({
+          id_warehouse: 1,
+          items: [{ id_clothing_size: 1, quantity: 1 }],
+        }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('creates dispatch in PENDIENTE with generated dispatch_number and qr_token', async () => {
-      mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue({ id: 1, is_active: true });
-      mock.prisma.clothingSize.findMany.mockResolvedValue([{ id: 10 }, { id: 11 }]);
+      mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue({
+        id: 1,
+        is_active: true,
+      });
+      mock.prisma.clothingSize.findMany.mockResolvedValue([
+        { id: 10 },
+        { id: 11 },
+      ]);
       mock.prisma.consignmentDispatch.findFirst.mockResolvedValue({ id: 5 });
-      mock.prisma.consignmentDispatch.create.mockImplementation(({ data }: any) => ({
-        id: 6,
-        ...data,
-      }));
+      mock.prisma.consignmentDispatch.create.mockImplementation(
+        ({ data }: any) => ({
+          id: 6,
+          ...data,
+        }),
+      );
 
       const result = await service.create({
         id_warehouse: 1,
@@ -139,7 +161,10 @@ describe('ConsignmentDispatchService', () => {
         dispatch_number: 'DSP-0001',
         items: [{ id_clothing_size: 10, quantity: 5 }],
       });
-      mock.tx.clothingSize.findUnique.mockResolvedValue({ id: 10, quantity_available: 2 });
+      mock.tx.clothingSize.findUnique.mockResolvedValue({
+        id: 10,
+        quantity_available: 2,
+      });
 
       await expect(service.send(1)).rejects.toBeInstanceOf(BadRequestException);
     });
@@ -152,9 +177,15 @@ describe('ConsignmentDispatchService', () => {
         dispatch_number: 'DSP-0001',
         items: [{ id_clothing_size: 10, quantity: 3 }],
       });
-      mock.tx.clothingSize.findUnique.mockResolvedValue({ id: 10, quantity_available: 10 });
+      mock.tx.clothingSize.findUnique.mockResolvedValue({
+        id: 10,
+        quantity_available: 10,
+      });
       mock.tx.consignmentStock.findUnique.mockResolvedValue(null); // no stock existente
-      mock.tx.consignmentDispatch.update.mockResolvedValue({ id: 1, status: 'EN_TRANSITO' });
+      mock.tx.consignmentDispatch.update.mockResolvedValue({
+        id: 1,
+        status: 'EN_TRANSITO',
+      });
 
       await service.send(1);
 
@@ -181,7 +212,9 @@ describe('ConsignmentDispatchService', () => {
         }),
       });
       expect(mock.tx.consignmentDispatch.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ status: 'EN_TRANSITO' }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ status: 'EN_TRANSITO' }),
+        }),
       );
     });
   });

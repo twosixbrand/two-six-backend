@@ -32,10 +32,13 @@ describe('TaxConfigService.calculateTaxes', () => {
 
   it('régimen COMUN aplica ICA si hay cityId', async () => {
     settingsMock.getTaxRegime.mockResolvedValue('COMUN');
-    prismaMock.taxConfiguration.findMany.mockImplementation(({ where }: any) => {
-      if (where.type === 'ICA') return Promise.resolve([{ rate: 0.01104, config: { name: 'ICA' } }]);
-      return Promise.resolve([]);
-    });
+    prismaMock.taxConfiguration.findMany.mockImplementation(
+      ({ where }: any) => {
+        if (where.type === 'ICA')
+          return Promise.resolve([{ rate: 0.01104, config: { name: 'ICA' } }]);
+        return Promise.resolve([]);
+      },
+    );
     const result = await service.calculateTaxes(100000, 1);
     expect(result.length).toBeGreaterThan(0);
     expect(result[0].type).toBe('ICA');
@@ -43,11 +46,14 @@ describe('TaxConfigService.calculateTaxes', () => {
 
   it('régimen COMUN no aplica ReteIVA/ReteICA si cliente es NORMAL', async () => {
     settingsMock.getTaxRegime.mockResolvedValue('COMUN');
-    prismaMock.taxConfiguration.findMany.mockImplementation(({ where }: any) => {
-      if (where.type === 'RETEIVA') return Promise.resolve([{ rate: 0.15 }]);
-      if (where.type === 'RETEICA') return Promise.resolve([{ rate: 0.01104 }]);
-      return Promise.resolve([]);
-    });
+    prismaMock.taxConfiguration.findMany.mockImplementation(
+      ({ where }: any) => {
+        if (where.type === 'RETEIVA') return Promise.resolve([{ rate: 0.15 }]);
+        if (where.type === 'RETEICA')
+          return Promise.resolve([{ rate: 0.01104 }]);
+        return Promise.resolve([]);
+      },
+    );
 
     const result = await service.calculateTaxes(100000, 1, {
       customerTaxStatus: 'NORMAL',
@@ -61,11 +67,15 @@ describe('TaxConfigService.calculateTaxes', () => {
 
   it('régimen COMUN aplica ReteIVA y ReteICA si cliente es GRAN_CONTRIBUYENTE', async () => {
     settingsMock.getTaxRegime.mockResolvedValue('COMUN');
-    prismaMock.taxConfiguration.findMany.mockImplementation(({ where }: any) => {
-      if (where.type === 'RETEIVA') return Promise.resolve([{ rate: 0.15, config: {} }]);
-      if (where.type === 'RETEICA') return Promise.resolve([{ rate: 0.01104, config: {} }]);
-      return Promise.resolve([]);
-    });
+    prismaMock.taxConfiguration.findMany.mockImplementation(
+      ({ where }: any) => {
+        if (where.type === 'RETEIVA')
+          return Promise.resolve([{ rate: 0.15, config: {} }]);
+        if (where.type === 'RETEICA')
+          return Promise.resolve([{ rate: 0.01104, config: {} }]);
+        return Promise.resolve([]);
+      },
+    );
 
     const result = await service.calculateTaxes(100000, 1, {
       customerTaxStatus: 'GRAN_CONTRIBUYENTE',

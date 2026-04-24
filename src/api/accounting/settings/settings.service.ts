@@ -25,7 +25,9 @@ export class AccountingSettingsService {
   }
 
   async get(key: string): Promise<string> {
-    const row = await this.prisma.accountingSetting.findUnique({ where: { key } });
+    const row = await this.prisma.accountingSetting.findUnique({
+      where: { key },
+    });
     return row?.value ?? AccountingSettingsService.DEFAULTS[key] ?? '';
   }
 
@@ -40,21 +42,34 @@ export class AccountingSettingsService {
     return Number.isFinite(n) && n >= 0 ? n : 0.19;
   }
 
-  async set(key: string, value: string, description?: string, updatedBy?: number) {
+  async set(
+    key: string,
+    value: string,
+    description?: string,
+    updatedBy?: number,
+  ) {
     return this.prisma.accountingSetting.upsert({
       where: { key },
-      update: { value, ...(description !== undefined && { description }), updated_by: updatedBy },
+      update: {
+        value,
+        ...(description !== undefined && { description }),
+        updated_by: updatedBy,
+      },
       create: {
         key,
         value,
-        description: description ?? AccountingSettingsService.DEFAULTS[key] ?? null,
+        description:
+          description ?? AccountingSettingsService.DEFAULTS[key] ?? null,
         updated_by: updatedBy,
       },
     });
   }
 
   /** Setea múltiples claves en una sola operación. */
-  async setMany(updates: Array<{ key: string; value: string }>, updatedBy?: number) {
+  async setMany(
+    updates: Array<{ key: string; value: string }>,
+    updatedBy?: number,
+  ) {
     const results: any[] = [];
     for (const u of updates) {
       results.push(await this.set(u.key, u.value, undefined, updatedBy));

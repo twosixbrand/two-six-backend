@@ -4,12 +4,13 @@ import {
   Post,
   Body,
   Param,
-  ParseIntPipe, UseGuards } from '@nestjs/common';
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { BankReconciliationService } from './bank-reconciliation.service';
 import { CreateBankAccountDto } from './dto/create-bank-account.dto';
 import { UploadStatementDto } from './dto/upload-statement.dto';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
-
 
 @UseGuards(JwtAuthGuard)
 @Controller('accounting')

@@ -1,7 +1,13 @@
-import { Controller, Post, Get, Body, BadRequestException , UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  BadRequestException,
+  UseGuards,
+} from '@nestjs/common';
 import { ClosingService } from './closing.service';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
-
 
 @UseGuards(JwtAuthGuard)
 @Controller('accounting/closing')
@@ -19,7 +25,11 @@ export class ClosingController {
     if (!body.year || !body.month) {
       throw new BadRequestException('year y month son requeridos');
     }
-    return this.closingService.closePeriod(body.year, body.month, body.closedBy);
+    return this.closingService.closePeriod(
+      body.year,
+      body.month,
+      body.closedBy,
+    );
   }
 
   /**

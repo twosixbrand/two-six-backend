@@ -6,7 +6,9 @@ import {
   Body,
   Patch,
   Param,
-  Delete, UseGuards } from '@nestjs/common';
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { YearProductionService } from './year-production.service';
 import { CreateYearProductionDto } from './dto/create-year-production.dto';
 import { UpdateYearProductionDto } from './dto/update-year-production.dto';

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateMasterDesignDto } from './dto/create-master-design.dto';
 import { UpdateMasterDesignDto } from './dto/update-master-design.dto';
@@ -13,7 +17,8 @@ export class MasterDesignService {
 
   constructor(private readonly prisma: PrismaService) {
     this.bucketName = process.env.DO_SPACES_BUCKET || 'two-six';
-    const rawEndpoint = process.env.DO_SPACES_ENDPOINT || 'https://nyc3.digitaloceanspaces.com';
+    const rawEndpoint =
+      process.env.DO_SPACES_ENDPOINT || 'https://nyc3.digitaloceanspaces.com';
     this.s3Endpoint = rawEndpoint.replace(`${this.bucketName}.`, '');
 
     this.s3Client = new S3Client({
@@ -57,7 +62,10 @@ export class MasterDesignService {
     return referenceParts.join('').toUpperCase().replace(/\s/g, '');
   }
 
-  private async uploadImage(file: Express.Multer.File, designId: number): Promise<string> {
+  private async uploadImage(
+    file: Express.Multer.File,
+    designId: number,
+  ): Promise<string> {
     const extension = path.parse(file.originalname).ext;
     const envName = process.env.ENVIRONMENT_NAME || 'DLLO';
     // Path: ENVIRONMENT_NAME / 'Design' / idDesign / 'idDesign-' + idDesign + '.' + extension
@@ -81,15 +89,23 @@ export class MasterDesignService {
     }
   }
 
-  async create(createMasterDesignDto: CreateMasterDesignDto, file?: Express.Multer.File) {
+  async create(
+    createMasterDesignDto: CreateMasterDesignDto,
+    file?: Express.Multer.File,
+  ) {
     const { id_tags, ...designData } = createMasterDesignDto;
 
     let idTagsArray: number[] = [];
     if (id_tags) {
       if (typeof id_tags === 'string') {
-         idTagsArray = id_tags.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id));
+        idTagsArray = id_tags
+          .split(',')
+          .map((id) => parseInt(id.trim(), 10))
+          .filter((id) => !isNaN(id));
       } else if (Array.isArray(id_tags)) {
-         idTagsArray = id_tags.map(id => Number(id)).filter(id => !isNaN(id));
+        idTagsArray = id_tags
+          .map((id) => Number(id))
+          .filter((id) => !isNaN(id));
       }
     }
 
@@ -105,9 +121,9 @@ export class MasterDesignService {
           reference: 'temp', // Valor temporal
           ...(idTagsArray.length > 0 && {
             designTags: {
-               create: idTagsArray.map(id => ({ id_tag: id }))
-            }
-          })
+              create: idTagsArray.map((id) => ({ id_tag: id })),
+            },
+          }),
         },
       });
 
@@ -145,20 +161,21 @@ export class MasterDesignService {
             yearProduction: true,
           },
         },
-        designProviders: { // Incluir la nueva tabla intermedia
+        designProviders: {
+          // Incluir la nueva tabla intermedia
           include: {
             provider: true,
           },
         },
         designTags: {
           include: {
-            tag: true
-          }
+            tag: true,
+          },
         },
         clothing: {
           include: {
-            gender: true
-          }
+            gender: true,
+          },
         },
       },
     });
@@ -174,20 +191,21 @@ export class MasterDesignService {
             yearProduction: true,
           },
         },
-        designProviders: { // Incluir la nueva tabla intermedia
+        designProviders: {
+          // Incluir la nueva tabla intermedia
           include: {
             provider: true,
           },
         },
         designTags: {
           include: {
-            tag: true
-          }
+            tag: true,
+          },
         },
         clothing: {
           include: {
-            gender: true
-          }
+            gender: true,
+          },
         },
       },
     });
@@ -197,35 +215,46 @@ export class MasterDesignService {
     return design;
   }
 
-  async update(id: number, updateMasterDesignDto: UpdateMasterDesignDto, file?: Express.Multer.File) {
+  async update(
+    id: number,
+    updateMasterDesignDto: UpdateMasterDesignDto,
+    file?: Express.Multer.File,
+  ) {
     await this.findOne(id);
 
     const shouldRecalculateReference =
-      updateMasterDesignDto.id_collection ||
-      updateMasterDesignDto.id_clothing;
+      updateMasterDesignDto.id_collection || updateMasterDesignDto.id_clothing;
 
     const { id_tags, ...updateOriginal } = updateMasterDesignDto;
-    
-    let dataToUpdate: any = {
+
+    const dataToUpdate: any = {
       ...updateOriginal,
     };
 
     // Convert strings to numbers if they come from FormData
-    if (dataToUpdate.id_clothing) dataToUpdate.id_clothing = Number(dataToUpdate.id_clothing);
-    if (dataToUpdate.id_collection) dataToUpdate.id_collection = Number(dataToUpdate.id_collection);
-    if (dataToUpdate.manufactured_cost) dataToUpdate.manufactured_cost = Number(dataToUpdate.manufactured_cost);
+    if (dataToUpdate.id_clothing)
+      dataToUpdate.id_clothing = Number(dataToUpdate.id_clothing);
+    if (dataToUpdate.id_collection)
+      dataToUpdate.id_collection = Number(dataToUpdate.id_collection);
+    if (dataToUpdate.manufactured_cost)
+      dataToUpdate.manufactured_cost = Number(dataToUpdate.manufactured_cost);
 
     if (id_tags !== undefined) {
       let idTagsArray: number[] = [];
       if (typeof id_tags === 'string') {
-         idTagsArray = id_tags.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id));
+        idTagsArray = id_tags
+          .split(',')
+          .map((id) => parseInt(id.trim(), 10))
+          .filter((id) => !isNaN(id));
       } else if (Array.isArray(id_tags)) {
-         idTagsArray = id_tags.map(id => Number(id)).filter(id => !isNaN(id));
+        idTagsArray = id_tags
+          .map((id) => Number(id))
+          .filter((id) => !isNaN(id));
       }
-      
+
       dataToUpdate.designTags = {
         deleteMany: {},
-        create: idTagsArray.map(id => ({ id_tag: id }))
+        create: idTagsArray.map((id) => ({ id_tag: id })),
       };
     }
 

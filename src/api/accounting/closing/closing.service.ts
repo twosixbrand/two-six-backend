@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 
@@ -15,9 +19,10 @@ export class ClosingService {
    */
   private async getNextEntryNumber(prisma: any): Promise<string> {
     try {
-      const result: Array<{ nextval: bigint | number }> = await prisma.$queryRawUnsafe(
-        `SELECT nextval('journal_entry_number_seq')`,
-      );
+      const result: Array<{ nextval: bigint | number }> =
+        await prisma.$queryRawUnsafe(
+          `SELECT nextval('journal_entry_number_seq')`,
+        );
       const n = Number(result[0].nextval);
       return `AC-${String(n).padStart(6, '0')}`;
     } catch (_err) {
@@ -79,7 +84,8 @@ export class ClosingService {
       });
 
       // Aggregate balances by account
-      const accountBalances: Map<number, { account: any; balance: number }> = new Map();
+      const accountBalances: Map<number, { account: any; balance: number }> =
+        new Map();
 
       for (const line of lines) {
         const accountCode = line.pucAccount.code;
@@ -146,7 +152,9 @@ export class ClosingService {
         }
       }
 
-      const profitLoss = Number((totalIncome - totalExpenses - totalCosts).toFixed(2));
+      const profitLoss = Number(
+        (totalIncome - totalExpenses - totalCosts).toFixed(2),
+      );
 
       // Determine result account
       let resultAccountCode: string;
@@ -165,7 +173,11 @@ export class ClosingService {
         // Try to find a close match
         const prefix = resultAccountCode.substring(0, 4);
         resultAccount = await prisma.pucAccount.findFirst({
-          where: { code: { startsWith: prefix }, accepts_movements: true, is_active: true },
+          where: {
+            code: { startsWith: prefix },
+            accepts_movements: true,
+            is_active: true,
+          },
         });
       }
 
@@ -313,7 +325,8 @@ export class ClosingService {
 
       // Balance of 3605 (credit nature): credit - debit
       let utilidadBalance = 0;
-      const accountsToClose: Map<number, { account: any; balance: number }> = new Map();
+      const accountsToClose: Map<number, { account: any; balance: number }> =
+        new Map();
 
       for (const line of resultLines) {
         const current = accountsToClose.get(line.id_puc_account) || {
@@ -348,7 +361,11 @@ export class ClosingService {
 
       if (!retainedAccount) {
         retainedAccount = await prisma.pucAccount.findFirst({
-          where: { code: { startsWith: '3705' }, accepts_movements: true, is_active: true },
+          where: {
+            code: { startsWith: '3705' },
+            accepts_movements: true,
+            is_active: true,
+          },
         });
       }
 
@@ -362,7 +379,10 @@ export class ClosingService {
         closingLines.push({
           id_puc_account: retainedAccount.id,
           description: `Traslado utilidad/pérdida del ejercicio ${year}`,
-          debit: utilidadBalance < 0 ? Number(Math.abs(utilidadBalance).toFixed(2)) : 0,
+          debit:
+            utilidadBalance < 0
+              ? Number(Math.abs(utilidadBalance).toFixed(2))
+              : 0,
           credit: utilidadBalance >= 0 ? Number(utilidadBalance.toFixed(2)) : 0,
         });
       }
@@ -427,12 +447,9 @@ export class ClosingService {
     const closing = await this.prisma.accountingClosing.findFirst({
       where: {
         year,
-        OR: [
-          { month, closing_type: 'MONTHLY' },
-          { closing_type: 'ANNUAL' }
-        ],
-        status: 'CLOSED'
-      }
+        OR: [{ month, closing_type: 'MONTHLY' }, { closing_type: 'ANNUAL' }],
+        status: 'CLOSED',
+      },
     });
 
     return !!closing;

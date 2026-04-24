@@ -6,7 +6,9 @@ import {
   Body,
   Patch,
   Param,
-  Delete, UseGuards } from '@nestjs/common';
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { TypeClothingService } from './type-clothing.service';
 import { CreateTypeClothingDto } from './dto/create-type-clothing.dto';
 import { UpdateTypeClothingDto } from './dto/update-type-clothing.dto';

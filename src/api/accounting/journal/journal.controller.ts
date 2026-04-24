@@ -5,16 +5,17 @@ import {
   Body,
   Param,
   ParseIntPipe,
-  Query, UseGuards } from '@nestjs/common';
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { JournalService } from './journal.service';
 import { CreateJournalEntryDto } from './dto/create-journal-entry.dto';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 
-
 @UseGuards(JwtAuthGuard)
 @Controller('accounting/journal')
 export class JournalController {
-  constructor(private readonly journalService: JournalService) { }
+  constructor(private readonly journalService: JournalService) {}
 
   @Get()
   findAll(

@@ -42,7 +42,10 @@ export class CategoryService {
    * Actualiza una categoría existente.
    * @throws NotFoundException si la categoría no se encuentra.
    */
-  async update(id: number, updateCategoryDto: UpdateCategoryDto): Promise<Category> {
+  async update(
+    id: number,
+    updateCategoryDto: UpdateCategoryDto,
+  ): Promise<Category> {
     await this.findOne(id); // Asegura que la categoría exista
     return this.prisma.category.update({
       where: { id },

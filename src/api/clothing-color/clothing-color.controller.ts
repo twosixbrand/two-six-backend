@@ -11,7 +11,9 @@ import {
   UploadedFile,
   UploadedFiles,
   InternalServerErrorException,
-  BadRequestException, UseGuards } from '@nestjs/common';
+  BadRequestException,
+  UseGuards,
+} from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ClothingColorService } from './clothing-color.service';
 import { CreateClothingColorDto } from './dto/create-clothing-color.dto';
@@ -21,11 +23,10 @@ import { ClothingColorEntity } from './entities/clothing-color.entity';
 import { Express } from 'express';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
-
 @UseGuards(JwtAuthGuard)
 @Controller('clothing-color')
 export class ClothingColorController {
-  constructor(private readonly clothingColorService: ClothingColorService) { }
+  constructor(private readonly clothingColorService: ClothingColorService) {}
 
   @Post()
   create(@Body() createClothingColorDto: CreateClothingColorDto) {
@@ -45,7 +46,13 @@ export class ClothingColorController {
     },
   })
   async createContextual(
-    @Body() body: { id_design: string; id_color: string; slug?: string; sizes: string },
+    @Body()
+    body: {
+      id_design: string;
+      id_color: string;
+      slug?: string;
+      sizes: string;
+    },
   ) {
     try {
       console.log('Controller createContextual received body:', body);
@@ -58,20 +65,32 @@ export class ClothingColorController {
       try {
         sizes = JSON.parse(body.sizes);
       } catch (e) {
-        throw new BadRequestException(`Invalid sizes JSON format: ${e.message}`);
+        throw new BadRequestException(
+          `Invalid sizes JSON format: ${e.message}`,
+        );
       }
 
       if (!sizes || !Array.isArray(sizes)) {
         throw new BadRequestException('Sizes must be a valid array');
       }
 
-      return await this.clothingColorService.createContextual(id_design, id_color, slug, sizes);
+      return await this.clothingColorService.createContextual(
+        id_design,
+        id_color,
+        slug,
+        sizes,
+      );
     } catch (error) {
       console.error('Controller Error in createContextual:', error);
-      if (error instanceof BadRequestException || error instanceof InternalServerErrorException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof InternalServerErrorException
+      ) {
         throw error;
       }
-      throw new InternalServerErrorException(error.message || 'Unexpected error processing request');
+      throw new InternalServerErrorException(
+        error.message || 'Unexpected error processing request',
+      );
     }
   }
 

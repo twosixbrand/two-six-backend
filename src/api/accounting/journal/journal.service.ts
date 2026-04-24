@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateJournalEntryDto } from './dto/create-journal-entry.dto';
 import { AuditService } from '../audit/audit.service';
@@ -10,7 +15,7 @@ export class JournalService {
     private prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly closingService: ClosingService,
-  ) { }
+  ) {}
 
   /**
    * Genera el próximo entry_number atómicamente vía Postgres sequence.
@@ -19,7 +24,9 @@ export class JournalService {
   private async getNextEntryNumber(): Promise<string> {
     try {
       const result: Array<{ nextval: bigint | number }> =
-        await this.prisma.$queryRawUnsafe(`SELECT nextval('journal_entry_number_seq')`);
+        await this.prisma.$queryRawUnsafe(
+          `SELECT nextval('journal_entry_number_seq')`,
+        );
       const n = Number(result[0].nextval);
       return `AC-${String(n).padStart(6, '0')}`;
     } catch (_err) {
@@ -63,13 +70,17 @@ export class JournalService {
       );
     }
     if (original.source_type === 'REVERSAL') {
-      throw new BadRequestException('No se puede reversar un asiento que ya es un reverso.');
+      throw new BadRequestException(
+        'No se puede reversar un asiento que ya es un reverso.',
+      );
     }
 
     const entryDate = new Date();
     const isClosed = await this.closingService.isPeriodClosed(entryDate);
     if (isClosed) {
-      throw new ForbiddenException('No se puede reversar en un periodo contable cerrado.');
+      throw new ForbiddenException(
+        'No se puede reversar en un periodo contable cerrado.',
+      );
     }
 
     const entryNumber = await this.getNextEntryNumber();
@@ -119,7 +130,11 @@ export class JournalService {
     return entry;
   }
 
-  async findAll(query: { startDate?: string; endDate?: string; source_type?: string }) {
+  async findAll(query: {
+    startDate?: string;
+    endDate?: string;
+    source_type?: string;
+  }) {
     const where: any = {};
 
     if (query.startDate || query.endDate) {
@@ -162,7 +177,9 @@ export class JournalService {
     });
 
     if (!entry) {
-      throw new NotFoundException(`Asiento contable con ID ${id} no encontrado`);
+      throw new NotFoundException(
+        `Asiento contable con ID ${id} no encontrado`,
+      );
     }
 
     return entry;
@@ -170,7 +187,7 @@ export class JournalService {
 
   async create(dto: CreateJournalEntryDto) {
     const entryDate = new Date(dto.entry_date);
-    
+
     // Validate if period is closed
     const isClosed = await this.closingService.isPeriodClosed(entryDate);
     if (isClosed) {
@@ -262,7 +279,10 @@ export class JournalService {
         dto.created_by ?? undefined,
       );
     } catch (err) {
-      console.error('Error registrando auditoría de asiento contable:', err.message);
+      console.error(
+        'Error registrando auditoría de asiento contable:',
+        err.message,
+      );
     }
 
     return entry;

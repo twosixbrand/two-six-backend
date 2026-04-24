@@ -12,7 +12,10 @@ import {
   UploadedFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ConsignmentPaymentService, CreatePaymentDto } from './consignment-payment.service';
+import {
+  ConsignmentPaymentService,
+  CreatePaymentDto,
+} from './consignment-payment.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { ConfigService } from '@nestjs/config';
@@ -27,9 +30,12 @@ export class ConsignmentPaymentController {
     private readonly service: ConsignmentPaymentService,
     private readonly configService: ConfigService,
   ) {
-    this.bucket = this.configService.get('DO_SPACES_BUCKET') || 'twosix-catalog-storage';
+    this.bucket =
+      this.configService.get('DO_SPACES_BUCKET') || 'twosix-catalog-storage';
     this.s3 = new S3Client({
-      endpoint: this.configService.get('DO_SPACES_ENDPOINT') || 'https://atl1.digitaloceanspaces.com',
+      endpoint:
+        this.configService.get('DO_SPACES_ENDPOINT') ||
+        'https://atl1.digitaloceanspaces.com',
       region: 'us-east-1',
       credentials: {
         accessKeyId: this.configService.get('DO_SPACES_KEY') || '',
@@ -54,14 +60,17 @@ export class ConsignmentPaymentController {
     // Si hay archivo, subirlo a Spaces
     if (file) {
       const key = `consignment/payments/${Date.now()}-${file.originalname}`;
-      await this.s3.send(new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: key,
-        Body: file.buffer,
-        ContentType: file.mimetype,
-        ACL: 'public-read',
-      }));
-      const endpoint = this.configService.get('DO_SPACES_CDN') ||
+      await this.s3.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Body: file.buffer,
+          ContentType: file.mimetype,
+          ACL: 'public-read',
+        }),
+      );
+      const endpoint =
+        this.configService.get('DO_SPACES_CDN') ||
         `https://${this.bucket}.atl1.digitaloceanspaces.com`;
       proofUrl = `${endpoint}/${key}`;
     }
@@ -92,7 +101,10 @@ export class ConsignmentPaymentController {
   // ================ Endpoints del CMS ================
 
   @Get()
-  findAll(@Query('status') status?: string, @Query('id_customer') id_customer?: string) {
+  findAll(
+    @Query('status') status?: string,
+    @Query('id_customer') id_customer?: string,
+  ) {
     return this.service.findAll({
       status,
       id_customer: id_customer ? Number(id_customer) : undefined,
@@ -117,6 +129,10 @@ export class ConsignmentPaymentController {
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { reason: string; rejected_by?: string },
   ) {
-    return this.service.reject(id, body.reason, body.rejected_by || 'Operador CMS');
+    return this.service.reject(
+      id,
+      body.reason,
+      body.rejected_by || 'Operador CMS',
+    );
   }
 }

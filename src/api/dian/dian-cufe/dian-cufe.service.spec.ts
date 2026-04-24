@@ -37,8 +37,12 @@ describe('DianCufeService', () => {
         TipoAmb: '2',
       };
 
-      const expectedString = 'FE1232026-04-2415:30:00-05:00100000.000119000.00040.00030.00119000.009001234561234567890technicakey123452';
-      const expectedHash = crypto.createHash('sha384').update(expectedString).digest('hex');
+      const expectedString =
+        'FE1232026-04-2415:30:00-05:00100000.000119000.00040.00030.00119000.009001234561234567890technicakey123452';
+      const expectedHash = crypto
+        .createHash('sha384')
+        .update(expectedString)
+        .digest('hex');
 
       const cufe = service.generateCufe(params);
 
@@ -68,8 +72,12 @@ describe('DianCufeService', () => {
         TipoAmb: '2',
       };
 
-      const expectedString = 'NC1232026-04-2415:30:00-05:00100000.000119000.00040.00030.00119000.009001234561234567890softwarepin123452';
-      const expectedHash = crypto.createHash('sha384').update(expectedString).digest('hex');
+      const expectedString =
+        'NC1232026-04-2415:30:00-05:00100000.000119000.00040.00030.00119000.009001234561234567890softwarepin123452';
+      const expectedHash = crypto
+        .createHash('sha384')
+        .update(expectedString)
+        .digest('hex');
 
       const cude = service.generateCude(params);
 

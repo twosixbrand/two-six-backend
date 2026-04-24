@@ -4,7 +4,7 @@ import { LocationController } from './location.controller';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Module({
-    controllers: [LocationController],
-    providers: [LocationService, PrismaService],
+  controllers: [LocationController],
+  providers: [LocationService, PrismaService],
 })
-export class LocationModule { }
+export class LocationModule {}

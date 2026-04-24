@@ -1,9 +1,17 @@
-import { Controller, Get, Post, Body, Param, Delete, ParseIntPipe , UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { TaxConfigService } from './tax-config.service';
 import { CreateTaxConfigDto } from './dto/create-tax-config.dto';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
-
 
 @ApiTags('accounting/tax-config')
 @UseGuards(JwtAuthGuard)

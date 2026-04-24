@@ -60,7 +60,10 @@ export class UserAppService {
    * Actualiza un usuario existente.
    * @throws NotFoundException si el usuario no se encuentra.
    */
-  async update(id: number, updateUserAppDto: UpdateUserAppDto): Promise<UserApp> {
+  async update(
+    id: number,
+    updateUserAppDto: UpdateUserAppDto,
+  ): Promise<UserApp> {
     await this.findOne(id);
     return this.prisma.userApp.update({
       where: { id },

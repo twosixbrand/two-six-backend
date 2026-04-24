@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateBankAccountDto } from './dto/create-bank-account.dto';
 import { UploadStatementDto } from './dto/upload-statement.dto';
@@ -54,12 +58,15 @@ export class BankReconciliationService {
       const reference = row.reference || row.referencia || null;
       const debit = parseFloat(row.debit || row.debito || '0') || 0;
       const credit = parseFloat(row.credit || row.credito || '0') || 0;
-      const balance = row.balance || row.saldo
-        ? parseFloat(row.balance || row.saldo) || null
-        : null;
+      const balance =
+        row.balance || row.saldo
+          ? parseFloat(row.balance || row.saldo) || null
+          : null;
 
       if (!date) {
-        throw new BadRequestException('Cada fila del CSV debe tener una fecha válida');
+        throw new BadRequestException(
+          'Cada fila del CSV debe tener una fecha válida',
+        );
       }
 
       return { date, description, reference, debit, credit, balance };
@@ -74,7 +81,9 @@ export class BankReconciliationService {
     });
 
     if (!bankAccount) {
-      throw new NotFoundException(`Cuenta bancaria con ID ${dto.bankAccountId} no encontrada`);
+      throw new NotFoundException(
+        `Cuenta bancaria con ID ${dto.bankAccountId} no encontrada`,
+      );
     }
 
     const parsedRows = this.parseCSV(dto.csvContent);
@@ -136,7 +145,9 @@ export class BankReconciliationService {
     });
 
     if (!statement) {
-      throw new NotFoundException(`Extracto bancario con ID ${id} no encontrado`);
+      throw new NotFoundException(
+        `Extracto bancario con ID ${id} no encontrado`,
+      );
     }
 
     return statement;
@@ -151,7 +162,9 @@ export class BankReconciliationService {
     });
 
     if (!statement) {
-      throw new NotFoundException(`Extracto bancario con ID ${statementId} no encontrado`);
+      throw new NotFoundException(
+        `Extracto bancario con ID ${statementId} no encontrado`,
+      );
     }
 
     const unmatchedTxns = statement.transactions.filter((t) => !t.matched);
@@ -218,7 +231,8 @@ export class BankReconciliationService {
     });
 
     const totalTxns = updatedStatement?.transactions?.length || 0;
-    const totalMatched = updatedStatement?.transactions?.filter((t) => t.matched)?.length || 0;
+    const totalMatched =
+      updatedStatement?.transactions?.filter((t) => t.matched)?.length || 0;
 
     let newStatus = 'PENDING';
     if (totalMatched === totalTxns) {
@@ -295,7 +309,8 @@ export class BankReconciliationService {
     });
 
     const totalTxns = statement?.transactions?.length || 0;
-    const totalMatched = statement?.transactions?.filter((t) => t.matched)?.length || 0;
+    const totalMatched =
+      statement?.transactions?.filter((t) => t.matched)?.length || 0;
 
     let newStatus = 'PENDING';
     if (totalMatched === totalTxns) {

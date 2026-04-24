@@ -13,8 +13,8 @@ describe('CouponController', () => {
       providers: [
         { provide: CouponService, useValue: {} },
         { provide: JwtService, useValue: {} },
-        { provide: ConfigService, useValue: {} }
-      ]
+        { provide: ConfigService, useValue: {} },
+      ],
     }).compile();
 
     controller = module.get<CouponController>(CouponController);

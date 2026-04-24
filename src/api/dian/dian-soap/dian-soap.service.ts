@@ -11,19 +11,21 @@ export class DianSoapService {
 
   constructor(
     private config: ConfigService,
-    @Inject(forwardRef(() => DianService)) private dianService: DianService
+    @Inject(forwardRef(() => DianService)) private dianService: DianService,
   ) {}
 
   async sendInvoice(signedXmlBuffer: Buffer, fileName: string): Promise<any> {
     const env = this.config.get<string>('DIAN_ENVIRONMENT', 'TEST');
 
-    const endpoint = env === 'TEST'
-      ? 'https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc'
-      : 'https://vpfe.dian.gov.co/WcfDianCustomerServices.svc';
+    const endpoint =
+      env === 'TEST'
+        ? 'https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc'
+        : 'https://vpfe.dian.gov.co/WcfDianCustomerServices.svc';
 
-    const action = env === 'TEST'
-      ? 'http://wcf.dian.colombia/IWcfDianCustomerServices/SendTestSetAsync'
-      : 'http://wcf.dian.colombia/IWcfDianCustomerServices/SendBillAsync';
+    const action =
+      env === 'TEST'
+        ? 'http://wcf.dian.colombia/IWcfDianCustomerServices/SendTestSetAsync'
+        : 'http://wcf.dian.colombia/IWcfDianCustomerServices/SendBillAsync';
 
     const xmlFileName = `${fileName}.xml`;
     const zipFileName = `${fileName}.zip`;
@@ -42,29 +44,31 @@ export class DianSoapService {
     const strId = `id-${uuid}-STR`;
     const tsId = `id-${uuid}-TS`;
 
-    const publicCert = certCreds.certificate
-      .replace(/-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\r|\n/g, '');
+    const publicCert = certCreds.certificate.replace(
+      /-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\r|\n/g,
+      '',
+    );
 
     const d = new Date();
     const created = d.toISOString().replace(/\.\d{3}Z$/, 'Z');
     d.setMinutes(d.getMinutes() + 5);
     const expires = d.toISOString().replace(/\.\d{3}Z$/, 'Z');
 
-    const soapBody = env === 'TEST'
-      ? `<wcf:SendTestSetAsync>
+    const soapBody =
+      env === 'TEST'
+        ? `<wcf:SendTestSetAsync>
       <wcf:fileName>${zipFileName}</wcf:fileName>
       <wcf:contentFile>${contentFile}</wcf:contentFile>
       <wcf:testSetId>${testSetId}</wcf:testSetId>
     </wcf:SendTestSetAsync>`
-      : `<wcf:SendBillAsync>
+        : `<wcf:SendBillAsync>
       <wcf:fileName>${zipFileName}</wcf:fileName>
       <wcf:contentFile>${contentFile}</wcf:contentFile>
     </wcf:SendBillAsync>`;
 
     try {
       // 1. Construir envelope SIN firma para tener el contexto completo de namespaces
-      const unsignedEnvelope =
-`<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:wcf="http://wcf.dian.colombia" xmlns:wsa="http://www.w3.org/2005/08/addressing">
+      const unsignedEnvelope = `<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:wcf="http://wcf.dian.colombia" xmlns:wsa="http://www.w3.org/2005/08/addressing">
   <soap:Header>
     <wsse:Security xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" soap:mustUnderstand="1">
       <wsu:Timestamp wsu:Id="${tsId}">
@@ -84,7 +88,8 @@ export class DianSoapService {
       // 2. Construir forma canónica de wsa:To manualmente
       //    Exclusive C14N + PrefixList "soap wcf" incluye soap y wcf como namespaces
       //    xml-crypto no maneja correctamente PrefixList con ancestorNamespaces, así que lo hacemos manual
-      const toCanonical = `<wsa:To` +
+      const toCanonical =
+        `<wsa:To` +
         ` xmlns:soap="http://www.w3.org/2003/05/soap-envelope"` +
         ` xmlns:wcf="http://wcf.dian.colombia"` +
         ` xmlns:wsa="http://www.w3.org/2005/08/addressing"` +
@@ -92,7 +97,9 @@ export class DianSoapService {
         ` wsu:Id="${toId}"` +
         `>${endpoint}</wsa:To>`;
       this.logger.debug('Canonical wsa:To:', toCanonical);
-      const toDigest = createHash('sha256').update(toCanonical).digest('base64');
+      const toDigest = createHash('sha256')
+        .update(toCanonical)
+        .digest('base64');
 
       // 4. Construir SignedInfo
       const signedInfoXml =
@@ -113,8 +120,14 @@ export class DianSoapService {
         `</ds:SignedInfo>`;
 
       // 5. Canonicalizar SignedInfo y firmar con RSA-SHA256
-      const signedInfoDoc = new DOMParser().parseFromString(signedInfoXml, 'text/xml');
-      const signedInfoCanonical = this.exclusiveC14nElement(signedInfoDoc.documentElement, 'wsa soap wcf');
+      const signedInfoDoc = new DOMParser().parseFromString(
+        signedInfoXml,
+        'text/xml',
+      );
+      const signedInfoCanonical = this.exclusiveC14nElement(
+        signedInfoDoc.documentElement,
+        'wsa soap wcf',
+      );
       const sign = createSign('RSA-SHA256');
       sign.update(signedInfoCanonical);
       const signatureValue = sign.sign(certCreds.privateKey, 'base64');
@@ -134,7 +147,7 @@ export class DianSoapService {
       // 7. Insertar firma en el Security element (después del BinarySecurityToken)
       const finalEnvelope = unsignedEnvelope.replace(
         '</wsse:BinarySecurityToken>',
-        `</wsse:BinarySecurityToken>${signatureBlock}`
+        `</wsse:BinarySecurityToken>${signatureBlock}`,
       );
 
       this.logger.debug('== [RAW SOAP REQUEST] ==');
@@ -156,13 +169,16 @@ export class DianSoapService {
         throw new Error(`HTTP ${response.status}: ${responseText}`);
       }
 
-      const resultMatch = responseText.match(/<(?:\w+:)?SendTestSetAsyncResult[^>]*>([\s\S]*?)<\/(?:\w+:)?SendTestSetAsyncResult>/);
+      const resultMatch = responseText.match(
+        /<(?:\w+:)?SendTestSetAsyncResult[^>]*>([\s\S]*?)<\/(?:\w+:)?SendTestSetAsyncResult>/,
+      );
       if (!resultMatch) {
-        const billMatch = responseText.match(/<(?:\w+:)?SendBillAsyncResult[^>]*>([\s\S]*?)<\/(?:\w+:)?SendBillAsyncResult>/);
+        const billMatch = responseText.match(
+          /<(?:\w+:)?SendBillAsyncResult[^>]*>([\s\S]*?)<\/(?:\w+:)?SendBillAsyncResult>/,
+        );
         return billMatch ? billMatch[1] : responseText;
       }
       return resultMatch[1];
-
     } catch (error) {
       this.logger.error('== [ERROR SOAP DIAN] ==');
       this.logger.error(error.message || error);
@@ -176,11 +192,13 @@ export class DianSoapService {
   async getStatusZip(trackId: string): Promise<any> {
     const env = this.config.get<string>('DIAN_ENVIRONMENT', 'TEST');
 
-    const endpoint = env === 'TEST'
-      ? 'https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc'
-      : 'https://vpfe.dian.gov.co/WcfDianCustomerServices.svc';
+    const endpoint =
+      env === 'TEST'
+        ? 'https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc'
+        : 'https://vpfe.dian.gov.co/WcfDianCustomerServices.svc';
 
-    const action = 'http://wcf.dian.colombia/IWcfDianCustomerServices/GetStatusZip';
+    const action =
+      'http://wcf.dian.colombia/IWcfDianCustomerServices/GetStatusZip';
 
     const certCreds = this.dianService.getCredentials();
     const uuid = randomUUID();
@@ -191,8 +209,10 @@ export class DianSoapService {
     const strId = `id-${uuid}-STR`;
     const tsId = `id-${uuid}-TS`;
 
-    const publicCert = certCreds.certificate
-      .replace(/-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\r|\n/g, '');
+    const publicCert = certCreds.certificate.replace(
+      /-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\r|\n/g,
+      '',
+    );
 
     const d = new Date();
     const created = d.toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -203,8 +223,7 @@ export class DianSoapService {
       <wcf:trackId>${trackId}</wcf:trackId>
     </wcf:GetStatusZip>`;
 
-    const unsignedEnvelope =
-`<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:wcf="http://wcf.dian.colombia" xmlns:wsa="http://www.w3.org/2005/08/addressing">
+    const unsignedEnvelope = `<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:wcf="http://wcf.dian.colombia" xmlns:wsa="http://www.w3.org/2005/08/addressing">
   <soap:Header>
     <wsse:Security xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" soap:mustUnderstand="1">
       <wsu:Timestamp wsu:Id="${tsId}">
@@ -223,14 +242,17 @@ export class DianSoapService {
 
     try {
       // Firma (misma lógica que sendInvoice)
-      const toCanonical = `<wsa:To` +
+      const toCanonical =
+        `<wsa:To` +
         ` xmlns:soap="http://www.w3.org/2003/05/soap-envelope"` +
         ` xmlns:wcf="http://wcf.dian.colombia"` +
         ` xmlns:wsa="http://www.w3.org/2005/08/addressing"` +
         ` xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"` +
         ` wsu:Id="${toId}"` +
         `>${endpoint}</wsa:To>`;
-      const toDigest = createHash('sha256').update(toCanonical).digest('base64');
+      const toDigest = createHash('sha256')
+        .update(toCanonical)
+        .digest('base64');
 
       const signedInfoXml =
         `<ds:SignedInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:wcf="http://wcf.dian.colombia" xmlns:wsa="http://www.w3.org/2005/08/addressing">` +
@@ -249,8 +271,14 @@ export class DianSoapService {
         `</ds:Reference>` +
         `</ds:SignedInfo>`;
 
-      const signedInfoDoc = new DOMParser().parseFromString(signedInfoXml, 'text/xml');
-      const signedInfoCanonical = this.exclusiveC14nElement(signedInfoDoc.documentElement, 'wsa soap wcf');
+      const signedInfoDoc = new DOMParser().parseFromString(
+        signedInfoXml,
+        'text/xml',
+      );
+      const signedInfoCanonical = this.exclusiveC14nElement(
+        signedInfoDoc.documentElement,
+        'wsa soap wcf',
+      );
       const sign = createSign('RSA-SHA256');
       sign.update(signedInfoCanonical);
       const signatureValue = sign.sign(certCreds.privateKey, 'base64');
@@ -268,7 +296,7 @@ export class DianSoapService {
 
       const finalEnvelope = unsignedEnvelope.replace(
         '</wsse:BinarySecurityToken>',
-        `</wsse:BinarySecurityToken>${signatureBlock}`
+        `</wsse:BinarySecurityToken>${signatureBlock}`,
       );
 
       const response = await fetch(endpoint, {
@@ -291,11 +319,15 @@ export class DianSoapService {
    * Busca un elemento por su atributo wsu:Id en el documento
    */
   private findElementByWsuId(doc: Document, id: string): Element | null {
-    const wsuNs = 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd';
+    const wsuNs =
+      'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd';
     const allElements = doc.getElementsByTagName('*');
     for (let i = 0; i < allElements.length; i++) {
       const el = allElements[i];
-      if (el.getAttributeNS(wsuNs, 'Id') === id || el.getAttribute('wsu:Id') === id) {
+      if (
+        el.getAttributeNS(wsuNs, 'Id') === id ||
+        el.getAttribute('wsu:Id') === id
+      ) {
         return el;
       }
     }
@@ -305,8 +337,11 @@ export class DianSoapService {
   /**
    * Exclusive C14N de un elemento DOM (mantiene contexto de namespaces ancestrales)
    */
-  private exclusiveC14nElement(element: Element, inclusiveNamespacesPrefixList: string, ancestorNamespaces?: Array<{prefix: string, namespaceURI: string}>): string {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+  private exclusiveC14nElement(
+    element: Element,
+    inclusiveNamespacesPrefixList: string,
+    ancestorNamespaces?: Array<{ prefix: string; namespaceURI: string }>,
+  ): string {
     const { ExclusiveCanonicalization } = require('xml-crypto');
     const canon = new ExclusiveCanonicalization();
     const opts: any = {
@@ -322,7 +357,10 @@ export class DianSoapService {
   /**
    * Crea un buffer ZIP conteniendo el XML de la factura
    */
-  private createZipBuffer(xmlFileName: string, xmlBuffer: Buffer): Promise<Buffer> {
+  private createZipBuffer(
+    xmlFileName: string,
+    xmlBuffer: Buffer,
+  ): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
       const archive = archiver('zip', { zlib: { level: 9 } });

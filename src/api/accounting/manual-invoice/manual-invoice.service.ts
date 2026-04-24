@@ -1,7 +1,16 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { DianUblService, InvoiceDto } from '../../dian/dian-ubl/dian-ubl.service';
+import {
+  DianUblService,
+  InvoiceDto,
+} from '../../dian/dian-ubl/dian-ubl.service';
 import { DianSignerService } from '../../dian/dian-signer/dian-signer.service';
 import { DianCufeService } from '../../dian/dian-cufe/dian-cufe.service';
 import { DianSoapService } from '../../dian/dian-soap/dian-soap.service';
@@ -35,7 +44,12 @@ export class ManualInvoiceService {
       where,
       include: {
         cashReceiptJournal: {
-          select: { id: true, entry_number: true, entry_date: true, description: true },
+          select: {
+            id: true,
+            entry_number: true,
+            entry_date: true,
+            description: true,
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -48,9 +62,16 @@ export class ManualInvoiceService {
       },
       select: { id: true, entry_number: true, source_id: true },
     });
-    const entryByInvoice = new Map<number, { id: number; entry_number: string }>();
+    const entryByInvoice = new Map<
+      number,
+      { id: number; entry_number: string }
+    >();
     for (const e of manualEntries) {
-      if (e.source_id) entryByInvoice.set(e.source_id, { id: e.id, entry_number: e.entry_number });
+      if (e.source_id)
+        entryByInvoice.set(e.source_id, {
+          id: e.id,
+          entry_number: e.entry_number,
+        });
     }
 
     const rows = invoices.map((inv) => {
@@ -140,13 +161,26 @@ export class ManualInvoiceService {
     }
 
     const [advanceAccount, revenueAccount, ivaAccount] = await Promise.all([
-      this.prisma.pucAccount.findUnique({ where: { code: dto.advance_puc_code } }),
-      this.prisma.pucAccount.findUnique({ where: { code: dto.revenue_puc_code } }),
+      this.prisma.pucAccount.findUnique({
+        where: { code: dto.advance_puc_code },
+      }),
+      this.prisma.pucAccount.findUnique({
+        where: { code: dto.revenue_puc_code },
+      }),
       this.prisma.pucAccount.findUnique({ where: { code: dto.iva_puc_code } }),
     ]);
-    if (!advanceAccount) throw new NotFoundException(`Cuenta PUC anticipo ${dto.advance_puc_code} no existe.`);
-    if (!revenueAccount) throw new NotFoundException(`Cuenta PUC ingresos ${dto.revenue_puc_code} no existe.`);
-    if (!ivaAccount) throw new NotFoundException(`Cuenta PUC IVA ${dto.iva_puc_code} no existe.`);
+    if (!advanceAccount)
+      throw new NotFoundException(
+        `Cuenta PUC anticipo ${dto.advance_puc_code} no existe.`,
+      );
+    if (!revenueAccount)
+      throw new NotFoundException(
+        `Cuenta PUC ingresos ${dto.revenue_puc_code} no existe.`,
+      );
+    if (!ivaAccount)
+      throw new NotFoundException(
+        `Cuenta PUC IVA ${dto.iva_puc_code} no existe.`,
+      );
     for (const acc of [advanceAccount, revenueAccount, ivaAccount]) {
       if (!acc.accepts_movements) {
         throw new BadRequestException(
@@ -193,7 +227,9 @@ export class ManualInvoiceService {
       where: { isActive: true, environment: env, type: 'INVOICE' },
     });
     if (!resolution) {
-      throw new BadRequestException('No hay resolución DIAN activa para facturas.');
+      throw new BadRequestException(
+        'No hay resolución DIAN activa para facturas.',
+      );
     }
     if (resolution.currentNumber >= resolution.endNumber) {
       throw new BadRequestException('Se agotó el rango de numeración DIAN.');
@@ -239,7 +275,10 @@ export class ManualInvoiceService {
     } as InvoiceDto;
 
     const nit = this.configService.get<string>('DIAN_COMPANY_NIT') || '';
-    const claveTecnica = resolution.technicalKey || this.configService.get<string>('DIAN_TECHNICAL_KEY') || '';
+    const claveTecnica =
+      resolution.technicalKey ||
+      this.configService.get<string>('DIAN_TECHNICAL_KEY') ||
+      '';
 
     const cufe = this.cufeService.generateCufe({
       NumFac: invoiceDto.number,
@@ -263,7 +302,10 @@ export class ManualInvoiceService {
     const xmlWithCufe = xmlBase.replace(/CUFE_PLACEHOLDER/g, cufe);
     const signedXml = this.signerService.signXml(xmlWithCufe);
 
-    const soapResponse = await this.soapService.sendInvoice(Buffer.from(signedXml), invoiceDto.number);
+    const soapResponse = await this.soapService.sendInvoice(
+      Buffer.from(signedXml),
+      invoiceDto.number,
+    );
 
     const qrBase64 = await this.pdfService.generateQrBase64(
       cufe,
@@ -306,7 +348,10 @@ export class ManualInvoiceService {
         issue_date: new Date(),
         due_date: new Date(),
         status: 'SENT',
-        dian_response: typeof soapResponse === 'string' ? soapResponse : JSON.stringify(soapResponse),
+        dian_response:
+          typeof soapResponse === 'string'
+            ? soapResponse
+            : JSON.stringify(soapResponse),
         environment: env,
         id_dian_resolution: resolution.id,
         cash_receipt_journal_id: dto.cash_receipt_journal_id,
@@ -350,7 +395,9 @@ export class ManualInvoiceService {
       ],
     });
 
-    this.logger.log(`Factura manual ${invoiceNumber} emitida. CUFE=${cufe}. JournalEntry=${journalEntry.id}.`);
+    this.logger.log(
+      `Factura manual ${invoiceNumber} emitida. CUFE=${cufe}. JournalEntry=${journalEntry.id}.`,
+    );
 
     return {
       success: true,

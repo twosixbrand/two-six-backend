@@ -1,4 +1,10 @@
-import { IsEmail, IsNotEmpty, IsString, Length, IsOptional } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  Length,
+  IsOptional,
+} from 'class-validator';
 
 export class CreateUserAppDto {
   @IsString()
@@ -22,6 +28,5 @@ export class CreateUserAppDto {
   @IsString()
   @IsOptional()
   @Length(6, 6, { message: 'El OTP debe tener exactamente 6 caracteres.' })
-  otp:string;
-
+  otp: string;
 }

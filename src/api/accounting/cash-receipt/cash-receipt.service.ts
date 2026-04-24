@@ -1,4 +1,9 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { JournalService } from '../journal/journal.service';
 import { ClosingService } from '../closing/closing.service';
@@ -33,14 +38,20 @@ export class CashReceiptService {
 
     const [bankAccount, advanceAccount] = await Promise.all([
       this.prisma.pucAccount.findUnique({ where: { code: dto.bank_puc_code } }),
-      this.prisma.pucAccount.findUnique({ where: { code: dto.advance_puc_code } }),
+      this.prisma.pucAccount.findUnique({
+        where: { code: dto.advance_puc_code },
+      }),
     ]);
 
     if (!bankAccount) {
-      throw new NotFoundException(`Cuenta PUC de banco no encontrada: ${dto.bank_puc_code}`);
+      throw new NotFoundException(
+        `Cuenta PUC de banco no encontrada: ${dto.bank_puc_code}`,
+      );
     }
     if (!advanceAccount) {
-      throw new NotFoundException(`Cuenta PUC de anticipo no encontrada: ${dto.advance_puc_code}`);
+      throw new NotFoundException(
+        `Cuenta PUC de anticipo no encontrada: ${dto.advance_puc_code}`,
+      );
     }
     if (!bankAccount.accepts_movements || !advanceAccount.accepts_movements) {
       throw new BadRequestException(
@@ -48,7 +59,8 @@ export class CashReceiptService {
       );
     }
 
-    const customerLabel = dto.customer_name || dto.customer_nit || 'cliente sin identificar';
+    const customerLabel =
+      dto.customer_name || dto.customer_nit || 'cliente sin identificar';
     const description = `Recibo de caja - Consignación ${dto.reference} - ${customerLabel}`;
 
     const metadata = JSON.stringify({
@@ -108,13 +120,19 @@ export class CashReceiptService {
 
     const pending: any[] = [];
     for (const entry of entries) {
-      const advanceLine = entry.lines.find((l) => l.pucAccount.code === advancePucCode);
+      const advanceLine = entry.lines.find(
+        (l) => l.pucAccount.code === advancePucCode,
+      );
       if (!advanceLine) continue;
       const balance = await this.getAvailableBalance(entry.id, advancePucCode);
       if (balance > 0.01) {
         let meta: any = null;
         if ((entry as any).metadata) {
-          try { meta = JSON.parse((entry as any).metadata); } catch { meta = null; }
+          try {
+            meta = JSON.parse((entry as any).metadata);
+          } catch {
+            meta = null;
+          }
         }
         pending.push({
           journal_entry_id: entry.id,
@@ -138,7 +156,10 @@ export class CashReceiptService {
    * recibo de caja específico. Se considera el monto original menos lo ya
    * aplicado por facturas DIAN (cashReceiptJournal relation).
    */
-  async getAvailableBalance(journalEntryId: number, advancePucCode: string): Promise<number> {
+  async getAvailableBalance(
+    journalEntryId: number,
+    advancePucCode: string,
+  ): Promise<number> {
     const entry = await this.prisma.journalEntry.findUnique({
       where: { id: journalEntryId },
       include: {
@@ -146,10 +167,14 @@ export class CashReceiptService {
       },
     });
     if (!entry) {
-      throw new NotFoundException(`Recibo de caja #${journalEntryId} no existe.`);
+      throw new NotFoundException(
+        `Recibo de caja #${journalEntryId} no existe.`,
+      );
     }
 
-    const advanceLine = entry.lines.find((l) => l.pucAccount.code === advancePucCode);
+    const advanceLine = entry.lines.find(
+      (l) => l.pucAccount.code === advancePucCode,
+    );
     if (!advanceLine) {
       throw new BadRequestException(
         `El recibo no tiene línea con la cuenta de anticipo ${advancePucCode}.`,

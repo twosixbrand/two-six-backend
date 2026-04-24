@@ -27,14 +27,17 @@ export class ExogenaService {
     });
 
     // Group by provider
-    const providerMap: Record<string, {
-      nit: string;
-      name: string;
-      concept: string;
-      base_amount: number;
-      retention_amount: number;
-      tax_amount: number;
-    }> = {};
+    const providerMap: Record<
+      string,
+      {
+        nit: string;
+        name: string;
+        concept: string;
+        base_amount: number;
+        retention_amount: number;
+        tax_amount: number;
+      }
+    > = {};
 
     for (const exp of expenses) {
       const providerId = exp.id_provider || '0';
@@ -56,13 +59,13 @@ export class ExogenaService {
     // Filter providers above threshold ($100,000 COP)
     const THRESHOLD = 100000;
     const format1001 = Object.values(providerMap)
-      .filter(p => p.base_amount > THRESHOLD)
+      .filter((p) => p.base_amount > THRESHOLD)
       .sort((a, b) => b.base_amount - a.base_amount);
 
     // ── Format 1005: IVA Descontable ───────────────────────────
     const format1005 = Object.values(providerMap)
-      .filter(p => p.tax_amount > 0)
-      .map(p => ({
+      .filter((p) => p.tax_amount > 0)
+      .map((p) => ({
         nit: p.nit,
         name: p.name,
         iva_descontable: p.tax_amount,
@@ -116,11 +119,14 @@ export class ExogenaService {
       },
     });
 
-    const customerMap: Record<number, {
-      nit: string;
-      name: string;
-      total_revenue: number;
-    }> = {};
+    const customerMap: Record<
+      number,
+      {
+        nit: string;
+        name: string;
+        total_revenue: number;
+      }
+    > = {};
 
     for (const order of orders) {
       const custId = order.id_customer || 0;
@@ -135,7 +141,7 @@ export class ExogenaService {
     }
 
     const format1007 = Object.values(customerMap)
-      .filter(c => c.total_revenue > THRESHOLD)
+      .filter((c) => c.total_revenue > THRESHOLD)
       .sort((a, b) => b.total_revenue - a.total_revenue);
 
     // Summary
@@ -151,8 +157,12 @@ export class ExogenaService {
         totalCustomers,
         totalPayments: Math.round(totalPayments),
         totalRevenue: Math.round(totalRevenue),
-        totalIvaDescontable: Math.round(format1005.reduce((s, p) => s + p.iva_descontable, 0)),
-        totalIvaGenerado: Math.round(format1006.reduce((s, p) => s + p.iva_generado, 0)),
+        totalIvaDescontable: Math.round(
+          format1005.reduce((s, p) => s + p.iva_descontable, 0),
+        ),
+        totalIvaGenerado: Math.round(
+          format1006.reduce((s, p) => s + p.iva_generado, 0),
+        ),
       },
       format1001,
       format1005,
@@ -180,7 +190,14 @@ export class ExogenaService {
     // ── Sheet 1001: Pagos a terceros ─────────────────────────
     const rows1001: any[][] = [
       ...companyHeader('Formato 1001 - Pagos a Terceros'),
-      ['NIT Proveedor', 'Razón Social', 'Concepto', 'Base Gravable', 'Retención', 'IVA'],
+      [
+        'NIT Proveedor',
+        'Razón Social',
+        'Concepto',
+        'Base Gravable',
+        'Retención',
+        'IVA',
+      ],
     ];
     for (const item of data.format1001) {
       rows1001.push([
@@ -194,14 +211,23 @@ export class ExogenaService {
     }
     rows1001.push([]);
     rows1001.push([
-      '', 'TOTALES', '',
+      '',
+      'TOTALES',
+      '',
       Math.round(data.format1001.reduce((s, p) => s + p.base_amount, 0)),
       Math.round(data.format1001.reduce((s, p) => s + p.retention_amount, 0)),
       Math.round(data.format1001.reduce((s, p) => s + p.tax_amount, 0)),
     ]);
 
     const ws1001 = XLSX.utils.aoa_to_sheet(rows1001);
-    ws1001['!cols'] = [{ wch: 16 }, { wch: 35 }, { wch: 20 }, { wch: 18 }, { wch: 16 }, { wch: 16 }];
+    ws1001['!cols'] = [
+      { wch: 16 },
+      { wch: 35 },
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 16 },
+    ];
     XLSX.utils.book_append_sheet(wb, ws1001, '1001-Pagos Terceros');
 
     // ── Sheet 1005: IVA Descontable ──────────────────────────
@@ -214,7 +240,8 @@ export class ExogenaService {
     }
     rows1005.push([]);
     rows1005.push([
-      '', 'TOTAL',
+      '',
+      'TOTAL',
       Math.round(data.format1005.reduce((s, p) => s + p.iva_descontable, 0)),
     ]);
 
@@ -224,15 +251,29 @@ export class ExogenaService {
 
     // ── Sheet 1006: IVA Generado ─────────────────────────────
     const monthNames = [
-      '', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+      '',
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
     ];
     const rows1006: any[][] = [
       ...companyHeader('Formato 1006 - IVA Generado'),
       ['Mes', 'IVA Generado'],
     ];
     for (const item of data.format1006) {
-      rows1006.push([monthNames[item.month] || `Mes ${item.month}`, Math.round(item.iva_generado)]);
+      rows1006.push([
+        monthNames[item.month] || `Mes ${item.month}`,
+        Math.round(item.iva_generado),
+      ]);
     }
     rows1006.push([]);
     rows1006.push([
@@ -254,7 +295,8 @@ export class ExogenaService {
     }
     rows1007.push([]);
     rows1007.push([
-      '', 'TOTAL',
+      '',
+      'TOTAL',
       Math.round(data.format1007.reduce((s, c) => s + c.total_revenue, 0)),
     ]);
 
@@ -276,23 +318,26 @@ export class ExogenaService {
     // Find all journal entry lines that might be linked to this NIT
     // We look into Expenses and Orders linked via source_id to find the NIT
     // because JournalEntryLine doesn't have a direct third_party_id field in this schema.
-    
+
     // 1. Get Expenses for this provider
     const expenses = await this.prisma.expense.findMany({
-      where: { id_provider: nit, expense_date: { gte: startDate, lte: endDate } },
-      select: { id: true }
+      where: {
+        id_provider: nit,
+        expense_date: { gte: startDate, lte: endDate },
+      },
+      select: { id: true },
     });
-    const expenseIds = expenses.map(e => e.id);
+    const expenseIds = expenses.map((e) => e.id);
 
     // 2. Get Orders for this customer
     const orders = await this.prisma.order.findMany({
-      where: { 
+      where: {
         customer: { document_number: nit },
-        purchase_date: { gte: startDate, lte: endDate }
+        purchase_date: { gte: startDate, lte: endDate },
       },
-      select: { id: true }
+      select: { id: true },
     });
-    const orderIds = orders.map(o => o.id);
+    const orderIds = orders.map((o) => o.id);
 
     // 3. Find related journal entries
     const entries = await this.prisma.journalEntry.findMany({
@@ -300,22 +345,22 @@ export class ExogenaService {
         OR: [
           { source_type: 'EXPENSE', source_id: { in: expenseIds } },
           { source_type: 'SALE', source_id: { in: orderIds } },
-          { source_type: 'COGS', source_id: { in: orderIds } }
+          { source_type: 'COGS', source_id: { in: orderIds } },
         ],
         entry_date: { gte: startDate, lte: endDate },
-        status: 'POSTED'
+        status: 'POSTED',
       },
       include: {
         lines: {
-          include: { pucAccount: true }
-        }
+          include: { pucAccount: true },
+        },
       },
-      orderBy: { entry_date: 'asc' }
+      orderBy: { entry_date: 'asc' },
     });
 
     // Flatten lines for the report
-    const movements = entries.flatMap(entry => 
-      entry.lines.map(line => ({
+    const movements = entries.flatMap((entry) =>
+      entry.lines.map((line) => ({
         date: entry.entry_date,
         entry_number: entry.entry_number,
         source_type: entry.source_type,
@@ -323,8 +368,8 @@ export class ExogenaService {
         puc_code: line.pucAccount.code,
         puc_name: line.pucAccount.name,
         debit: line.debit,
-        credit: line.credit
-      }))
+        credit: line.credit,
+      })),
     );
 
     return {
@@ -333,8 +378,8 @@ export class ExogenaService {
       movements,
       totals: {
         debit: movements.reduce((s, m) => s + m.debit, 0),
-        credit: movements.reduce((s, m) => s + m.credit, 0)
-      }
+        credit: movements.reduce((s, m) => s + m.credit, 0),
+      },
     };
   }
 }

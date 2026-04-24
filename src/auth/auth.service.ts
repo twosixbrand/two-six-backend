@@ -15,7 +15,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly mailerService: MailerService, // Inyectamos el servicio de email
-  ) { }
+  ) {}
 
   /**
    * Inicia el proceso de login generando, guardando y enviando un OTP por email.
@@ -26,7 +26,9 @@ export class AuthService {
     const user = await this.prisma.userApp.findUnique({ where: { email } });
 
     if (!user) {
-      throw new NotFoundException(`Usuario con email '${email}' no encontrado.`);
+      throw new NotFoundException(
+        `Usuario con email '${email}' no encontrado.`,
+      );
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Genera OTP de 6 dígitos
@@ -56,7 +58,9 @@ export class AuthService {
         `,
       });
     } else {
-      console.log(`[E2E Bypass] Generated OTP for twosixmarca@gmail.com: ${otp}`);
+      console.log(
+        `[E2E Bypass] Generated OTP for twosixmarca@gmail.com: ${otp}`,
+      );
     }
 
     // Por seguridad, ya no devolvemos el OTP en la respuesta de la API.
@@ -78,7 +82,8 @@ export class AuthService {
     const user = await this.prisma.userApp.findUnique({ where: { email } });
 
     // 1. Bypass check first (For E2E Tests)
-    const isE2EBypass = email === 'twosixmarca@gmail.com' && providedOtp === '999999';
+    const isE2EBypass =
+      email === 'twosixmarca@gmail.com' && providedOtp === '999999';
 
     if (!isE2EBypass) {
       if (!user || !user.otp || !user.otpExpiresAt) {
@@ -143,15 +148,18 @@ export class AuthService {
     return { accessToken };
   }
 
-
   /**
    * Inicia el proceso de login para CLIENTES (Customer) generando, guardando y enviando un OTP por email.
    */
   async loginCustomer(email: string): Promise<{ message: string }> {
-    const customer = await this.prisma.customer.findFirst({ where: { email: email.toLowerCase().trim() } });
+    const customer = await this.prisma.customer.findFirst({
+      where: { email: email.toLowerCase().trim() },
+    });
 
     if (!customer) {
-      throw new NotFoundException(`No encontramos una cuenta con el correo '${email}'. Regístrate para continuar.`);
+      throw new NotFoundException(
+        `No encontramos una cuenta con el correo '${email}'. Regístrate para continuar.`,
+      );
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Genera OTP de 6 dígitos
@@ -194,17 +202,27 @@ export class AuthService {
   /**
    * Crea un nuevo CLIENTE (Customer) desde el registro web, generando y enviando un OTP.
    */
-  async registerCustomer(dto: RegisterCustomerDto): Promise<{ message: string }> {
+  async registerCustomer(
+    dto: RegisterCustomerDto,
+  ): Promise<{ message: string }> {
     // Validar que el email no esté registrado
-    const existingByEmail = await this.prisma.customer.findFirst({ where: { email: dto.email.toLowerCase().trim() } });
+    const existingByEmail = await this.prisma.customer.findFirst({
+      where: { email: dto.email.toLowerCase().trim() },
+    });
     if (existingByEmail) {
-      throw new UnauthorizedException(`Ya existe una cuenta con el correo '${dto.email}'. Por favor inicia sesión.`);
+      throw new UnauthorizedException(
+        `Ya existe una cuenta con el correo '${dto.email}'. Por favor inicia sesión.`,
+      );
     }
 
     // Validar que el documento no esté registrado
-    const existingByDoc = await this.prisma.customer.findUnique({ where: { document_number: dto.document_number } });
+    const existingByDoc = await this.prisma.customer.findUnique({
+      where: { document_number: dto.document_number },
+    });
     if (existingByDoc) {
-      throw new UnauthorizedException(`Ya existe una cuenta con el documento '${dto.document_number}'. Por favor inicia sesión con el correo asociado.`);
+      throw new UnauthorizedException(
+        `Ya existe una cuenta con el documento '${dto.document_number}'. Por favor inicia sesión con el correo asociado.`,
+      );
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -251,7 +269,8 @@ export class AuthService {
     });
 
     return {
-      message: 'Se ha enviado un código de acceso a tu correo electrónico nuevo.',
+      message:
+        'Se ha enviado un código de acceso a tu correo electrónico nuevo.',
     };
   }
 
@@ -300,7 +319,7 @@ export class AuthService {
       sub: customer.id,
       email: customer.email,
       role: 'customer',
-      name: customer.name
+      name: customer.name,
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -322,7 +341,7 @@ export class AuthService {
         is_registered: true,
         is_consignment_ally: customer.is_consignment_ally,
         addresses: customer.addresses,
-      }
+      },
     };
   }
 }

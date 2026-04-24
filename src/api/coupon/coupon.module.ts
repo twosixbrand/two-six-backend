@@ -6,6 +6,6 @@ import { PrismaModule } from '../../prisma/prisma.module';
 @Module({
   imports: [PrismaModule],
   controllers: [CouponController],
-  providers: [CouponService]
+  providers: [CouponService],
 })
 export class CouponModule {}

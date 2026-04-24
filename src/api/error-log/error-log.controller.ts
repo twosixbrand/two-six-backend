@@ -6,7 +6,9 @@ import {
   Patch,
   Param,
   Delete,
-  ParseIntPipe, UseGuards } from '@nestjs/common';
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { ErrorLogService } from './error-log.service';
 import { CreateErrorLogDto } from './dto/create-error-log.dto';
 import { UpdateErrorLogDto } from './dto/update-error-log.dto';

@@ -1,22 +1,18 @@
-import {
-  Controller,
-  Get,
-  Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { AccountingReportService } from './accounting-report.service';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
-
 
 @UseGuards(JwtAuthGuard)
 @Controller('accounting/reports')
 export class AccountingReportController {
-  constructor(private readonly reportService: AccountingReportService) { }
+  constructor(private readonly reportService: AccountingReportService) {}
 
   @Get('balance-sheet')
-  getBalanceSheet(
-    @Query('year') year: string,
-    @Query('month') month: string,
-  ) {
-    return this.reportService.getBalanceSheet(parseInt(year, 10), parseInt(month, 10));
+  getBalanceSheet(@Query('year') year: string, @Query('month') month: string) {
+    return this.reportService.getBalanceSheet(
+      parseInt(year, 10),
+      parseInt(month, 10),
+    );
   }
 
   @Get('income-statement')
@@ -49,7 +45,8 @@ export class AccountingReportController {
   getBalanceSheetCompared(
     @Query('year') year: string,
     @Query('month') month: string,
-    @Query('compareWith') compareWith: 'PREVIOUS_MONTH' | 'PREVIOUS_YEAR' = 'PREVIOUS_YEAR',
+    @Query('compareWith')
+    compareWith: 'PREVIOUS_MONTH' | 'PREVIOUS_YEAR' = 'PREVIOUS_YEAR',
   ) {
     return this.reportService.getBalanceSheetCompared(
       parseInt(year, 10),
@@ -62,9 +59,14 @@ export class AccountingReportController {
   getIncomeStatementCompared(
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
-    @Query('compareWith') compareWith: 'PREVIOUS_PERIOD' | 'PREVIOUS_YEAR' = 'PREVIOUS_YEAR',
+    @Query('compareWith')
+    compareWith: 'PREVIOUS_PERIOD' | 'PREVIOUS_YEAR' = 'PREVIOUS_YEAR',
   ) {
-    return this.reportService.getIncomeStatementCompared(startDate, endDate, compareWith);
+    return this.reportService.getIncomeStatementCompared(
+      startDate,
+      endDate,
+      compareWith,
+    );
   }
 
   @Get('statement-of-changes-equity')

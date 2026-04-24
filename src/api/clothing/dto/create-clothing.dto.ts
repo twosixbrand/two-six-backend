@@ -1,9 +1,4 @@
-import {
-  IsArray,
-  IsNotEmpty,
-  IsString,
-  IsInt,
-} from 'class-validator';
+import { IsArray, IsNotEmpty, IsString, IsInt } from 'class-validator';
 // import { Gender } from '@prisma/client';
 
 export class CreateClothingDto {

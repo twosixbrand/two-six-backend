@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 export interface CreateWarehouseDto {
@@ -10,7 +14,9 @@ export interface CreateWarehouseDto {
   is_active?: boolean;
 }
 
-export type UpdateWarehouseDto = Partial<Omit<CreateWarehouseDto, 'id_customer'>>;
+export type UpdateWarehouseDto = Partial<
+  Omit<CreateWarehouseDto, 'id_customer'>
+>;
 
 @Injectable()
 export class ConsignmentWarehouseService {
@@ -21,7 +27,9 @@ export class ConsignmentWarehouseService {
       where: { id: data.id_customer },
     });
     if (!customer) {
-      throw new NotFoundException(`Cliente #${data.id_customer} no encontrado.`);
+      throw new NotFoundException(
+        `Cliente #${data.id_customer} no encontrado.`,
+      );
     }
     if (!customer.is_consignment_ally) {
       throw new BadRequestException(
@@ -59,7 +67,9 @@ export class ConsignmentWarehouseService {
       },
     });
     if (!wh) {
-      throw new NotFoundException(`Bodega de consignación #${id} no encontrada.`);
+      throw new NotFoundException(
+        `Bodega de consignación #${id} no encontrada.`,
+      );
     }
     return wh;
   }
@@ -75,7 +85,9 @@ export class ConsignmentWarehouseService {
             clothingColor: {
               include: {
                 color: true,
-                design: { select: { id: true, reference: true, description: true } },
+                design: {
+                  select: { id: true, reference: true, description: true },
+                },
               },
             },
           },
@@ -110,7 +122,11 @@ export class ConsignmentWarehouseService {
             clothingColor: {
               include: {
                 color: true,
-                imageClothing: { orderBy: { position: 'asc' as const }, take: 1, select: { image_url: true } },
+                imageClothing: {
+                  orderBy: { position: 'asc' as const },
+                  take: 1,
+                  select: { image_url: true },
+                },
                 design: { select: { reference: true } },
               },
             },

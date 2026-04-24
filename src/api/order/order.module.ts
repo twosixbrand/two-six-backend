@@ -11,4 +11,4 @@ import { AccountingModule } from '../accounting/accounting.module';
   controllers: [OrderController],
   providers: [OrderService],
 })
-export class OrderModule { }
+export class OrderModule {}

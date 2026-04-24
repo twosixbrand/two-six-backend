@@ -50,10 +50,17 @@ export class AccountingCronService {
     const { year, month } = this.previousMonth();
     this.logger.log(`Iniciando auto-depreciación ${year}-${month}...`);
     try {
-      const result = await this.depreciationService.runMonthlyDepreciation(year, month);
-      this.logger.log(`Auto-depreciación ${year}-${month} completada. Resultado: ${JSON.stringify(result).slice(0, 200)}`);
+      const result = await this.depreciationService.runMonthlyDepreciation(
+        year,
+        month,
+      );
+      this.logger.log(
+        `Auto-depreciación ${year}-${month} completada. Resultado: ${JSON.stringify(result).slice(0, 200)}`,
+      );
     } catch (err: any) {
-      this.logger.error(`Error en auto-depreciación ${year}-${month}: ${err.message}`);
+      this.logger.error(
+        `Error en auto-depreciación ${year}-${month}: ${err.message}`,
+      );
     }
   }
 
@@ -69,10 +76,18 @@ export class AccountingCronService {
     const { year, month } = this.previousMonth();
     this.logger.log(`Iniciando auto-cierre ${year}-${month}...`);
     try {
-      const result = await this.closingService.closePeriod(year, month, 'SYSTEM_CRON');
-      this.logger.log(`Auto-cierre ${year}-${month} completado. Resultado: ${JSON.stringify(result).slice(0, 200)}`);
+      const result = await this.closingService.closePeriod(
+        year,
+        month,
+        'SYSTEM_CRON',
+      );
+      this.logger.log(
+        `Auto-cierre ${year}-${month} completado. Resultado: ${JSON.stringify(result).slice(0, 200)}`,
+      );
     } catch (err: any) {
-      this.logger.error(`Error en auto-cierre ${year}-${month}: ${err.message}`);
+      this.logger.error(
+        `Error en auto-cierre ${year}-${month}: ${err.message}`,
+      );
     }
   }
 }

@@ -104,7 +104,9 @@ describe('UserAppController (e2e)', () => {
     expect(updateRes.body.name).toBe('Commentator User');
 
     // 4. Delete
-    await request(app.getHttpServer()).delete(`/user-app/${userId}`).expect(200);
+    await request(app.getHttpServer())
+      .delete(`/user-app/${userId}`)
+      .expect(200);
 
     // 5. Verify Deletion
     await request(app.getHttpServer()).get(`/user-app/${userId}`).expect(404);

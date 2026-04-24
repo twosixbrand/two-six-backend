@@ -4,7 +4,7 @@ import { ImageClothingController } from './image-clothing.controller';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Module({
-    controllers: [ImageClothingController],
-    providers: [ImageClothingService, PrismaService],
+  controllers: [ImageClothingController],
+  providers: [ImageClothingService, PrismaService],
 })
-export class ImageClothingModule { }
+export class ImageClothingModule {}

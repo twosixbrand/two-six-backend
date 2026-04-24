@@ -18,7 +18,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @Controller('order')
 export class OrderController {
-  constructor(private readonly orderService: OrderService) { }
+  constructor(private readonly orderService: OrderService) {}
 
   @Post('checkout')
   checkout(@Body() checkoutDto: CheckoutDto) {
@@ -30,13 +30,21 @@ export class OrderController {
     console.log('Recibido webhook de Wompi:', JSON.stringify(payload));
 
     // Wompi sends events like 'transaction.updated'
-    if (payload && payload.event === 'transaction.updated' && payload.data && payload.data.transaction) {
+    if (
+      payload &&
+      payload.event === 'transaction.updated' &&
+      payload.data &&
+      payload.data.transaction
+    ) {
       const transactionId = payload.data.transaction.id;
 
       try {
         // We reuse verifyPayment because it securely fetches the real status from Wompi API
         await this.orderService.verifyPayment(transactionId);
-        return { success: true, message: 'Webhook procesado y orden actualizada' };
+        return {
+          success: true,
+          message: 'Webhook procesado y orden actualizada',
+        };
       } catch (error) {
         console.error('Error procesando webhook de Wompi:', error);
         // Return 200 anyway so Wompi doesn't retry infinitely if it's a non-retriable error
@@ -59,12 +67,17 @@ export class OrderController {
 
   @Post('validate-discount')
   validateDiscount(
-    @Body('code') code: string, 
+    @Body('code') code: string,
     @Body('email') email: string,
     @Body('cartTotal') cartTotal?: number,
-    @Body('itemCount') itemCount?: number
+    @Body('itemCount') itemCount?: number,
   ) {
-    return this.orderService.validateDiscountCode(code, email, cartTotal, itemCount);
+    return this.orderService.validateDiscountCode(
+      code,
+      email,
+      cartTotal,
+      itemCount,
+    );
   }
 
   @Post('track')
@@ -106,7 +119,7 @@ export class OrderController {
   @Get()
   findAll(
     @Query('delivery_method') deliveryMethod?: string,
-    @Query('sort') sort?: 'asc' | 'desc'
+    @Query('sort') sort?: 'asc' | 'desc',
   ) {
     return this.orderService.findAll(deliveryMethod, sort);
   }
@@ -121,7 +134,6 @@ export class OrderController {
   findByReference(@Param('reference') reference: string) {
     return this.orderService.findByReference(reference);
   }
-
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')

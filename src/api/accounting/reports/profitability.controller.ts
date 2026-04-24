@@ -1,8 +1,7 @@
-import { Controller, Get, Query , UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ProfitabilityService } from './profitability.service';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
-
 
 @ApiTags('accounting/reports')
 @UseGuards(JwtAuthGuard)
@@ -23,7 +22,9 @@ export class ProfitabilityController {
   }
 
   @Get('collection')
-  @ApiOperation({ summary: 'Obtener rentabilidad real consolidada por colección' })
+  @ApiOperation({
+    summary: 'Obtener rentabilidad real consolidada por colección',
+  })
   getByCollection(
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,

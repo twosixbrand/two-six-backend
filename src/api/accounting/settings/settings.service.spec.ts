@@ -50,37 +50,56 @@ describe('AccountingSettingsService', () => {
     });
 
     it('returns SIMPLE when configured', async () => {
-      prismaMock.accountingSetting.findUnique.mockResolvedValue({ value: 'SIMPLE' });
+      prismaMock.accountingSetting.findUnique.mockResolvedValue({
+        value: 'SIMPLE',
+      });
       await expect(service.getTaxRegime()).resolves.toBe('SIMPLE');
     });
 
     it('normalizes unexpected values to COMUN', async () => {
-      prismaMock.accountingSetting.findUnique.mockResolvedValue({ value: 'OTHER' });
+      prismaMock.accountingSetting.findUnique.mockResolvedValue({
+        value: 'OTHER',
+      });
       await expect(service.getTaxRegime()).resolves.toBe('COMUN');
     });
   });
 
   describe('getIvaRate', () => {
     it('parses numeric string', async () => {
-      prismaMock.accountingSetting.findUnique.mockResolvedValue({ value: '0.19' });
+      prismaMock.accountingSetting.findUnique.mockResolvedValue({
+        value: '0.19',
+      });
       await expect(service.getIvaRate()).resolves.toBe(0.19);
     });
 
     it('falls back to 0.19 on invalid', async () => {
-      prismaMock.accountingSetting.findUnique.mockResolvedValue({ value: 'abc' });
+      prismaMock.accountingSetting.findUnique.mockResolvedValue({
+        value: 'abc',
+      });
       await expect(service.getIvaRate()).resolves.toBe(0.19);
     });
   });
 
   describe('set', () => {
     it('upserts with description and updated_by', async () => {
-      prismaMock.accountingSetting.upsert.mockResolvedValue({ key: 'X', value: '1' });
+      prismaMock.accountingSetting.upsert.mockResolvedValue({
+        key: 'X',
+        value: '1',
+      });
       await service.set('X', '1', 'desc', 42);
       expect(prismaMock.accountingSetting.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { key: 'X' },
-          update: expect.objectContaining({ value: '1', description: 'desc', updated_by: 42 }),
-          create: expect.objectContaining({ key: 'X', value: '1', updated_by: 42 }),
+          update: expect.objectContaining({
+            value: '1',
+            description: 'desc',
+            updated_by: 42,
+          }),
+          create: expect.objectContaining({
+            key: 'X',
+            value: '1',
+            updated_by: 42,
+          }),
         }),
       );
     });

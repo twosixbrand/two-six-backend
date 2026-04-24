@@ -63,12 +63,19 @@ describe('ConsignmentReturnService', () => {
   describe('create', () => {
     it('rejects empty items', async () => {
       await expect(
-        service.create({ id_warehouse: 1, return_type: 'PORTFOLIO', items: [] }),
+        service.create({
+          id_warehouse: 1,
+          return_type: 'PORTFOLIO',
+          items: [],
+        }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('POST_SALE requires id_order', async () => {
-      mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue({ id: 1, id_customer: 5 });
+      mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue({
+        id: 1,
+        id_customer: 5,
+      });
       await expect(
         service.create({
           id_warehouse: 1,
@@ -79,8 +86,14 @@ describe('ConsignmentReturnService', () => {
     });
 
     it('POST_SALE requires unit_price on each item', async () => {
-      mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue({ id: 1, id_customer: 5 });
-      mock.prisma.order.findUnique.mockResolvedValue({ id: 10, id_customer: 5 });
+      mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue({
+        id: 1,
+        id_customer: 5,
+      });
+      mock.prisma.order.findUnique.mockResolvedValue({
+        id: 10,
+        id_customer: 5,
+      });
       await expect(
         service.create({
           id_warehouse: 1,
@@ -92,8 +105,14 @@ describe('ConsignmentReturnService', () => {
     });
 
     it('POST_SALE rejects order from different customer', async () => {
-      mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue({ id: 1, id_customer: 5 });
-      mock.prisma.order.findUnique.mockResolvedValue({ id: 10, id_customer: 99 });
+      mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue({
+        id: 1,
+        id_customer: 5,
+      });
+      mock.prisma.order.findUnique.mockResolvedValue({
+        id: 10,
+        id_customer: 99,
+      });
       await expect(
         service.create({
           id_warehouse: 1,
@@ -105,8 +124,13 @@ describe('ConsignmentReturnService', () => {
     });
 
     it('creates PORTFOLIO return in DRAFT', async () => {
-      mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue({ id: 1, id_customer: 5 });
-      mock.prisma.consignmentReturn.create.mockImplementation(({ data }: any) => ({ id: 1, ...data }));
+      mock.prisma.consignmentWarehouse.findUnique.mockResolvedValue({
+        id: 1,
+        id_customer: 5,
+      });
+      mock.prisma.consignmentReturn.create.mockImplementation(
+        ({ data }: any) => ({ id: 1, ...data }),
+      );
       const result = await service.create({
         id_warehouse: 1,
         return_type: 'PORTFOLIO',
@@ -123,7 +147,9 @@ describe('ConsignmentReturnService', () => {
         status: 'PROCESSED',
         items: [],
       });
-      await expect(service.process(1)).rejects.toBeInstanceOf(ConflictException);
+      await expect(service.process(1)).rejects.toBeInstanceOf(
+        ConflictException,
+      );
     });
 
     it('PORTFOLIO: returns stock to quantity_available', async () => {
@@ -138,8 +164,14 @@ describe('ConsignmentReturnService', () => {
         id: 10,
         quantity_available: 5,
       });
-      mock.tx.consignmentStock.findUnique.mockResolvedValue({ id: 100, quantity: 10 });
-      mock.tx.consignmentReturn.update.mockResolvedValue({ id: 1, status: 'PROCESSED' });
+      mock.tx.consignmentStock.findUnique.mockResolvedValue({
+        id: 100,
+        quantity: 10,
+      });
+      mock.tx.consignmentReturn.update.mockResolvedValue({
+        id: 1,
+        status: 'PROCESSED',
+      });
 
       await service.process(1);
 
@@ -166,8 +198,14 @@ describe('ConsignmentReturnService', () => {
         id_warehouse: 2,
         items: [{ id_clothing_size: 10, quantity: 1 }],
       });
-      mock.tx.clothingSize.findUnique.mockResolvedValue({ id: 10, quantity_available: 5 });
-      mock.tx.consignmentStock.findUnique.mockResolvedValue({ id: 100, quantity: 5 });
+      mock.tx.clothingSize.findUnique.mockResolvedValue({
+        id: 10,
+        quantity_available: 5,
+      });
+      mock.tx.consignmentStock.findUnique.mockResolvedValue({
+        id: 100,
+        quantity: 5,
+      });
       mock.tx.consignmentReturn.update.mockResolvedValue({ id: 2 });
 
       await service.process(2);
@@ -228,7 +266,9 @@ describe('ConsignmentReturnService', () => {
         quantity_available: 5,
         quantity_sold: 3,
       });
-      await expect(service.process(4)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.process(4)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
   });
 });

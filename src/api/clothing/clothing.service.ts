@@ -6,13 +6,14 @@ import { Clothing } from '@prisma/client';
 
 @Injectable()
 export class ClothingService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Crea una nueva prenda, verificando que las relaciones existan.
    */
   async create(createClothingDto: CreateClothingDto): Promise<Clothing> {
-    const { id_type_clothing, id_category, id_gender, ...clothingData } = createClothingDto;
+    const { id_type_clothing, id_category, id_gender, ...clothingData } =
+      createClothingDto;
 
     // Verificar que el tipo de prenda y la categoría existan
     await this.prisma.typeClothing.findUniqueOrThrow({
@@ -36,7 +37,7 @@ export class ClothingService {
         typeClothing: true,
         category: true,
         gender: true, // Incluir la relación directa
-      }
+      },
     });
   }
 
@@ -77,7 +78,10 @@ export class ClothingService {
    * Actualiza una prenda existente.
    * @throws NotFoundException si la prenda no se encuentra.
    */
-  async update(id: number, updateClothingDto: UpdateClothingDto): Promise<Clothing> {
+  async update(
+    id: number,
+    updateClothingDto: UpdateClothingDto,
+  ): Promise<Clothing> {
     await this.findOne(id); // Asegura que la prenda exista
 
     const { id_gender, ...data } = updateClothingDto;
@@ -91,8 +95,8 @@ export class ClothingService {
       include: {
         typeClothing: true,
         category: true,
-        gender: true
-      }
+        gender: true,
+      },
     });
   }
 

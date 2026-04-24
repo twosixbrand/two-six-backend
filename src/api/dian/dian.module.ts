@@ -10,8 +10,25 @@ import { DianEmailService } from './dian-email.service';
 import { DianCronService } from './dian-cron.service';
 
 @Module({
-  providers: [DianService, DianUblService, DianSignerService, DianSoapService, DianCufeService, DianPdfService, DianEmailService, DianCronService],
+  providers: [
+    DianService,
+    DianUblService,
+    DianSignerService,
+    DianSoapService,
+    DianCufeService,
+    DianPdfService,
+    DianEmailService,
+    DianCronService,
+  ],
   controllers: [DianController],
-  exports: [DianUblService, DianSignerService, DianSoapService, DianCufeService, DianPdfService, DianEmailService, DianService]
+  exports: [
+    DianUblService,
+    DianSignerService,
+    DianSoapService,
+    DianCufeService,
+    DianPdfService,
+    DianEmailService,
+    DianService,
+  ],
 })
 export class DianModule {}

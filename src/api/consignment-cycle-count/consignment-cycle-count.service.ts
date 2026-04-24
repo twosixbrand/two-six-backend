@@ -84,7 +84,9 @@ export class ConsignmentCycleCountService {
         ...(filters.status && { status: filters.status as any }),
       },
       include: {
-        warehouse: { include: { customer: { select: { id: true, name: true } } } },
+        warehouse: {
+          include: { customer: { select: { id: true, name: true } } },
+        },
         items: true,
       },
       orderBy: { id: 'desc' },
@@ -104,8 +106,14 @@ export class ConsignmentCycleCountService {
                 clothingColor: {
                   include: {
                     color: true,
-                    imageClothing: { orderBy: { position: "asc" as const }, take: 1, select: { image_url: true } },
-                    design: { select: { id: true, reference: true, description: true } },
+                    imageClothing: {
+                      orderBy: { position: 'asc' as const },
+                      take: 1,
+                      select: { image_url: true },
+                    },
+                    design: {
+                      select: { id: true, reference: true, description: true },
+                    },
                   },
                 },
               },
@@ -120,7 +128,9 @@ export class ConsignmentCycleCountService {
 
   /** Actualiza real_qty en los ítems del conteo (solo en DRAFT). */
   async saveItems(id: number, dto: SaveCycleCountItemsDto) {
-    const cc = await this.prisma.inventoryCycleCount.findUnique({ where: { id } });
+    const cc = await this.prisma.inventoryCycleCount.findUnique({
+      where: { id },
+    });
     if (!cc) throw new NotFoundException(`Conteo #${id} no encontrado.`);
     if (cc.status !== 'DRAFT') {
       throw new ConflictException('Solo se pueden editar conteos en DRAFT.');
@@ -149,140 +159,142 @@ export class ConsignmentCycleCountService {
    * - Sobrantes (real > teórico): ConsignmentStock ↑, ClothingSize.quantity_on_consignment ↑, Kardex IN
    */
   async approve(id: number) {
-    return this.prisma.$transaction(async (tx) => {
-      const cc = await tx.inventoryCycleCount.findUnique({
-        where: { id },
-        include: { items: true },
-      });
-      if (!cc) throw new NotFoundException(`Conteo #${id} no encontrado.`);
-      if (cc.status !== 'DRAFT') {
-        throw new ConflictException(
-          `Solo se pueden aprobar conteos en DRAFT (actual: ${cc.status}).`,
-        );
-      }
-
-      // Validar que TODOS los ítems tengan real_qty
-      const missing = cc.items.filter((it) => it.real_qty === null);
-      if (missing.length > 0) {
-        throw new BadRequestException(
-          `Hay ${missing.length} ítems sin conteo físico. Completa real_qty en todos los ítems antes de aprobar.`,
-        );
-      }
-
-      for (const item of cc.items) {
-        const diff = (item.real_qty ?? 0) - item.theoretical_qty;
-        if (diff === 0) continue;
-
-        const absDiff = Math.abs(diff);
-        const size = await tx.clothingSize.findUnique({
-          where: { id: item.id_clothing_size },
+    return this.prisma
+      .$transaction(async (tx) => {
+        const cc = await tx.inventoryCycleCount.findUnique({
+          where: { id },
+          include: { items: true },
         });
-        if (!size) continue;
+        if (!cc) throw new NotFoundException(`Conteo #${id} no encontrado.`);
+        if (cc.status !== 'DRAFT') {
+          throw new ConflictException(
+            `Solo se pueden aprobar conteos en DRAFT (actual: ${cc.status}).`,
+          );
+        }
 
-        // Localiza el ConsignmentStock EN_CONSIGNACION
-        const stock = await tx.consignmentStock.findUnique({
-          where: {
-            id_warehouse_id_clothing_size_status: {
-              id_warehouse: cc.id_warehouse,
-              id_clothing_size: item.id_clothing_size,
-              status: 'EN_CONSIGNACION',
-            },
-          },
-        });
+        // Validar que TODOS los ítems tengan real_qty
+        const missing = cc.items.filter((it) => it.real_qty === null);
+        if (missing.length > 0) {
+          throw new BadRequestException(
+            `Hay ${missing.length} ítems sin conteo físico. Completa real_qty en todos los ítems antes de aprobar.`,
+          );
+        }
 
-        if (diff < 0) {
-          // Faltante: descuenta del stock en consignación
-          if (!stock || stock.quantity < absDiff) {
-            throw new BadRequestException(
-              `Stock en consignación insuficiente para aplicar faltante del ítem #${item.id_clothing_size}.`,
-            );
-          }
-          if (stock.quantity === absDiff) {
-            await tx.consignmentStock.delete({ where: { id: stock.id } });
-          } else {
-            await tx.consignmentStock.update({
-              where: { id: stock.id },
-              data: { quantity: { decrement: absDiff } },
-            });
-          }
-          await tx.clothingSize.update({
+        for (const item of cc.items) {
+          const diff = (item.real_qty ?? 0) - item.theoretical_qty;
+          if (diff === 0) continue;
+
+          const absDiff = Math.abs(diff);
+          const size = await tx.clothingSize.findUnique({
             where: { id: item.id_clothing_size },
-            data: { quantity_on_consignment: { decrement: absDiff } },
           });
-          await tx.inventoryKardex.create({
-            data: {
-              id_clothing_size: item.id_clothing_size,
-              type: 'OUT',
-              source_type: 'CYCLE_COUNT_SHORTAGE',
-              source_id: cc.id,
-              quantity: absDiff,
-              balance_before: size.quantity_available,
-              balance_after: size.quantity_available,
-              description: `Faltante conteo cíclico #${cc.id}`,
-            },
-          });
-        } else {
-          // Sobrante: incrementa el stock en consignación
-          if (stock) {
-            await tx.consignmentStock.update({
-              where: { id: stock.id },
-              data: { quantity: { increment: absDiff } },
-            });
-          } else {
-            await tx.consignmentStock.create({
-              data: {
+          if (!size) continue;
+
+          // Localiza el ConsignmentStock EN_CONSIGNACION
+          const stock = await tx.consignmentStock.findUnique({
+            where: {
+              id_warehouse_id_clothing_size_status: {
                 id_warehouse: cc.id_warehouse,
                 id_clothing_size: item.id_clothing_size,
-                quantity: absDiff,
                 status: 'EN_CONSIGNACION',
+              },
+            },
+          });
+
+          if (diff < 0) {
+            // Faltante: descuenta del stock en consignación
+            if (!stock || stock.quantity < absDiff) {
+              throw new BadRequestException(
+                `Stock en consignación insuficiente para aplicar faltante del ítem #${item.id_clothing_size}.`,
+              );
+            }
+            if (stock.quantity === absDiff) {
+              await tx.consignmentStock.delete({ where: { id: stock.id } });
+            } else {
+              await tx.consignmentStock.update({
+                where: { id: stock.id },
+                data: { quantity: { decrement: absDiff } },
+              });
+            }
+            await tx.clothingSize.update({
+              where: { id: item.id_clothing_size },
+              data: { quantity_on_consignment: { decrement: absDiff } },
+            });
+            await tx.inventoryKardex.create({
+              data: {
+                id_clothing_size: item.id_clothing_size,
+                type: 'OUT',
+                source_type: 'CYCLE_COUNT_SHORTAGE',
+                source_id: cc.id,
+                quantity: absDiff,
+                balance_before: size.quantity_available,
+                balance_after: size.quantity_available,
+                description: `Faltante conteo cíclico #${cc.id}`,
+              },
+            });
+          } else {
+            // Sobrante: incrementa el stock en consignación
+            if (stock) {
+              await tx.consignmentStock.update({
+                where: { id: stock.id },
+                data: { quantity: { increment: absDiff } },
+              });
+            } else {
+              await tx.consignmentStock.create({
+                data: {
+                  id_warehouse: cc.id_warehouse,
+                  id_clothing_size: item.id_clothing_size,
+                  quantity: absDiff,
+                  status: 'EN_CONSIGNACION',
+                },
+              });
+            }
+            await tx.clothingSize.update({
+              where: { id: item.id_clothing_size },
+              data: { quantity_on_consignment: { increment: absDiff } },
+            });
+            await tx.inventoryKardex.create({
+              data: {
+                id_clothing_size: item.id_clothing_size,
+                type: 'IN',
+                source_type: 'CYCLE_COUNT_SURPLUS',
+                source_id: cc.id,
+                quantity: absDiff,
+                balance_before: size.quantity_available,
+                balance_after: size.quantity_available,
+                description: `Sobrante conteo cíclico #${cc.id}`,
               },
             });
           }
-          await tx.clothingSize.update({
-            where: { id: item.id_clothing_size },
-            data: { quantity_on_consignment: { increment: absDiff } },
-          });
-          await tx.inventoryKardex.create({
-            data: {
-              id_clothing_size: item.id_clothing_size,
-              type: 'IN',
-              source_type: 'CYCLE_COUNT_SURPLUS',
-              source_id: cc.id,
-              quantity: absDiff,
-              balance_before: size.quantity_available,
-              balance_after: size.quantity_available,
-              description: `Sobrante conteo cíclico #${cc.id}`,
-            },
-          });
         }
-      }
 
-      return tx.inventoryCycleCount.update({
-        where: { id },
-        data: { status: 'APPROVED', approved_at: new Date() },
-        include: {
-          items: true,
-          warehouse: { include: { customer: true } },
-        },
+        return tx.inventoryCycleCount.update({
+          where: { id },
+          data: { status: 'APPROVED', approved_at: new Date() },
+          include: {
+            items: true,
+            warehouse: { include: { customer: true } },
+          },
+        });
+      })
+      .then(async (result) => {
+        // Asientos contables para faltantes y sobrantes. Best-effort, no bloquean.
+        try {
+          await this.journalAutoService.onCycleCountShortage(result.id);
+        } catch (err: any) {
+          console.error(
+            `[JournalAuto] Error generando asiento faltante conteo ${result.id}: ${err.message}`,
+          );
+        }
+        try {
+          await this.journalAutoService.onCycleCountSurplus(result.id);
+        } catch (err: any) {
+          console.error(
+            `[JournalAuto] Error generando asiento sobrante conteo ${result.id}: ${err.message}`,
+          );
+        }
+        return result;
       });
-    }).then(async (result) => {
-      // Asientos contables para faltantes y sobrantes. Best-effort, no bloquean.
-      try {
-        await this.journalAutoService.onCycleCountShortage(result.id);
-      } catch (err: any) {
-        console.error(
-          `[JournalAuto] Error generando asiento faltante conteo ${result.id}: ${err.message}`,
-        );
-      }
-      try {
-        await this.journalAutoService.onCycleCountSurplus(result.id);
-      } catch (err: any) {
-        console.error(
-          `[JournalAuto] Error generando asiento sobrante conteo ${result.id}: ${err.message}`,
-        );
-      }
-      return result;
-    });
   }
 
   async cancel(id: number) {
@@ -312,7 +324,11 @@ export class ConsignmentCycleCountService {
                 clothingColor: {
                   include: {
                     color: true,
-                    imageClothing: { orderBy: { position: "asc" as const }, take: 1, select: { image_url: true } },
+                    imageClothing: {
+                      orderBy: { position: 'asc' as const },
+                      take: 1,
+                      select: { image_url: true },
+                    },
                     design: { select: { id: true, reference: true } },
                   },
                 },
@@ -326,7 +342,9 @@ export class ConsignmentCycleCountService {
     });
     if (!cc) throw new NotFoundException(`Conteo #${id} no encontrado.`);
     if (cc.status !== 'APPROVED') {
-      throw new ConflictException('Solo se puede facturar merma de conteos APROBADOS.');
+      throw new ConflictException(
+        'Solo se puede facturar merma de conteos APROBADOS.',
+      );
     }
     if (cc.merma_order_id) {
       throw new ConflictException(
@@ -343,11 +361,18 @@ export class ConsignmentCycleCountService {
       }));
 
     if (shortages.length === 0) {
-      throw new BadRequestException('No hay faltantes para facturar en este conteo.');
+      throw new BadRequestException(
+        'No hay faltantes para facturar en este conteo.',
+      );
     }
 
-    if (dto.price_mode === 'PENALTY' && !(dto.penalty_unit_price && dto.penalty_unit_price > 0)) {
-      throw new BadRequestException('Modo PENALTY requiere penalty_unit_price > 0.');
+    if (
+      dto.price_mode === 'PENALTY' &&
+      !(dto.penalty_unit_price && dto.penalty_unit_price > 0)
+    ) {
+      throw new BadRequestException(
+        'Modo PENALTY requiere penalty_unit_price > 0.',
+      );
     }
 
     // Resolver precio por ítem
@@ -379,79 +404,92 @@ export class ConsignmentCycleCountService {
       resolvedLines.push({ product, quantity: s.missing, unit_price });
     }
 
-    const subtotal = resolvedLines.reduce((sum, l) => sum + l.unit_price * l.quantity, 0);
+    const subtotal = resolvedLines.reduce(
+      (sum, l) => sum + l.unit_price * l.quantity,
+      0,
+    );
     const iva = Number((subtotal * IVA_RATE).toFixed(2));
     const total = Number((subtotal + iva).toFixed(2));
 
-    return this.prisma.$transaction(async (tx) => {
-      const orderReference = `MERMA-${Date.now()}`;
+    return this.prisma
+      .$transaction(async (tx) => {
+        const orderReference = `MERMA-${Date.now()}`;
 
-      const order = await tx.order.create({
-        data: {
-          id_customer: cc.warehouse.id_customer,
-          order_date: new Date(),
-          purchase_date: new Date(),
-          status: 'MERMA',
-          is_paid: false, // CxC: el aliado paga después
-          shipping_address: cc.warehouse.address ?? `${cc.warehouse.name} (Merma Consignación)`,
-          shipping_cost: 0,
-          iva,
-          total_payment: total,
-          payment_method: 'CONSIGNMENT_MERMA',
-          delivery_method: 'CONSIGNMENT',
-          order_reference: orderReference,
-          discount_amount: 0,
-          cod_amount: 0,
-        },
-      });
-
-      for (const line of resolvedLines) {
-        const p = line.product;
-        const clothingSize = cc.items.find((it) => it.id_clothing_size === p.id_clothing_size)!.clothingSize;
-        await tx.orderItem.create({
+        const order = await tx.order.create({
           data: {
-            id_order: order.id,
-            id_product: p.id,
-            product_name: `MERMA ${clothingSize.clothingColor.design.reference} ${clothingSize.clothingColor.color.name} ${clothingSize.size.name}`,
-            size: clothingSize.size.name,
-            color: clothingSize.clothingColor.color.name,
-            quantity: line.quantity,
-            unit_price: line.unit_price,
-            iva_item: Number((line.unit_price * IVA_RATE).toFixed(2)),
+            id_customer: cc.warehouse.id_customer,
+            order_date: new Date(),
+            purchase_date: new Date(),
+            status: 'MERMA',
+            is_paid: false, // CxC: el aliado paga después
+            shipping_address:
+              cc.warehouse.address ??
+              `${cc.warehouse.name} (Merma Consignación)`,
+            shipping_cost: 0,
+            iva,
+            total_payment: total,
+            payment_method: 'CONSIGNMENT_MERMA',
+            delivery_method: 'CONSIGNMENT',
+            order_reference: orderReference,
+            discount_amount: 0,
+            cod_amount: 0,
           },
         });
-      }
 
-      await tx.inventoryCycleCount.update({
-        where: { id },
-        data: {
-          merma_order_id: order.id,
-          notes: dto.notes ? `${cc.notes ? cc.notes + ' | ' : ''}${dto.notes}` : cc.notes,
-        },
-      });
+        for (const line of resolvedLines) {
+          const p = line.product;
+          const clothingSize = cc.items.find(
+            (it) => it.id_clothing_size === p.id_clothing_size,
+          )!.clothingSize;
+          await tx.orderItem.create({
+            data: {
+              id_order: order.id,
+              id_product: p.id,
+              product_name: `MERMA ${clothingSize.clothingColor.design.reference} ${clothingSize.clothingColor.color.name} ${clothingSize.size.name}`,
+              size: clothingSize.size.name,
+              color: clothingSize.clothingColor.color.name,
+              quantity: line.quantity,
+              unit_price: line.unit_price,
+              iva_item: Number((line.unit_price * IVA_RATE).toFixed(2)),
+            },
+          });
+        }
 
-      return tx.order.findUnique({
-        where: { id: order.id },
-        include: { orderItems: true, customer: true },
+        await tx.inventoryCycleCount.update({
+          where: { id },
+          data: {
+            merma_order_id: order.id,
+            notes: dto.notes
+              ? `${cc.notes ? cc.notes + ' | ' : ''}${dto.notes}`
+              : cc.notes,
+          },
+        });
+
+        return tx.order.findUnique({
+          where: { id: order.id },
+          include: { orderItems: true, customer: true },
+        });
+      })
+      .then(async (createdOrder) => {
+        if (!createdOrder) return createdOrder;
+        // Asiento contable: factura de merma (otros ingresos) + COGS. Best-effort, no bloquea.
+        try {
+          await this.journalAutoService.onConsignmentMermaCompleted(
+            createdOrder.id,
+          );
+        } catch (err: any) {
+          console.error(
+            `[JournalAuto] Error generando asiento merma orden ${createdOrder.id}: ${err.message}`,
+          );
+        }
+        try {
+          await this.journalAutoService.onCostOfGoodsSold(createdOrder.id);
+        } catch (err: any) {
+          console.error(
+            `[JournalAuto] Error generando asiento COGS orden ${createdOrder.id}: ${err.message}`,
+          );
+        }
+        return createdOrder;
       });
-    }).then(async (createdOrder) => {
-      if (!createdOrder) return createdOrder;
-      // Asiento contable: factura de merma (otros ingresos) + COGS. Best-effort, no bloquea.
-      try {
-        await this.journalAutoService.onConsignmentMermaCompleted(createdOrder.id);
-      } catch (err: any) {
-        console.error(
-          `[JournalAuto] Error generando asiento merma orden ${createdOrder.id}: ${err.message}`,
-        );
-      }
-      try {
-        await this.journalAutoService.onCostOfGoodsSold(createdOrder.id);
-      } catch (err: any) {
-        console.error(
-          `[JournalAuto] Error generando asiento COGS orden ${createdOrder.id}: ${err.message}`,
-        );
-      }
-      return createdOrder;
-    });
   }
 }

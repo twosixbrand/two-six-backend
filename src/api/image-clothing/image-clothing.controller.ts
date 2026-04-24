@@ -1,55 +1,65 @@
-import { Controller, Post, Get, Delete, Param, UseInterceptors, UploadedFiles, ParseIntPipe, Body , UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Delete,
+  Param,
+  UseInterceptors,
+  UploadedFiles,
+  ParseIntPipe,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { multerImageConfig } from '../../common/utils/multer.config';
 import { ImageClothingService } from './image-clothing.service';
 import { ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
-
 @UseGuards(JwtAuthGuard)
 @Controller('image-clothing')
 export class ImageClothingController {
-    constructor(private readonly imageClothingService: ImageClothingService) { }
+  constructor(private readonly imageClothingService: ImageClothingService) {}
 
-    @Post('upload/:id_clothing_color')
-    @UseInterceptors(FilesInterceptor('files', 10, multerImageConfig))
-    @ApiConsumes('multipart/form-data')
-    @ApiBody({
-        schema: {
-            type: 'object',
-            properties: {
-                files: {
-                    type: 'array',
-                    items: {
-                        type: 'string',
-                        format: 'binary',
-                    },
-                },
-            },
+  @Post('upload/:id_clothing_color')
+  @UseInterceptors(FilesInterceptor('files', 10, multerImageConfig))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        files: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
         },
-    })
-    uploadImages(
-        @UploadedFiles() files: Express.Multer.File[],
-        @Param('id_clothing_color', ParseIntPipe) id: number
-    ) {
-        return this.imageClothingService.uploadImages(files, id);
-    }
+      },
+    },
+  })
+  uploadImages(
+    @UploadedFiles() files: Express.Multer.File[],
+    @Param('id_clothing_color', ParseIntPipe) id: number,
+  ) {
+    return this.imageClothingService.uploadImages(files, id);
+  }
 
-    @Get(':id_clothing_color')
-    findAll(@Param('id_clothing_color', ParseIntPipe) id: number) {
-        return this.imageClothingService.findAll(id);
-    }
+  @Get(':id_clothing_color')
+  findAll(@Param('id_clothing_color', ParseIntPipe) id: number) {
+    return this.imageClothingService.findAll(id);
+  }
 
-    @Delete(':id')
-    remove(@Param('id', ParseIntPipe) id: number) {
-        return this.imageClothingService.remove(id);
-    }
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.imageClothingService.remove(id);
+  }
 
-    @Post('reorder/:id_clothing_color')
-    reorder(
-        @Param('id_clothing_color', ParseIntPipe) id: number,
-        @Body() body: { imageIds: number[] }
-    ) {
-        return this.imageClothingService.reorder(id, body.imageIds);
-    }
+  @Post('reorder/:id_clothing_color')
+  reorder(
+    @Param('id_clothing_color', ParseIntPipe) id: number,
+    @Body() body: { imageIds: number[] },
+  ) {
+    return this.imageClothingService.reorder(id, body.imageIds);
+  }
 }

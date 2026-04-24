@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Gender, Prisma, Product } from '@prisma/client';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -6,7 +10,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 
 @Injectable()
 export class ProductService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   private readonly productWithDetails = {
     clothingSize: {
@@ -20,15 +24,15 @@ export class ProductService {
                 clothing: {
                   include: {
                     gender: true,
-                  }
-                }
-              }
+                  },
+                },
+              },
             },
             imageClothing: true,
-          }
-        }
-      }
-    }
+          },
+        },
+      },
+    },
   };
 
   private getProductWithDetails() {
@@ -44,18 +48,25 @@ export class ProductService {
           include: {
             design: true,
             color: true,
-          }
-        }
+          },
+        },
       },
     });
 
-    if (!clothingSize?.size || !clothingSize.clothingColor?.design || !clothingSize.clothingColor?.color) {
+    if (
+      !clothingSize?.size ||
+      !clothingSize.clothingColor?.design ||
+      !clothingSize.clothingColor?.color
+    ) {
       throw new NotFoundException(
         `No se pudieron encontrar los detalles completos (diseño, color, talla) para la variante de talla con ID #${clothingSizeId}.`,
       );
     }
 
-    const { size, clothingColor: { design, color } } = clothingSize;
+    const {
+      size,
+      clothingColor: { design, color },
+    } = clothingSize;
 
     const referencePart = design.reference;
     const colorPart = color.name.substring(0, 3).toUpperCase();
@@ -101,16 +112,26 @@ export class ProductService {
 
     return {
       ...product,
-      name: clothing?.name || "Producto sin nombre",
-      description: product.clothingSize?.clothingColor?.design?.description || "",
-      image_url: product.clothingSize?.clothingColor?.imageClothing?.[0]?.image_url || product.clothingSize?.clothingColor?.design?.image_url || "",
+      name: clothing?.name || 'Producto sin nombre',
+      description:
+        product.clothingSize?.clothingColor?.design?.description || '',
+      image_url:
+        product.clothingSize?.clothingColor?.imageClothing?.[0]?.image_url ||
+        product.clothingSize?.clothingColor?.design?.image_url ||
+        '',
       designClothing: undefined,
-      gender: clothing?.gender?.name || "Unisex"
+      gender: clothing?.gender?.name || 'Unisex',
     };
   }
 
-
-  async findDesignsForStore(gender?: string, is_outlet?: boolean, category?: string, tag?: string, page: number = 1, limit: number = 12) {
+  async findDesignsForStore(
+    gender?: string,
+    is_outlet?: boolean,
+    category?: string,
+    tag?: string,
+    page: number = 1,
+    limit: number = 12,
+  ) {
     const where: Prisma.DesignWhereInput = {
       clothingColors: {
         some: {
@@ -118,39 +139,45 @@ export class ProductService {
             some: {
               product: {
                 active: true,
-                ...(is_outlet !== undefined && { is_outlet: is_outlet })
+                ...(is_outlet !== undefined && { is_outlet: is_outlet }),
               },
               quantity_available: {
-                gt: 0
-              }
-            }
-          }
-        }
+                gt: 0,
+              },
+            },
+          },
+        },
       },
       ...((gender || category) && {
         clothing: {
           ...(gender && {
             gender: {
-              name: gender
-            }
+              name: gender,
+            },
           }),
           ...(category && {
             OR: [
-              { category: { name: { contains: category, mode: 'insensitive' } } },
-              { typeClothing: { name: { contains: category, mode: 'insensitive' } } }
-            ]
-          })
-        }
+              {
+                category: { name: { contains: category, mode: 'insensitive' } },
+              },
+              {
+                typeClothing: {
+                  name: { contains: category, mode: 'insensitive' },
+                },
+              },
+            ],
+          }),
+        },
       }),
       ...(tag && {
         designTags: {
           some: {
             tag: {
-              slug: tag
-            }
-          }
-        }
-      })
+              slug: tag,
+            },
+          },
+        },
+      }),
     };
 
     const total = await this.prisma.design.count({ where });
@@ -166,7 +193,7 @@ export class ProductService {
           select: {
             name: true,
             gender: true,
-          }
+          },
         },
         clothingColors: {
           include: {
@@ -176,7 +203,7 @@ export class ProductService {
                 product: {
                   where: {
                     active: true,
-                    ...(is_outlet !== undefined && { is_outlet: is_outlet })
+                    ...(is_outlet !== undefined && { is_outlet: is_outlet }),
                   },
                   select: {
                     id: true,
@@ -184,48 +211,39 @@ export class ProductService {
                     is_outlet: true,
                     active: true,
                     clothingSize: {
-                      select: { quantity_available: true }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+                      select: { quantity_available: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     // Map to a cleaner structure for the store
     // We need to pick one "main" image and price to show on the card.
     // Logic: Find the first product that is active and has stock.
-    const finalDesigns = designs.map(design => {
-      // Flatten all products from all colors/sizes to find a representative one
-      let validProduct: any = null;
-      let validImage: string | null = null;
-      let validClothingColor: any = null;
+    const finalDesigns = designs
+      .map((design) => {
+        // Flatten all products from all colors/sizes to find a representative one
+        let validProduct: any = null;
+        let validImage: string | null = null;
+        let validClothingColor: any = null;
 
-      for (const cc of design.clothingColors) {
-        for (const cs of cc.clothingSizes) {
-          if (cs.product && cs.product.active && cs.product.clothingSize.quantity_available > 0) {
-            validProduct = cs.product;
-            // Sort by position asc, take first
-            const images = [...(cc.imageClothing || [])].sort((a, b) => (a.position || 0) - (b.position || 0));
-            validImage = images.length > 0 ? images[0].image_url : null;
-            validClothingColor = cc;
-            break;
-          }
-        }
-        if (validProduct) break;
-      }
-
-      // Fallback: if no product with stock > 0 found (shouldn't happen due to query filter, but safety check)
-      if (!validProduct) {
-        // Fallback to just finding an active product regardless of stock if query slipped
         for (const cc of design.clothingColors) {
           for (const cs of cc.clothingSizes) {
-            if (cs.product && cs.product.active) {
+            if (
+              cs.product &&
+              cs.product.active &&
+              cs.product.clothingSize.quantity_available > 0
+            ) {
               validProduct = cs.product;
-              const images = [...(cc.imageClothing || [])].sort((a, b) => (a.position || 0) - (b.position || 0));
+              // Sort by position asc, take first
+              const images = [...(cc.imageClothing || [])].sort(
+                (a, b) => (a.position || 0) - (b.position || 0),
+              );
               validImage = images.length > 0 ? images[0].image_url : null;
               validClothingColor = cc;
               break;
@@ -233,22 +251,40 @@ export class ProductService {
           }
           if (validProduct) break;
         }
-      }
 
+        // Fallback: if no product with stock > 0 found (shouldn't happen due to query filter, but safety check)
+        if (!validProduct) {
+          // Fallback to just finding an active product regardless of stock if query slipped
+          for (const cc of design.clothingColors) {
+            for (const cs of cc.clothingSizes) {
+              if (cs.product && cs.product.active) {
+                validProduct = cs.product;
+                const images = [...(cc.imageClothing || [])].sort(
+                  (a, b) => (a.position || 0) - (b.position || 0),
+                );
+                validImage = images.length > 0 ? images[0].image_url : null;
+                validClothingColor = cc;
+                break;
+              }
+            }
+            if (validProduct) break;
+          }
+        }
 
-      return {
-        id_design: design.id,
-        name: design.clothing.name,
-        description: design.description,
-        // We return the ID of the product so the card can link to /product/:id
-        id_product: validProduct?.id,
-        slug: validClothingColor?.slug,
-        price: validProduct?.price,
-        image_url: design.image_url || validImage,
-        is_outlet: validProduct?.is_outlet,
-        gender: design.clothing.gender?.name || 'Unisex' // Single gender now
-      };
-    }).filter(d => d.id_product); // Ensure we only return items that resolved to a product
+        return {
+          id_design: design.id,
+          name: design.clothing.name,
+          description: design.description,
+          // We return the ID of the product so the card can link to /product/:id
+          id_product: validProduct?.id,
+          slug: validClothingColor?.slug,
+          price: validProduct?.price,
+          image_url: design.image_url || validImage,
+          is_outlet: validProduct?.is_outlet,
+          gender: design.clothing.gender?.name || 'Unisex', // Single gender now
+        };
+      })
+      .filter((d) => d.id_product); // Ensure we only return items that resolved to a product
 
     const totalPages = Math.ceil(total / limit);
 
@@ -258,8 +294,8 @@ export class ProductService {
         total,
         page,
         totalPages,
-        limit
-      }
+        limit,
+      },
     };
   }
 
@@ -326,7 +362,10 @@ export class ProductService {
         type_clothing_name: clothing?.typeClothing?.name || null,
         category_name: clothing?.category?.name || null,
         image_url: images[0]?.image_url || design?.image_url || null,
-        additional_images: images.slice(1, 11).map((img) => img.image_url).filter(Boolean),
+        additional_images: images
+          .slice(1, 11)
+          .map((img) => img.image_url)
+          .filter(Boolean),
       };
     });
   }
@@ -353,45 +392,58 @@ export class ProductService {
   /**
    * Generates Facebook Meta Business Manager XML Feed directly from the database
    */
-  async getFacebookFeedXml(baseUrl: string = 'https://twosixweb.com'): Promise<string> {
+  async getFacebookFeedXml(
+    baseUrl: string = 'https://twosixweb.com',
+  ): Promise<string> {
     const products = await this.findAllForGoogleFeed();
-    const validProducts = products.filter(p => p.image_url); // images are required
+    const validProducts = products.filter((p) => p.image_url); // images are required
 
     const TYPE_TO_CATEGORY: Record<string, string> = {
-      'camiseta': '212',
-      'polo': '212',
-      'camisa': '212',
-      'buso': '5388',
-      'chaqueta': '3066',
+      camiseta: '212',
+      polo: '212',
+      camisa: '212',
+      buso: '5388',
+      chaqueta: '3066',
       'pantalon largo': '204',
-      'jean': '204',
+      jean: '204',
       'pantalon corto': '207',
-      'calzado': '187',
-      'gorra': '173',
-      'vestido': '2271',
+      calzado: '187',
+      gorra: '173',
+      vestido: '2271',
     };
 
-    const itemsXml = validProducts.map(p => {
-      const productUrl = p.slug ? `${baseUrl}/product/${p.slug}` : `${baseUrl}/product/${p.id}`;
-      const availability = p.quantity_available > 0 ? 'in_stock' : 'out_of_stock';
-      
-      const titleParts = [p.clothing_name];
-      if (p.color_name) titleParts.push(p.color_name);
-      if (p.size_name) titleParts.push(p.size_name);
-      const title = titleParts.join(' - ');
+    const itemsXml = validProducts
+      .map((p) => {
+        const productUrl = p.slug
+          ? `${baseUrl}/product/${p.slug}`
+          : `${baseUrl}/product/${p.id}`;
+        const availability =
+          p.quantity_available > 0 ? 'in_stock' : 'out_of_stock';
 
-      const description = p.design_description || `${p.clothing_name} de Two Six. Ropa colombiana con estilo y confort.`;
-      const priceFormatted = `${Number(p.price).toFixed(2)} COP`;
-      const salePriceLine = p.discount_price ? `      <g:sale_price>${Number(p.discount_price).toFixed(2)} COP</g:sale_price>\n` : '';
-      
-      const typeKey = (p.type_clothing_name || '').toLowerCase().trim();
-      const googleCategory = TYPE_TO_CATEGORY[typeKey] || '1604';
+        const titleParts = [p.clothing_name];
+        if (p.color_name) titleParts.push(p.color_name);
+        if (p.size_name) titleParts.push(p.size_name);
+        const title = titleParts.join(' - ');
 
-      const additionalImageLines = p.additional_images
-        .map(url => `      <g:additional_image_link>${this.escapeXml(url)}</g:additional_image_link>`)
-        .join('\n');
+        const description =
+          p.design_description ||
+          `${p.clothing_name} de Two Six. Ropa colombiana con estilo y confort.`;
+        const priceFormatted = `${Number(p.price).toFixed(2)} COP`;
+        const salePriceLine = p.discount_price
+          ? `      <g:sale_price>${Number(p.discount_price).toFixed(2)} COP</g:sale_price>\n`
+          : '';
 
-      return `    <item>
+        const typeKey = (p.type_clothing_name || '').toLowerCase().trim();
+        const googleCategory = TYPE_TO_CATEGORY[typeKey] || '1604';
+
+        const additionalImageLines = p.additional_images
+          .map(
+            (url) =>
+              `      <g:additional_image_link>${this.escapeXml(url)}</g:additional_image_link>`,
+          )
+          .join('\n');
+
+        return `    <item>
       <g:id>${this.escapeXml(p.sku)}</g:id>
       <g:title>${this.escapeXml(title)}</g:title>
       <g:description>${this.escapeXml(description)}</g:description>
@@ -407,7 +459,8 @@ ${p.color_name ? `      <g:color>${this.escapeXml(p.color_name)}</g:color>\n` : 
       <g:age_group>adult</g:age_group>
       <g:google_product_category>${googleCategory}</g:google_product_category>
     </item>`;
-    }).join('\n');
+      })
+      .join('\n');
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:g="http://base.google.com/ns/1.0" version="2.0">
@@ -435,11 +488,11 @@ ${itemsXml}
           design: {
             clothing: {
               gender: {
-                name: gender
-              }
+                name: gender,
+              },
             },
           },
-        }
+        },
       };
     }
 
@@ -448,7 +501,7 @@ ${itemsXml}
       include: this.getProductWithDetails(),
     });
 
-    return products.map(p => this._mapProduct(p));
+    return products.map((p) => this._mapProduct(p));
   }
 
   async findAllForAdmin() {
@@ -467,19 +520,19 @@ ${itemsXml}
                   include: {
                     clothing: {
                       include: {
-                        gender: true
-                      }
+                        gender: true,
+                      },
                     },
                     collection: {
                       include: {
                         yearProduction: true,
                       },
                     },
-                  }
-                }
-              }
-            }
-          }
+                  },
+                },
+              },
+            },
+          },
         },
       },
     });
@@ -487,20 +540,24 @@ ${itemsXml}
     return products.map((product) => {
       const { clothingSize, ...restOfProduct } = product;
       const clothingColor = clothingSize?.clothingColor;
-      
+
       const images = clothingColor?.imageClothing || [];
-      const image_url = images.length > 0 ? images[0].image_url : (clothingColor?.design?.image_url || null);
+      const image_url =
+        images.length > 0
+          ? images[0].image_url
+          : clothingColor?.design?.image_url || null;
 
       return {
         ...restOfProduct,
         image_url: image_url,
-        name: clothingColor?.design?.clothing?.name || "Producto sin nombre",
+        name: clothingColor?.design?.clothing?.name || 'Producto sin nombre',
         clothing_name: clothingColor?.design?.clothing?.name ?? null,
         color_name: clothingColor?.color?.name ?? null,
         description: clothingColor?.design?.description ?? null,
         size_name: clothingSize?.size?.name ?? null,
         collection_name: clothingColor?.design?.collection?.name ?? null,
-        year_production: clothingColor?.design?.collection?.yearProduction?.name ?? null,
+        year_production:
+          clothingColor?.design?.collection?.yearProduction?.name ?? null,
         gender: clothingColor?.design?.clothing?.gender?.name ?? null,
         quantity_available: clothingSize?.quantity_available ?? 0,
         quantity_on_consignment: clothingSize?.quantity_on_consignment ?? 0,
@@ -517,9 +574,9 @@ ${itemsXml}
         clothingSize: {
           clothingColor: {
             design: {
-              reference: reference
-            }
-          }
+              reference: reference,
+            },
+          },
         },
         active: true,
       },
@@ -531,21 +588,24 @@ ${itemsXml}
         `No se encontraron productos para la referencia de diseño '${reference}'.`,
       );
     }
-    return products.map(p => this._mapProduct(p));
+    return products.map((p) => this._mapProduct(p));
   }
 
-  async findByClothingColorSlug(
-    slug: string,
-  ): Promise<{ products: (Product & { clothingSize: any })[], colorId: number | null }> {
+  async findByClothingColorSlug(slug: string): Promise<{
+    products: (Product & { clothingSize: any })[];
+    colorId: number | null;
+  }> {
     const clothingColor = await this.prisma.clothingColor.findUnique({
       where: { slug: slug },
       include: {
-        design: true
-      }
+        design: true,
+      },
     });
 
     if (!clothingColor) {
-        throw new NotFoundException(`No se encontró un color de variante con el slug '${slug}'.`);
+      throw new NotFoundException(
+        `No se encontró un color de variante con el slug '${slug}'.`,
+      );
     }
 
     const reference = clothingColor.design.reference;
@@ -556,9 +616,9 @@ ${itemsXml}
         clothingSize: {
           clothingColor: {
             design: {
-              reference: reference
-            }
-          }
+              reference: reference,
+            },
+          },
         },
         active: true,
       },
@@ -572,8 +632,8 @@ ${itemsXml}
     }
 
     return {
-       products: products.map(p => this._mapProduct(p)),
-       colorId: clothingColor.id_color
+      products: products.map((p) => this._mapProduct(p)),
+      colorId: clothingColor.id_color,
     };
   }
 
@@ -589,7 +649,10 @@ ${itemsXml}
     return this._mapProduct(product);
   }
 
-  async update(id: number, updateProductDto: UpdateProductDto): Promise<Product> {
+  async update(
+    id: number,
+    updateProductDto: UpdateProductDto,
+  ): Promise<Product> {
     const { id_clothing_size, ...productData } = updateProductDto;
     const dataToUpdate: Prisma.ProductUpdateInput = { ...productData };
 
@@ -625,7 +688,7 @@ ${itemsXml}
       return await this.prisma.$transaction(async (tx) => {
         const productToDelete = await tx.product.findUnique({
           where: { id },
-          select: { id_clothing_size: true }
+          select: { id_clothing_size: true },
         });
 
         return await tx.product.delete({
@@ -636,7 +699,7 @@ ${itemsXml}
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2003') {
           throw new BadRequestException(
-            `No se puede eliminar el producto porque tiene registros relacionados.`
+            `No se puede eliminar el producto porque tiene registros relacionados.`,
           );
         }
       }

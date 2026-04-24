@@ -51,12 +51,18 @@ export class ConsignmentWarehouseController {
     @Param('id', ParseIntPipe) id: number,
     @Query('limit') limit?: string,
   ) {
-    return this.service.findKardexByWarehouse(id, limit ? parseInt(limit, 10) : 50);
+    return this.service.findKardexByWarehouse(
+      id,
+      limit ? parseInt(limit, 10) : 50,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateWarehouseDto) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateWarehouseDto,
+  ) {
     return this.service.update(id, dto);
   }
 

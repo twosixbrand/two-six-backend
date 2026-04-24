@@ -28,16 +28,17 @@ export function initSentry() {
     // Profiling de rendimiento
     profilesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 0,
 
-    integrations: [
-      nodeProfilingIntegration(),
-    ],
+    integrations: [nodeProfilingIntegration()],
 
     // Filtrar ruido: errores esperados que no requieren alertas
     beforeSend(event) {
       const message = event.exception?.values?.[0]?.value || '';
 
       // Errores de validación de NestJS (input del usuario) — no son bugs
-      if (message.includes('Bad Request') || message.includes('Validation failed')) {
+      if (
+        message.includes('Bad Request') ||
+        message.includes('Validation failed')
+      ) {
         return null;
       }
 
@@ -54,11 +55,16 @@ export function initSentry() {
       // REDACTAR PII de cualquier request body
       if (event.request?.data) {
         try {
-          const bodyString = typeof event.request.data === 'string'
-            ? event.request.data
-            : JSON.stringify(event.request.data);
+          const bodyString =
+            typeof event.request.data === 'string'
+              ? event.request.data
+              : JSON.stringify(event.request.data);
 
-          if (bodyString.includes('email') || bodyString.includes('document') || bodyString.includes('password')) {
+          if (
+            bodyString.includes('email') ||
+            bodyString.includes('document') ||
+            bodyString.includes('password')
+          ) {
             event.request.data = '[REDACTED PII]';
           }
         } catch {

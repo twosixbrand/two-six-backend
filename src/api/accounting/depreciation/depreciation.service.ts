@@ -3,7 +3,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 
 @Injectable()
 export class DepreciationService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async findAll() {
     const assets = await this.prisma.fixedAsset.findMany({
@@ -18,12 +18,15 @@ export class DepreciationService {
 
     return assets.map((a) => {
       const lastEntry = a.depreciationEntries[0];
-      const monthlyDep = (a.acquisition_cost - a.salvage_value) / a.useful_life_months;
+      const monthlyDep =
+        (a.acquisition_cost - a.salvage_value) / a.useful_life_months;
       return {
         ...a,
         monthly_depreciation: Math.round(monthlyDep * 100) / 100,
         accumulated_depreciation: lastEntry ? lastEntry.accumulated : 0,
-        current_book_value: lastEntry ? lastEntry.book_value : a.acquisition_cost,
+        current_book_value: lastEntry
+          ? lastEntry.book_value
+          : a.acquisition_cost,
       };
     });
   }
@@ -93,7 +96,9 @@ export class DepreciationService {
         continue;
       }
 
-      const monthlyAmount = (asset.acquisition_cost - asset.salvage_value) / asset.useful_life_months;
+      const monthlyAmount =
+        (asset.acquisition_cost - asset.salvage_value) /
+        asset.useful_life_months;
       const lastEntry = asset.depreciationEntries[0]; // Most recent due to DESC ordering
       const previousAccumulated = lastEntry ? lastEntry.accumulated : 0;
       const newAccumulated = previousAccumulated + monthlyAmount;

@@ -16,9 +16,13 @@ export class UserRoleService {
     const { id_user_app, id_role } = createUserRoleDto;
 
     // Verificar que el usuario y el rol existan
-    const user = await this.prisma.userApp.findUnique({ where: { id: id_user_app } });
+    const user = await this.prisma.userApp.findUnique({
+      where: { id: id_user_app },
+    });
     if (!user) {
-      throw new NotFoundException(`Usuario con ID #${id_user_app} no encontrado.`);
+      throw new NotFoundException(
+        `Usuario con ID #${id_user_app} no encontrado.`,
+      );
     }
 
     const role = await this.prisma.role.findUnique({ where: { id: id_role } });
@@ -57,7 +61,9 @@ export class UserRoleService {
     });
 
     if (!userRole) {
-      throw new NotFoundException(`Asignación de rol con ID #${id} no encontrada.`);
+      throw new NotFoundException(
+        `Asignación de rol con ID #${id} no encontrada.`,
+      );
     }
 
     return userRole;
@@ -66,7 +72,10 @@ export class UserRoleService {
   /**
    * Actualiza una asignación de rol existente.
    */
-  async update(id: number, updateUserRoleDto: UpdateUserRoleDto): Promise<UserRole> {
+  async update(
+    id: number,
+    updateUserRoleDto: UpdateUserRoleDto,
+  ): Promise<UserRole> {
     await this.findOne(id); // Asegura que la asignación exista
     return this.prisma.userRole.update({
       where: { id },
