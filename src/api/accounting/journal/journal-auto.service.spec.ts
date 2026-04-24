@@ -76,7 +76,7 @@ describe('JournalAutoService', () => {
 
       await service.onSaleCompleted(10);
 
-      expect((service as any).findAccountByCode).toHaveBeenCalledTimes(3); // Bancos, IVA, Ingresos
+      expect((service as any).findAccountByCode).toHaveBeenCalledTimes(5); // Bancos, IVA, Ingresos, Comision, IVA Comision
       expect((service as any).prisma.journalEntry.create).toHaveBeenCalledTimes(1);
 
       const createEntryArg = (service as any).prisma.journalEntry.create.mock.calls[0][0].data;
