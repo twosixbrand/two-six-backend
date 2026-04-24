@@ -37,6 +37,13 @@ describe('OrderService', () => {
     product: {
       findUnique: jest.fn(),
     },
+    coupon: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+    },
+    couponUsage: {
+      findFirst: jest.fn(),
+    },
     clothingSize: {
       update: jest.fn(),
     },
@@ -635,6 +642,10 @@ describe('OrderService', () => {
   // ─── validateDiscountCode ───────────────────────────────────────────
 
   describe('validateDiscountCode', () => {
+    beforeEach(() => {
+      mockPrisma.coupon.findUnique.mockResolvedValue(null);
+    });
+
     it('should throw BadRequestException if code is empty', async () => {
       await expect(service.validateDiscountCode('', 'a@b.com')).rejects.toThrow(
         BadRequestException,
