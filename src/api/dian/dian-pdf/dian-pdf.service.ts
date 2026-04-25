@@ -193,8 +193,8 @@ export class DianPdfService {
       : 'Resolución DIAN no configurada';
 
     const validationDate = invoice.dian_authorized_at
-      ? invoice.dian_authorized_at.toLocaleString('es-CO')
-      : invoice.createdAt.toLocaleString('es-CO');
+      ? invoice.dian_authorized_at.toLocaleString('es-CO', { timeZone: 'America/Bogota' })
+      : invoice.createdAt.toLocaleString('es-CO', { timeZone: 'America/Bogota' });
 
     const html = `
     <!DOCTYPE html>
@@ -322,7 +322,7 @@ export class DianPdfService {
               <div class="doc-num">${invoice.document_number}</div>
             </div>
             <div class="doc-dates">
-              Emitida: <b>${invoice.createdAt.toLocaleString('es-CO')}</b><br>
+              Emitida: <b>${invoice.createdAt.toLocaleString('es-CO', { timeZone: 'America/Bogota' })}</b><br>
               Validación DIAN: <b>${validationDate}</b>
             </div>
           </div>
