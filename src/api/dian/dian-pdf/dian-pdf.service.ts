@@ -89,11 +89,16 @@ export class DianPdfService {
       CASH: { label: 'Efectivo', code: '10' },
       TRANSFER: { label: 'Transferencia Bancaria', code: '31' },
     };
-    const pm = paymentMethodMap[order?.payment_method] || {
-      label: 'Instrumento no definido',
-      code: '10',
-    };
+    // Detectar si es factura de regularización (snapshot sin Order)
+    const isRegularization = !!snapshot && !order;
+    const pm = isRegularization
+      ? { label: 'Cruce Anticipo / Compensación', code: '1' }
+      : paymentMethodMap[order?.payment_method] || {
+          label: 'Instrumento no definido',
+          code: '10',
+        };
     const paymentMethodLabel = `${pm.label} (${pm.code})`;
+    const paymentFormLabel = isRegularization ? 'Crédito — Anticipo (2)' : 'Contado (1)';
 
     // ═══ DESGLOSE IVA ═══
     // Los unit_price ya incluyen IVA, así que para el desglose en factura:
@@ -348,7 +353,7 @@ export class DianPdfService {
           </div>
           <div class="info-box">
             <div class="ib-title"><span class="icon">📄</span> Datos del Documento</div>
-            <div class="ib-row"><span class="lbl">Forma de Pago</span><span class="val">Contado (1)</span></div>
+            <div class="ib-row"><span class="lbl">Forma de Pago</span><span class="val">${paymentFormLabel}</span></div>
             <div class="ib-row"><span class="lbl">Medio de Pago</span><span class="val">${paymentMethodLabel}</span></div>
             <div class="ib-row"><span class="lbl">Pedido Web</span><span class="val">${order?.order_reference || 'N/A'}</span></div>
             <div class="ib-row"><span class="lbl">Moneda</span><span class="val">COP (Pesos Colombianos)</span></div>
