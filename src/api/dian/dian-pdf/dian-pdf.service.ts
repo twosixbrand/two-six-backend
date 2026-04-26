@@ -74,7 +74,7 @@ export class DianPdfService {
           name: snapshot.customer.name,
           document_number: snapshot.customer.doc_number,
           identification_number: snapshot.customer.doc_number,
-          current_phone_number: null,
+          current_phone_number: snapshot.customer.phone || null,
           shipping_address: snapshot.customer.address,
           email: snapshot.customer.email,
         }

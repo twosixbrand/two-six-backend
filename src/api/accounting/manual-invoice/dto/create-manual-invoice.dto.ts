@@ -56,6 +56,10 @@ export class ManualInvoiceCustomerDto {
 
   @IsString()
   @IsOptional()
+  phone?: string;
+
+  @IsString()
+  @IsOptional()
   city?: string;
 }
 

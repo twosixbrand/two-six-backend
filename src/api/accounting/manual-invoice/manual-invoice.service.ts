@@ -322,6 +322,7 @@ export class ManualInvoiceService {
         doc_number: dto.customer.doc_number,
         name: dto.customer.name,
         email: dto.customer.email ?? null,
+        phone: dto.customer.phone ?? null,
         address: dto.customer.address ?? null,
         city: dto.customer.city ?? null,
       },
