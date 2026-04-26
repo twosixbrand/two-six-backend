@@ -34,6 +34,27 @@ export class InventoryController {
     return this.inventoryService.createAdjustment(data);
   }
 
+  @Get('kardex')
+  @ApiOperation({
+    summary:
+      'Consultar todos los movimientos del Kardex con filtros opcionales',
+  })
+  getKardexAll(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('type') type?: string,
+    @Query('sourceType') sourceType?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.inventoryService.getKardexAll({
+      startDate,
+      endDate,
+      type,
+      sourceType,
+      search,
+    });
+  }
+
   @Get('kardex/:clothingSizeId')
   @ApiOperation({
     summary: 'Consultar el historial de movimientos (Kardex) de un producto',

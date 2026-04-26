@@ -174,4 +174,29 @@ export class ExportController {
     });
     res.send(buffer);
   }
+
+  @Get('kardex')
+  async exportKardex(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('type') type: string,
+    @Query('sourceType') sourceType: string,
+    @Query('search') search: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.exportService.generateKardex({
+      startDate,
+      endDate,
+      type,
+      sourceType,
+      search,
+    });
+    const date = new Date().toISOString().split('T')[0];
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="Kardex_Inventario_${date}.xlsx"`,
+    });
+    res.send(buffer);
+  }
 }

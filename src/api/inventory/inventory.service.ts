@@ -146,4 +146,96 @@ export class InventoryService {
       orderBy: { date: 'desc' },
     });
   }
+
+  /**
+   * Retorna todos los movimientos del Kardex con filtros opcionales
+   * y datos enriquecidos del producto (referencia, nombre, color, talla).
+   */
+  async getKardexAll(filters: {
+    startDate?: string;
+    endDate?: string;
+    type?: string;
+    sourceType?: string;
+    search?: string;
+  }) {
+    const where: any = {};
+
+    // Filtro por rango de fechas
+    if (filters.startDate || filters.endDate) {
+      where.date = {};
+      if (filters.startDate) where.date.gte = new Date(filters.startDate);
+      if (filters.endDate) {
+        const end = new Date(filters.endDate);
+        end.setHours(23, 59, 59, 999);
+        where.date.lte = end;
+      }
+    }
+
+    // Filtro por tipo (ENTRADA / SALIDA)
+    if (filters.type) {
+      where.type = filters.type;
+    }
+
+    // Filtro por source_type (SALE, ADJUSTMENT, etc.)
+    if (filters.sourceType) {
+      where.source_type = filters.sourceType;
+    }
+
+    // Búsqueda por texto (referencia, nombre producto, color, talla)
+    if (filters.search) {
+      where.clothingSize = {
+        OR: [
+          {
+            clothingColor: {
+              design: {
+                reference: { contains: filters.search, mode: 'insensitive' },
+              },
+            },
+          },
+          {
+            clothingColor: {
+              design: {
+                clothing: {
+                  name: { contains: filters.search, mode: 'insensitive' },
+                },
+              },
+            },
+          },
+          {
+            clothingColor: {
+              color: {
+                name: { contains: filters.search, mode: 'insensitive' },
+              },
+            },
+          },
+          {
+            size: {
+              name: { contains: filters.search, mode: 'insensitive' },
+            },
+          },
+        ],
+      };
+    }
+
+    return this.prisma.inventoryKardex.findMany({
+      where,
+      include: {
+        clothingSize: {
+          include: {
+            clothingColor: {
+              include: {
+                design: {
+                  include: { clothing: true },
+                },
+                color: true,
+                imageClothing: { take: 1 },
+              },
+            },
+            size: true,
+          },
+        },
+      },
+      orderBy: { date: 'desc' },
+    });
+  }
 }

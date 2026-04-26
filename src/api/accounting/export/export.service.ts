@@ -5,6 +5,7 @@ import { PayrollService } from '../payroll/payroll.service';
 import { JournalService } from '../journal/journal.service';
 import { AgingService } from '../reports/aging.service';
 import { BudgetService } from '../budget/budget.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 import * as XLSX from 'xlsx';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class ExportService {
     private readonly journalService: JournalService,
     private readonly agingService: AgingService,
     private readonly budgetService: BudgetService,
+    private readonly prisma: PrismaService,
   ) {}
 
   private companyHeader(reportName: string, period: string): string[][] {
@@ -815,6 +817,144 @@ export class ExportService {
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Presupuesto Anual');
+
+    return Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
+  }
+
+  // ── Kardex de Inventario ─────────────────────────────────────
+
+  async generateKardex(filters: {
+    startDate?: string;
+    endDate?: string;
+    type?: string;
+    sourceType?: string;
+    search?: string;
+  }): Promise<Buffer> {
+    // Build filter inline (avoids circular dep with InventoryModule)
+    const where: any = {};
+    if (filters.startDate || filters.endDate) {
+      where.date = {};
+      if (filters.startDate) where.date.gte = new Date(filters.startDate);
+      if (filters.endDate) {
+        const end = new Date(filters.endDate);
+        end.setHours(23, 59, 59, 999);
+        where.date.lte = end;
+      }
+    }
+    if (filters.type) where.type = filters.type;
+    if (filters.sourceType) where.source_type = filters.sourceType;
+
+    const data = await this.prisma.inventoryKardex.findMany({
+      where,
+      include: {
+        clothingSize: {
+          include: {
+            clothingColor: {
+              include: {
+                design: { include: { clothing: true } },
+                color: true,
+              },
+            },
+            size: true,
+          },
+        },
+      },
+      orderBy: { date: 'desc' },
+    });
+
+    const date = new Date().toLocaleDateString('es-CO');
+
+    const periodLabel = filters.startDate && filters.endDate
+      ? `${filters.startDate} a ${filters.endDate}`
+      : `Generado: ${date}`;
+
+    const rows: any[][] = [
+      ...this.companyHeader('Kardex de Inventario', periodLabel),
+      [
+        'Fecha',
+        'Referencia',
+        'Producto',
+        'Color',
+        'Talla',
+        'Tipo',
+        'Origen',
+        'Ref. Origen',
+        'Cantidad',
+        'Saldo Antes',
+        'Saldo Después',
+        'Costo Unitario',
+        'Valor Total',
+        'Descripción',
+      ],
+    ];
+
+    for (const mov of data) {
+      const cs = mov.clothingSize;
+      const cc = cs?.clothingColor;
+      const design = cc?.design;
+
+      rows.push([
+        mov.date
+          ? new Date(mov.date).toLocaleDateString('es-CO')
+          : '',
+        design?.reference || '',
+        design?.clothing?.name || '',
+        cc?.color?.name || '',
+        cs?.size?.name || '',
+        mov.type || '',
+        mov.source_type || '',
+        mov.source_id || '',
+        mov.quantity || 0,
+        mov.balance_before ?? '',
+        mov.balance_after ?? '',
+        mov.unit_cost || 0,
+        Math.abs(mov.quantity || 0) * (mov.unit_cost || 0),
+        mov.description || '',
+      ]);
+    }
+
+    // Totales
+    const totals = data.reduce(
+      (acc, m) => ({
+        entradas: acc.entradas + (m.type === 'ENTRADA' || m.type === 'IN' ? Math.abs(m.quantity || 0) : 0),
+        salidas: acc.salidas + (m.type === 'SALIDA' || m.type === 'OUT' ? Math.abs(m.quantity || 0) : 0),
+        valorTotal: acc.valorTotal + Math.abs(m.quantity || 0) * (m.unit_cost || 0),
+      }),
+      { entradas: 0, salidas: 0, valorTotal: 0 },
+    );
+
+    rows.push([]);
+    rows.push([
+      '', '', '', '', '',
+      'TOTALES',
+      '',
+      '',
+      `E: ${totals.entradas} / S: ${totals.salidas}`,
+      '', '', '',
+      totals.valorTotal,
+      `${data.length} movimientos`,
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [
+      { wch: 14 },
+      { wch: 12 },
+      { wch: 30 },
+      { wch: 12 },
+      { wch: 8 },
+      { wch: 10 },
+      { wch: 14 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 40 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Kardex');
 
     return Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
   }
