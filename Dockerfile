@@ -77,9 +77,13 @@ RUN npx prisma generate
 RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build
 
 # Limpiar las dependencias de desarrollo y dejar sólo las de producción requeridas
-# para bajar drásticamente el peso de la imagen final
+# para bajar drásticamente el peso de la imagen final.
+# NOTA: npm ci borra node_modules, por lo que el cliente de Prisma generado antes se pierde.
 ENV NODE_ENV=production
 RUN npm ci --only=production
+
+# Regenerar el cliente de Prisma para producción
+RUN npx prisma generate
 
 
 # ==========================================
