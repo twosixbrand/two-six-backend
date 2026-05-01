@@ -55,6 +55,7 @@ import { ConsignmentReturnModule } from './api/consignment-return/consignment-re
 import { ConsignmentCycleCountModule } from './api/consignment-cycle-count/consignment-cycle-count.module';
 import { ConsignmentReportsModule } from './api/consignment-reports/consignment-reports.module';
 import { ConsignmentPaymentModule } from './api/consignment-payment/consignment-payment.module';
+import { BelvoModule } from './api/belvo/belvo.module';
 
 @Module({
   imports: [
@@ -137,6 +138,7 @@ import { ConsignmentPaymentModule } from './api/consignment-payment/consignment-
     ConsignmentCycleCountModule,
     ConsignmentReportsModule,
     ConsignmentPaymentModule,
+    BelvoModule,
   ],
   controllers: [AppController],
   providers: [

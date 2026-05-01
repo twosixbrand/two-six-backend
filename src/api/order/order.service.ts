@@ -177,7 +177,8 @@ export class OrderService {
     const idIdentType = mapDianCodeToId(customer.document_type || '13');
 
     // We will override these later after validating with the DB
-    const method = paymentMethod === 'WOMPI_COD' ? 'WOMPI_COD' : 'WOMPI_FULL';
+    const validMethods = ['WOMPI_COD', 'WOMPI_FULL', 'WOMPI_CC', 'BELVO_A2A', 'BANCOLOMBIA_TRANSFER'];
+    const method = validMethods.includes(paymentMethod) ? paymentMethod : 'WOMPI_FULL';
     let codAmount = 0;
 
     const order = await this.prisma.$transaction(async (prisma) => {
@@ -427,62 +428,74 @@ export class OrderService {
       return order;
     });
 
-    // Generar firma de integridad
-    const integritySecret = this.configService.get<string>(
-      'WOMPI_INTEGRITY_SECRET',
-    );
-    const publicKey = this.configService.get<string>('WOMPI_PUBLIC_KEY');
-
-    if (!integritySecret) {
-      throw new Error('WOMPI_INTEGRITY_SECRET no está configurado');
-    }
-    if (!publicKey) {
-      throw new Error('WOMPI_PUBLIC_KEY no está configurado');
-    }
-
-    // 2. Concatenación EXACTA (Sin espacios adicionales - igual al ejemplo del usuario)
-    // Nota: El usuario sugirió no usar trim(), así que usamos el secreto tal cual viene del env.
-    const integritySecretRaw = integritySecret;
-
-    // Validar formato de llaves (ayuda visual en logs)
-    if (
-      !integritySecretRaw.startsWith('test_integrity_') &&
-      !integritySecretRaw.startsWith('prod_integrity_')
-    ) {
-      console.warn(
-        'ADVERTENCIA: WOMPI_INTEGRITY_SECRET no parece tener el formato correcto (debería empezar por test_integrity_ o prod_integrity_).',
+    if (method.startsWith('WOMPI')) {
+      // Generar firma de integridad
+      const integritySecret = this.configService.get<string>(
+        'WOMPI_INTEGRITY_SECRET',
       );
+      const publicKey = this.configService.get<string>('WOMPI_PUBLIC_KEY');
+
+      if (!integritySecret) {
+        throw new Error('WOMPI_INTEGRITY_SECRET no está configurado');
+      }
+      if (!publicKey) {
+        throw new Error('WOMPI_PUBLIC_KEY no está configurado');
+      }
+
+      // 2. Concatenación EXACTA (Sin espacios adicionales - igual al ejemplo del usuario)
+      // Nota: El usuario sugirió no usar trim(), así que usamos el secreto tal cual viene del env.
+      const integritySecretRaw = integritySecret;
+
+      // Validar formato de llaves (ayuda visual en logs)
+      if (
+        !integritySecretRaw.startsWith('test_integrity_') &&
+        !integritySecretRaw.startsWith('prod_integrity_')
+      ) {
+        console.warn(
+          'ADVERTENCIA: WOMPI_INTEGRITY_SECRET no parece tener el formato correcto (debería empezar por test_integrity_ o prod_integrity_).',
+        );
+      }
+
+      // Determine Wompi checkout amount depending on COD or Full payment
+      const totalToPayNow =
+        order.payment_method === 'WOMPI_COD'
+          ? order.shipping_cost
+          : order.total_payment;
+      const amountInCents = Math.round(totalToPayNow * 100);
+
+      // Usar el order_reference para Wompi
+      const reference = order.order_reference;
+      const currency = 'COP';
+
+      const integrityString = `${reference}${amountInCents}${currency}${integritySecretRaw}`;
+
+      const crypto = require('crypto');
+      const signature = crypto
+        .createHash('sha256')
+        .update(integrityString)
+        .digest('hex');
+
+      return {
+        order,
+        wompi: {
+          publicKey,
+          currency,
+          amountInCents,
+          reference,
+          integritySignature: signature,
+        },
+      };
+    } else if (method === 'BELVO_A2A') {
+      return {
+        order,
+        belvo: {
+          reference: order.order_reference,
+          amount: order.total_payment,
+        }
+      }
+    } else {
+      return { order };
     }
-
-    // Determine Wompi checkout amount depending on COD or Full payment
-    const totalToPayNow =
-      order.payment_method === 'WOMPI_COD'
-        ? order.shipping_cost
-        : order.total_payment;
-    const amountInCents = Math.round(totalToPayNow * 100);
-
-    // Usar el order_reference para Wompi
-    const reference = order.order_reference;
-    const currency = 'COP';
-
-    const integrityString = `${reference}${amountInCents}${currency}${integritySecretRaw}`;
-
-    const crypto = require('crypto');
-    const signature = crypto
-      .createHash('sha256')
-      .update(integrityString)
-      .digest('hex');
-
-    return {
-      order,
-      wompi: {
-        publicKey,
-        currency,
-        amountInCents,
-        reference,
-        integritySignature: signature,
-      },
-    };
   }
 
   /**
@@ -677,428 +690,8 @@ export class OrderService {
           }
         }
 
-        // 5. Generar factura electrónica DIAN (solo si no existe una previa)
-        let invoiceData: any = null;
-        const existingInvoice = await this.prisma.dianEInvoicing.findFirst({
-          where: { id_order: order.id },
-          orderBy: { createdAt: 'desc' },
-        });
-
-        if (existingInvoice) {
-          invoiceData = {
-            id: existingInvoice.id,
-            cufe: existingInvoice.cufe_code,
-            qrBase64: existingInvoice.qr_code,
-            invoiceNumber: existingInvoice.document_number,
-            cufeUrl: `https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=${existingInvoice.cufe_code}`,
-          };
-        }
-
-        if (!existingInvoice)
-          try {
-            const nit =
-              this.configService.get<string>('DIAN_COMPANY_NIT') || '';
-            const env = this.configService.get<string>(
-              'DIAN_ENVIRONMENT',
-              'TEST',
-            );
-
-            // Obtener siguiente número consecutivo de la resolución DIAN
-            const resolution = await this.prisma.dianResolution.findFirst({
-              where: { isActive: true, environment: env, type: 'INVOICE' },
-            });
-            if (!resolution) throw new Error('No hay resolución DIAN activa');
-            if (resolution.currentNumber >= resolution.endNumber)
-              throw new Error('Rango de numeración DIAN agotado');
-
-            const nextNum = resolution.currentNumber + 1;
-            await this.prisma.dianResolution.update({
-              where: { id: resolution.id },
-              data: { currentNumber: nextNum },
-            });
-
-            const invoiceNumber = `${resolution.prefix}${nextNum}`;
-            const claveTecnica =
-              resolution.technicalKey ||
-              this.configService.get<string>('DIAN_TECHNICAL_KEY') ||
-              '';
-            const invoiceDate = new Date().toISOString().split('T')[0];
-
-            // Calcular descuento comercial (si aplica)
-            // unit_price ya incluye IVA. Sumamos el subtotal bruto de items.
-            const orderItemsGrossTotal = order.orderItems.reduce(
-              (sum, item) => sum + item.unit_price * item.quantity,
-              0,
-            );
-            const expectedGrossTotal =
-              orderItemsGrossTotal + order.shipping_cost;
-            const actualPaid = order.total_payment;
-            // El descuento se aplica solo a los productos (no al envío)
-            const totalDiscountAmount = expectedGrossTotal - actualPaid;
-            const discountPercentage =
-              totalDiscountAmount > 1 && orderItemsGrossTotal > 0
-                ? Number(
-                    (
-                      (totalDiscountAmount / orderItemsGrossTotal) *
-                      100
-                    ).toFixed(2),
-                  )
-                : 0;
-
-            console.log(
-              `[DIAN Invoice] Bruto items: ${orderItemsGrossTotal}, Envío: ${order.shipping_cost}, Total pagado: ${actualPaid}, Descuento: ${discountPercentage}%`,
-            );
-
-            const invoiceLines: any[] = order.orderItems.map((item) => {
-              const basePrice = item.unit_price / 1.19;
-              return {
-                description: item.product_name,
-                quantity: item.quantity,
-                unitPrice: basePrice,
-                taxPercent: 19,
-                discountPercentage: discountPercentage, // Descuento comercial por línea
-              };
-            });
-
-            if (order.shipping_cost > 0) {
-              // El envío también genera IVA ya que Two Six lo recauda
-              const shippingBase = Number(
-                (order.shipping_cost / 1.19).toFixed(2),
-              );
-              invoiceLines.push({
-                description: 'Servicio de Envío',
-                quantity: 1,
-                unitPrice: shippingBase,
-                taxPercent: 19,
-                discountPercentage: 0, // No se descuenta el envío
-              });
-            }
-
-            // Generate exact DIAN totals (Must strictly match UBL engine logic: unit tax first)
-            // Now incorporates discount in the calculation
-            let dianSubtotal = 0;
-            let dianIva = 0;
-            invoiceLines.forEach((line) => {
-              line.unitPrice = Number(line.unitPrice.toFixed(2));
-              const discRate = line.discountPercentage || 0;
-              const unitDiscount = Number(
-                (line.unitPrice * (discRate / 100)).toFixed(2),
-              );
-              const discountedPrice = Number(
-                (line.unitPrice - unitDiscount).toFixed(2),
-              );
-              const lineTotal = Number(
-                (line.quantity * discountedPrice).toFixed(2),
-              );
-
-              const lineTaxPercent = line.taxPercent ?? 19;
-              const unitTax = Number(
-                (discountedPrice * (lineTaxPercent / 100)).toFixed(2),
-              );
-              const lineTax = Number((unitTax * line.quantity).toFixed(2));
-
-              dianSubtotal += lineTotal;
-              dianIva += lineTax;
-            });
-
-            dianSubtotal = Number(dianSubtotal.toFixed(2));
-            dianIva = Number(dianIva.toFixed(2));
-            const dianTotal = Number((dianSubtotal + dianIva).toFixed(2));
-
-            const invoiceDto: InvoiceDto = {
-              number: invoiceNumber,
-              date: invoiceDate,
-              time: '12:00:00-05:00',
-              customerName: order.customer.name,
-              customerDoc: order.customer.document_number || '222222222222',
-              paymentMeansCode:
-                order.payment_method === 'WOMPI_COD' ? '10' : '48',
-              customerDocType: order.customer.identificationType?.code || '13',
-              lines: invoiceLines,
-              subtotal: dianSubtotal,
-              taxTotal: dianIva,
-              total: dianTotal,
-
-              // Resolution data for XML
-              resolutionPrefix: resolution.prefix,
-              resolutionNumber: resolution.resolutionNumber,
-              resolutionStartDate: resolution.startDate
-                .toISOString()
-                .split('T')[0],
-              resolutionEndDate: resolution.endDate.toISOString().split('T')[0],
-              resolutionStartNumber: resolution.startNumber,
-              resolutionEndNumber: resolution.endNumber,
-            };
-
-            // 1. Generar CUFE primero
-            const cufe = this.cufeService.generateCufe({
-              NumFac: invoiceNumber,
-              FecFac: invoiceDate,
-              HorFac: '12:00:00-05:00',
-              ValFac: dianSubtotal.toFixed(2),
-              CodImp1: '01',
-              ValImp1: dianIva.toFixed(2),
-              CodImp2: '04',
-              ValImp2: '0.00',
-              CodImp3: '03',
-              ValImp3: '0.00',
-              ValTot: dianTotal.toFixed(2),
-              NitOfe: nit,
-              NumAdq: invoiceDto.customerDoc,
-              ClTec: claveTecnica,
-              TipoAmb: env === 'TEST' ? '2' : '1',
-            });
-
-            // 2. Generar XML con CUFE insertado, luego firmar
-            const xmlBase = this.ublService.generateInvoiceXml(invoiceDto);
-            const xmlWithCufe = xmlBase.replace(/CUFE_PLACEHOLDER/g, cufe);
-            const signedXml = this.signerService.signXml(xmlWithCufe);
-
-            // 3. Enviar a DIAN
-            const soapResponse = await this.soapService.sendInvoice(
-              Buffer.from(signedXml),
-              invoiceNumber,
-            );
-
-            const qrBase64 = await this.pdfService.generateQrBase64(
-              cufe,
-              nit,
-              dianSubtotal.toFixed(2),
-              dianIva.toFixed(2),
-              dianTotal.toFixed(2),
-              invoiceDate,
-            );
-
-            // Guardar en base de datos
-            const savedInvoice = await this.prisma.dianEInvoicing.create({
-              data: {
-                document_number: invoiceNumber,
-                cufe_code: cufe,
-                qr_code: qrBase64,
-                issue_date: new Date(invoiceDate),
-                due_date: new Date(invoiceDate),
-                status: env === 'TEST' ? 'SENT' : 'AUTHORIZED',
-                dian_response:
-                  typeof soapResponse === 'string'
-                    ? soapResponse
-                    : JSON.stringify(soapResponse),
-                environment: env,
-                id_order: order.id,
-              },
-            });
-
-            if (savedInvoice.status === 'AUTHORIZED') {
-              // Producción dispara correo síncrono
-              this.dianEmailService
-                .sendDianInvoiceEmail(savedInvoice.id)
-                .catch((err) =>
-                  console.error('Error enviando correo síncrono DIAN:', err),
-                );
-            }
-
-            invoiceData = {
-              id: savedInvoice.id,
-              cufe,
-              qrBase64,
-              invoiceNumber,
-              cufeUrl: `https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=${cufe}`,
-            };
-            console.log(
-              `Factura DIAN ${invoiceNumber} generada para orden ${order.order_reference}`,
-            );
-          } catch (dianError) {
-            console.error(
-              'Error generando factura DIAN (no bloquea el flujo):',
-              dianError.message,
-            );
-          }
-
-        // Enviar correo de confirmación SOLO si no se había pagado antes (evita duplicados)
-        const shouldSendEmail = !order.is_paid;
-        if (shouldSendEmail) {
-          try {
-            const itemsHtml = order.orderItems
-              .map(
-                (item) => `
-            <tr>
-              <td style="padding: 12px; border-bottom: 1px solid #eee; width: 60px;">
-                <img src="${item.product.clothingSize?.clothingColor?.imageClothing?.[0]?.image_url || 'https://example.com/placeholder.png'}" alt="${item.product_name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
-              </td>
-              <td style="padding: 12px; border-bottom: 1px solid #eee;">
-                <div style="font-weight: bold;">${item.product_name}</div>
-                <div style="font-size: 12px; color: #666;">Ref: ${item.id_product}</div>
-              </td>
-              <td style="padding: 12px; border-bottom: 1px solid #eee;">${item.size} / ${item.color}</td>
-              <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
-              <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
-              <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">$${(item.unit_price * item.quantity).toLocaleString('es-CO')}</td>
-            </tr>
-          `,
-              )
-              .join('');
-
-            const subtotal = order.orderItems.reduce(
-              (sum, item) => sum + item.unit_price * item.quantity,
-              0,
-            );
-            const shipping = order.shipping_cost || 0;
-            // Sometimes JS floating point issues can make a tiny discount, so we check if it's > 1
-            const discount = Math.round(
-              subtotal + shipping - order.total_payment,
-            );
-
-            let discountHtml = '';
-            if (discount > 1) {
-              discountHtml = `
-                <tr>
-                  <td colspan="4" style="padding: 4px 12px; text-align: right; color: #dc3545;">Descuento aplicado:</td>
-                  <td style="padding: 4px 12px; text-align: right; color: #dc3545;">-$${discount.toLocaleString('es-CO')}</td>
-                </tr>
-              `;
-            }
-
-            const isCod = order.payment_method === 'WOMPI_COD';
-            const paidToday = isCod ? shipping : order.total_payment;
-            const dueOnDelivery = isCod ? subtotal : 0;
-
-            const tfootHtml = `
-              <tr>
-                <td colspan="4" style="padding: 12px 12px 4px 12px; text-align: right;">Subtotal:</td>
-                <td style="padding: 12px 12px 4px 12px; text-align: right;">$${subtotal.toLocaleString('es-CO')}</td>
-              </tr>
-               ${discountHtml}
-              <tr>
-                <td colspan="4" style="padding: 4px 12px; text-align: right;">Costo de envío:</td>
-                <td style="padding: 4px 12px; text-align: right;">$${shipping.toLocaleString('es-CO')}</td>
-              </tr>
-              <tr>
-                <td colspan="4" style="padding: 12px; text-align: right; font-weight: bold; border-top: 1px solid #eee;">Total Pagado Hoy:</td>
-                <td style="padding: 12px; text-align: right; font-weight: bold; border-top: 1px solid #eee; color: #10b981;">$${paidToday.toLocaleString('es-CO')}</td>
-              </tr>
-              ${
-                dueOnDelivery > 0
-                  ? `
-              <tr>
-                <td colspan="4" style="padding: 12px; text-align: right; font-weight: bold; border-top: 1px solid #eee;">A Pagar Contra Entrega (PCE):</td>
-                <td style="padding: 12px; text-align: right; font-weight: bold; border-top: 1px solid #eee; color: #d4af37;">$${dueOnDelivery.toLocaleString('es-CO')}</td>
-              </tr>`
-                  : ''
-              }
-            `;
-
-            const storeEmail = this.configService.get<string>('EMAIL_TO');
-            console.log(
-              `Enviando correo de confirmación a: ${order.customer.email} (copia a: ${storeEmail || 'NO CONFIGURADO'})`,
-            );
-
-            // El correo incluirá detalles comerciales del pedido (Facturación viaja en flujo independiente async/sync).
-
-            await this.mailerService.sendMail({
-              to: order.customer.email,
-              ...(storeEmail ? { bcc: storeEmail } : {}),
-              subject: `${this.configService.get<string>('FRONTEND_URL', '').includes('localhost') ? '[LOCAL] ' : ''}Confirmación de Pedido ${order.order_reference} - Two Six`,
-              html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-                <div style="text-align: center; padding: 20px; background-color: #f8f9fa;">
-                  <h1 style="color: #000; margin: 0;">TWO SIX</h1>
-                  <p style="color: #666; font-size: 14px; letter-spacing: 2px;">ESTILO Y CONFORT</p>
-                </div>
-                
-                <div style="padding: 20px;">
-                  <h2 style="color: #333;">¡Gracias por tu compra, ${order.customer.name}!</h2>
-                  <p>Hemos recibido el pago de tu envío para el pedido <strong>${order.order_reference}</strong>. Tu pedido está confirmado.</p>
-                  ${
-                    isCod
-                      ? `<div style="background-color: #fef3c7; padding: 15px; border-left: 4px solid #f59e0b; margin-bottom: 20px;">
-                    <strong>Importante:</strong> Has seleccionado Pago Contra Entrega (PCE). Deberás entregar <strong>$${dueOnDelivery.toLocaleString('es-CO')}</strong> en efectivo al transportador al momento de recibir tus prendas.
-                  </div>`
-                      : ''
-                  }
-                  
-                  <h3 style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-top: 30px;">Detalles del Pedido</h3>
-                  <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-                    <thead>
-                      <tr style="background-color: #f8f9fa;">
-                        <th style="padding: 12px; text-align: left; width: 60px;"></th>
-                        <th style="padding: 12px; text-align: left;">Producto</th>
-                        <th style="padding: 12px; text-align: left;">Detalles</th>
-                        <th style="padding: 12px; text-align: center;">Cant.</th>
-                        <th style="padding: 12px; text-align: right;">Precio</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      ${itemsHtml}
-                    </tbody>
-                    <tfoot>
-                      ${tfootHtml}
-                    </tfoot>
-                  </table>
-
-                  <div style="background-color: #f8f9fa; padding: 15px; margin-top: 30px; border-radius: 5px;">
-                    <h4 style="margin-top: 0;">${order.delivery_method === 'PICKUP' ? 'Punto de Retiro:' : 'Dirección de Envío:'}</h4>
-                    <p style="margin-bottom: 0;">
-                      ${
-                        order.delivery_method === 'PICKUP'
-                          ? 'CL 36D SUR #27D-39, APTO 1001, URB Guadalcanal Apartamentos, Envigado, Antioquia.<br><br><i>Nota: Este punto es solo para recoger pedidos ya pagos, no es tienda para medirse ropa 🤍<br>En un máximo de 4 horas hábiles (o antes) te estaremos avisando para que puedas pasar por tu pedido.<br><br>📞 310 877 7629</i>'
-                          : `${order.shipping_address}<br>Tel: ${order.customer.current_phone_number}`
-                      }
-                    </p>
-                  </div>
-                  ${
-                    order.delivery_method === 'PICKUP' && order.pickup_pin
-                      ? `
-                  <div style="background-color: #fef3c7; padding: 20px; margin-top: 15px; border-radius: 5px; border-left: 4px solid #f59e0b; text-align: center;">
-                    <h3 style="margin: 0 0 10px 0; color: #b45309;">🔐 Tu PIN de Retiro</h3>
-                    <p style="margin: 0 0 10px 0; font-size: 13px;">Presenta este código al momento de recoger tu pedido:</p>
-                    <h2 style="font-size: 36px; letter-spacing: 8px; margin: 10px 0; color: #000; font-family: monospace;">${order.pickup_pin}</h2>
-                    <p style="margin: 10px 0 0 0; font-size: 11px; color: #92400e;">Guarda este correo. Sin el PIN no se podrá hacer la entrega.</p>
-                  </div>`
-                      : ''
-                  }
-
-                  <!-- Facturación viaja en flujo independiente async/sync -->
-
-                  <p style="margin-top: 30px; text-align: center;">
-                    <a href="${this.configService.get<string>('FRONTEND_URL')}/tracking" style="background-color: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Rastrear mi Pedido</a>
-                  </p>
-                </div>
-
-                <div style="text-align: center; padding: 20px; background-color: #f8f9fa; font-size: 12px; color: #999;">
-                  <p>&copy; ${new Date().getFullYear()} Two Six. Todos los derechos reservados.</p>
-                </div>
-              </div>
-            `,
-            });
-          } catch (error) {
-            console.error('Error enviando correo:', error);
-          }
-        }
-
-        // 6. Generar asiento contable automático
-        try {
-          await this.journalAutoService.onSaleCompleted(order.id);
-          console.log(
-            `Asiento contable generado para orden ${order.order_reference}`,
-          );
-        } catch (accountingError) {
-          console.error(
-            'Error generando asiento contable (no bloquea el flujo):',
-            accountingError.message,
-          );
-        }
-
-        // 7. Generar asiento de costo de mercancía vendida (COGS)
-        try {
-          await this.journalAutoService.onCostOfGoodsSold(order.id);
-          console.log(
-            `Asiento de costo de mercancía vendida generado para orden ${order.order_reference}`,
-          );
-        } catch (cogsError) {
-          console.error(
-            'Error generando asiento COGS (no bloquea el flujo):',
-            cogsError.message,
-          );
-        }
+        // 5. Generar factura DIAN, correos y asientos contables (Lógica Desacoplada)
+        const invoiceData = await this.processSuccessfulPayment(order);
 
         return {
           status: 'APPROVED',
@@ -1128,7 +721,436 @@ export class OrderService {
     }
   }
 
-  async checkStatusByReference(reference: string) {
+  /**
+   * Procesa la facturación DIAN, correos y asientos contables para un pedido pagado exitosamente.
+   * Separado de verifyPayment para ser reutilizable por múltiples pasarelas (Wompi, Belvo, Bancolombia).
+   */
+  async processSuccessfulPayment(order: any) {
+    let invoiceData: any = null;
+    const existingInvoice = await this.prisma.dianEInvoicing.findFirst({
+      where: { id_order: order.id },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (existingInvoice) {
+      invoiceData = {
+        id: existingInvoice.id,
+        cufe: existingInvoice.cufe_code,
+        qrBase64: existingInvoice.qr_code,
+        invoiceNumber: existingInvoice.document_number,
+        cufeUrl: `https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=${existingInvoice.cufe_code}`,
+      };
+    }
+
+    if (!existingInvoice)
+      try {
+        const nit =
+          this.configService.get<string>('DIAN_COMPANY_NIT') || '';
+        const env = this.configService.get<string>(
+          'DIAN_ENVIRONMENT',
+          'TEST',
+        );
+
+        // Obtener siguiente número consecutivo de la resolución DIAN
+        const resolution = await this.prisma.dianResolution.findFirst({
+          where: { isActive: true, environment: env, type: 'INVOICE' },
+        });
+        if (!resolution) throw new Error('No hay resolución DIAN activa');
+        if (resolution.currentNumber >= resolution.endNumber)
+          throw new Error('Rango de numeración DIAN agotado');
+
+        const nextNum = resolution.currentNumber + 1;
+        await this.prisma.dianResolution.update({
+          where: { id: resolution.id },
+          data: { currentNumber: nextNum },
+        });
+
+        const invoiceNumber = `${resolution.prefix}${nextNum}`;
+        const claveTecnica =
+          resolution.technicalKey ||
+          this.configService.get<string>('DIAN_TECHNICAL_KEY') ||
+          '';
+        const invoiceDate = new Date().toISOString().split('T')[0];
+
+        // Calcular descuento comercial (si aplica)
+        // unit_price ya incluye IVA. Sumamos el subtotal bruto de items.
+        const orderItemsGrossTotal = order.orderItems.reduce(
+          (sum: any, item: any) => sum + item.unit_price * item.quantity,
+          0,
+        );
+        const expectedGrossTotal =
+          orderItemsGrossTotal + order.shipping_cost;
+        const actualPaid = order.total_payment;
+        // El descuento se aplica solo a los productos (no al envío)
+        const totalDiscountAmount = expectedGrossTotal - actualPaid;
+        const discountPercentage =
+          totalDiscountAmount > 1 && orderItemsGrossTotal > 0
+            ? Number(
+                (
+                  (totalDiscountAmount / orderItemsGrossTotal) *
+                  100
+                ).toFixed(2),
+              )
+            : 0;
+
+        console.log(
+          `[DIAN Invoice] Bruto items: ${orderItemsGrossTotal}, Envío: ${order.shipping_cost}, Total pagado: ${actualPaid}, Descuento: ${discountPercentage}%`,
+        );
+
+        const invoiceLines: any[] = order.orderItems.map((item: any) => {
+          const basePrice = item.unit_price / 1.19;
+          return {
+            description: item.product_name,
+            quantity: item.quantity,
+            unitPrice: basePrice,
+            taxPercent: 19,
+            discountPercentage: discountPercentage, // Descuento comercial por línea
+          };
+        });
+
+        if (order.shipping_cost > 0) {
+          // El envío también genera IVA ya que Two Six lo recauda
+          const shippingBase = Number(
+            (order.shipping_cost / 1.19).toFixed(2),
+          );
+          invoiceLines.push({
+            description: 'Servicio de Envío',
+            quantity: 1,
+            unitPrice: shippingBase,
+            taxPercent: 19,
+            discountPercentage: 0, // No se descuenta el envío
+          });
+        }
+
+        // Generate exact DIAN totals (Must strictly match UBL engine logic: unit tax first)
+        // Now incorporates discount in the calculation
+        let dianSubtotal = 0;
+        let dianIva = 0;
+        invoiceLines.forEach((line) => {
+          line.unitPrice = Number(line.unitPrice.toFixed(2));
+          const discRate = line.discountPercentage || 0;
+          const unitDiscount = Number(
+            (line.unitPrice * (discRate / 100)).toFixed(2),
+          );
+          const discountedPrice = Number(
+            (line.unitPrice - unitDiscount).toFixed(2),
+          );
+          const lineTotal = Number(
+            (line.quantity * discountedPrice).toFixed(2),
+          );
+
+          const lineTaxPercent = line.taxPercent ?? 19;
+          const unitTax = Number(
+            (discountedPrice * (lineTaxPercent / 100)).toFixed(2),
+          );
+          const lineTax = Number((unitTax * line.quantity).toFixed(2));
+
+          dianSubtotal += lineTotal;
+          dianIva += lineTax;
+        });
+
+        dianSubtotal = Number(dianSubtotal.toFixed(2));
+        dianIva = Number(dianIva.toFixed(2));
+        const dianTotal = Number((dianSubtotal + dianIva).toFixed(2));
+
+        const invoiceDto: InvoiceDto = {
+          number: invoiceNumber,
+          date: invoiceDate,
+          time: '12:00:00-05:00',
+          customerName: order.customer.name,
+          customerDoc: order.customer.document_number || '222222222222',
+          paymentMeansCode:
+            order.payment_method === 'WOMPI_COD' ? '10' : '48',
+          customerDocType: order.customer.identificationType?.code || '13',
+          lines: invoiceLines,
+          subtotal: dianSubtotal,
+          taxTotal: dianIva,
+          total: dianTotal,
+
+          // Resolution data for XML
+          resolutionPrefix: resolution.prefix,
+          resolutionNumber: resolution.resolutionNumber,
+          resolutionStartDate: resolution.startDate
+            .toISOString()
+            .split('T')[0],
+          resolutionEndDate: resolution.endDate.toISOString().split('T')[0],
+          resolutionStartNumber: resolution.startNumber,
+          resolutionEndNumber: resolution.endNumber,
+        };
+
+        // 1. Generar CUFE primero
+        const cufe = this.cufeService.generateCufe({
+          NumFac: invoiceNumber,
+          FecFac: invoiceDate,
+          HorFac: '12:00:00-05:00',
+          ValFac: dianSubtotal.toFixed(2),
+          CodImp1: '01',
+          ValImp1: dianIva.toFixed(2),
+          CodImp2: '04',
+          ValImp2: '0.00',
+          CodImp3: '03',
+          ValImp3: '0.00',
+          ValTot: dianTotal.toFixed(2),
+          NitOfe: nit,
+          NumAdq: invoiceDto.customerDoc,
+          ClTec: claveTecnica,
+          TipoAmb: env === 'TEST' ? '2' : '1',
+        });
+
+        // 2. Generar XML con CUFE insertado, luego firmar
+        const xmlBase = this.ublService.generateInvoiceXml(invoiceDto);
+        const xmlWithCufe = xmlBase.replace(/CUFE_PLACEHOLDER/g, cufe);
+        const signedXml = this.signerService.signXml(xmlWithCufe);
+
+        // 3. Enviar a DIAN
+        const soapResponse = await this.soapService.sendInvoice(
+          Buffer.from(signedXml),
+          invoiceNumber,
+        );
+
+        const qrBase64 = await this.pdfService.generateQrBase64(
+          cufe,
+          nit,
+          dianSubtotal.toFixed(2),
+          dianIva.toFixed(2),
+          dianTotal.toFixed(2),
+          invoiceDate,
+        );
+
+        // Guardar en base de datos
+        const savedInvoice = await this.prisma.dianEInvoicing.create({
+          data: {
+            document_number: invoiceNumber,
+            cufe_code: cufe,
+            qr_code: qrBase64,
+            issue_date: new Date(invoiceDate),
+            due_date: new Date(invoiceDate),
+            status: env === 'TEST' ? 'SENT' : 'AUTHORIZED',
+            dian_response:
+              typeof soapResponse === 'string'
+                ? soapResponse
+                : JSON.stringify(soapResponse),
+            environment: env,
+            id_order: order.id,
+          },
+        });
+
+        if (savedInvoice.status === 'AUTHORIZED') {
+          // Producción dispara correo síncrono
+          this.dianEmailService
+            .sendDianInvoiceEmail(savedInvoice.id)
+            .catch((err) =>
+              console.error('Error enviando correo síncrono DIAN:', err),
+            );
+        }
+
+        invoiceData = {
+          id: savedInvoice.id,
+          cufe,
+          qrBase64,
+          invoiceNumber,
+          cufeUrl: `https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=${cufe}`,
+        };
+        console.log(
+          `Factura DIAN ${invoiceNumber} generada para orden ${order.order_reference}`,
+        );
+      } catch (dianError) {
+        console.error(
+          'Error generando factura DIAN (no bloquea el flujo):',
+          dianError.message,
+        );
+      }
+
+    // Enviar correo de confirmación SOLO si no se había pagado antes (evita duplicados)
+    const shouldSendEmail = !order.is_paid;
+    if (shouldSendEmail) {
+      try {
+        const itemsHtml = order.orderItems
+          .map(
+            (item: any) => `
+        <tr>
+          <td style="padding: 12px; border-bottom: 1px solid #eee; width: 60px;">
+            <img src="${item.product.clothingSize?.clothingColor?.imageClothing?.[0]?.image_url || 'https://example.com/placeholder.png'}" alt="${item.product_name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
+          </td>
+          <td style="padding: 12px; border-bottom: 1px solid #eee;">
+            <div style="font-weight: bold;">${item.product_name}</div>
+            <div style="font-size: 12px; color: #666;">Ref: ${item.id_product}</div>
+          </td>
+          <td style="padding: 12px; border-bottom: 1px solid #eee;">${item.size} / ${item.color}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">$${(item.unit_price * item.quantity).toLocaleString('es-CO')}</td>
+        </tr>
+      `,
+          )
+          .join('');
+
+        const subtotal = order.orderItems.reduce(
+          (sum: any, item: any) => sum + item.unit_price * item.quantity,
+          0,
+        );
+        const shipping = order.shipping_cost || 0;
+        // Sometimes JS floating point issues can make a tiny discount, so we check if it's > 1
+        const discount = Math.round(
+          subtotal + shipping - order.total_payment,
+        );
+
+        let discountHtml = '';
+        if (discount > 1) {
+          discountHtml = `
+            <tr>
+              <td colspan="4" style="padding: 4px 12px; text-align: right; color: #dc3545;">Descuento aplicado:</td>
+              <td style="padding: 4px 12px; text-align: right; color: #dc3545;">-$${discount.toLocaleString('es-CO')}</td>
+            </tr>
+          `;
+        }
+
+        const isCod = order.payment_method === 'WOMPI_COD';
+        const paidToday = isCod ? shipping : order.total_payment;
+        const dueOnDelivery = isCod ? subtotal : 0;
+
+        const tfootHtml = `
+          <tr>
+            <td colspan="4" style="padding: 12px 12px 4px 12px; text-align: right;">Subtotal:</td>
+            <td style="padding: 12px 12px 4px 12px; text-align: right;">$${subtotal.toLocaleString('es-CO')}</td>
+          </tr>
+           ${discountHtml}
+          <tr>
+            <td colspan="4" style="padding: 4px 12px; text-align: right;">Costo de envío:</td>
+            <td style="padding: 4px 12px; text-align: right;">$${shipping.toLocaleString('es-CO')}</td>
+          </tr>
+          <tr>
+            <td colspan="4" style="padding: 12px; text-align: right; font-weight: bold; border-top: 1px solid #eee;">Total Pagado Hoy:</td>
+            <td style="padding: 12px; text-align: right; font-weight: bold; border-top: 1px solid #eee; color: #10b981;">$${paidToday.toLocaleString('es-CO')}</td>
+          </tr>
+          ${
+            dueOnDelivery > 0
+              ? `
+          <tr>
+            <td colspan="4" style="padding: 12px; text-align: right; font-weight: bold; border-top: 1px solid #eee;">A Pagar Contra Entrega (PCE):</td>
+            <td style="padding: 12px; text-align: right; font-weight: bold; border-top: 1px solid #eee; color: #d4af37;">$${dueOnDelivery.toLocaleString('es-CO')}</td>
+          </tr>`
+              : ''
+          }
+        `;
+
+        const storeEmail = this.configService.get<string>('EMAIL_TO');
+        console.log(
+          `Enviando correo de confirmación a: ${order.customer.email} (copia a: ${storeEmail || 'NO CONFIGURADO'})`,
+        );
+
+        // El correo incluirá detalles comerciales del pedido (Facturación viaja en flujo independiente async/sync).
+
+        await this.mailerService.sendMail({
+          to: order.customer.email,
+          ...(storeEmail ? { bcc: storeEmail } : {}),
+          subject: `${this.configService.get<string>('FRONTEND_URL', '').includes('localhost') ? '[LOCAL] ' : ''}Confirmación de Pedido ${order.order_reference} - Two Six`,
+          html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+            <div style="text-align: center; padding: 20px; background-color: #f8f9fa;">
+              <h1 style="color: #000; margin: 0;">TWO SIX</h1>
+              <p style="color: #666; font-size: 14px; letter-spacing: 2px;">ESTILO Y CONFORT</p>
+            </div>
+            
+            <div style="padding: 20px;">
+              <h2 style="color: #333;">¡Gracias por tu compra, ${order.customer.name}!</h2>
+              <p>Hemos recibido el pago de tu envío para el pedido <strong>${order.order_reference}</strong>. Tu pedido está confirmado.</p>
+              ${
+                isCod
+                  ? `<div style="background-color: #fef3c7; padding: 15px; border-left: 4px solid #f59e0b; margin-bottom: 20px;">
+                <strong>Importante:</strong> Has seleccionado Pago Contra Entrega (PCE). Deberás entregar <strong>$${dueOnDelivery.toLocaleString('es-CO')}</strong> en efectivo al transportador al momento de recibir tus prendas.
+              </div>`
+                  : ''
+              }
+              
+              <h3 style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-top: 30px;">Detalles del Pedido</h3>
+              <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <thead>
+                  <tr style="background-color: #f8f9fa;">
+                    <th style="padding: 12px; text-align: left; width: 60px;"></th>
+                    <th style="padding: 12px; text-align: left;">Producto</th>
+                    <th style="padding: 12px; text-align: left;">Detalles</th>
+                    <th style="padding: 12px; text-align: center;">Cant.</th>
+                    <th style="padding: 12px; text-align: right;">Precio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${itemsHtml}
+                </tbody>
+                <tfoot>
+                  ${tfootHtml}
+                </tfoot>
+              </table>
+
+              <div style="background-color: #f8f9fa; padding: 15px; margin-top: 30px; border-radius: 5px;">
+                <h4 style="margin-top: 0;">${order.delivery_method === 'PICKUP' ? 'Punto de Retiro:' : 'Dirección de Envío:'}</h4>
+                <p style="margin-bottom: 0;">
+                  ${
+                    order.delivery_method === 'PICKUP'
+                      ? 'CL 36D SUR #27D-39, APTO 1001, URB Guadalcanal Apartamentos, Envigado, Antioquia.<br><br><i>Nota: Este punto es solo para recoger pedidos ya pagos, no es tienda para medirse ropa 🤍<br>En un máximo de 4 horas hábiles (o antes) te estaremos avisando para que puedas pasar por tu pedido.<br><br>📞 310 877 7629</i>'
+                      : `${order.shipping_address}<br>Tel: ${order.customer.current_phone_number}`
+                  }
+                </p>
+              </div>
+              ${
+                order.delivery_method === 'PICKUP' && order.pickup_pin
+                  ? `
+              <div style="background-color: #fef3c7; padding: 20px; margin-top: 15px; border-radius: 5px; border-left: 4px solid #f59e0b; text-align: center;">
+                <h3 style="margin: 0 0 10px 0; color: #b45309;">🔐 Tu PIN de Retiro</h3>
+                <p style="margin: 0 0 10px 0; font-size: 13px;">Presenta este código al momento de recoger tu pedido:</p>
+                <h2 style="font-size: 36px; letter-spacing: 8px; margin: 10px 0; color: #000; font-family: monospace;">${order.pickup_pin}</h2>
+                <p style="margin: 10px 0 0 0; font-size: 11px; color: #92400e;">Guarda este correo. Sin el PIN no se podrá hacer la entrega.</p>
+              </div>`
+                  : ''
+              }
+
+              <!-- Facturación viaja en flujo independiente async/sync -->
+
+              <p style="margin-top: 30px; text-align: center;">
+                <a href="${this.configService.get<string>('FRONTEND_URL')}/tracking" style="background-color: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Rastrear mi Pedido</a>
+              </p>
+            </div>
+
+            <div style="text-align: center; padding: 20px; background-color: #f8f9fa; font-size: 12px; color: #999;">
+              <p>&copy; ${new Date().getFullYear()} Two Six. Todos los derechos reservados.</p>
+            </div>
+          </div>
+        `,
+        });
+      } catch (error) {
+        console.error('Error enviando correo:', error);
+      }
+    }
+
+    // 6. Generar asiento contable automático
+    try {
+      await this.journalAutoService.onSaleCompleted(order.id);
+      console.log(
+        `Asiento contable generado para orden ${order.order_reference}`,
+      );
+    } catch (accountingError) {
+      console.error(
+        'Error generando asiento contable (no bloquea el flujo):',
+        accountingError.message,
+      );
+    }
+
+    // 7. Generar asiento de costo de mercancía vendida (COGS)
+    try {
+      await this.journalAutoService.onCostOfGoodsSold(order.id);
+      console.log(
+        `Asiento de costo de mercancía vendida generado para orden ${order.order_reference}`,
+      );
+    } catch (cogsError) {
+      console.error(
+        'Error generando asiento COGS (no bloquea el flujo):',
+        cogsError.message,
+      );
+    }
+
+    return invoiceData;
+  }
+
     try {
       const wompiApiUrl = this.configService.get<string>('WOMPI_API_URL');
       const privateKey = this.configService.get<string>('WOMPI_PRIVATE_KEY');

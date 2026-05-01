@@ -10,5 +10,6 @@ import { AccountingModule } from '../accounting/accounting.module';
   imports: [PrismaModule, MailerModule, DianModule, AccountingModule],
   controllers: [OrderController],
   providers: [OrderService],
+  exports: [OrderService],
 })
 export class OrderModule {}
