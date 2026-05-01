@@ -3,6 +3,7 @@ import { CouponController } from './coupon.controller';
 import { CouponService } from './coupon.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { ClsService } from 'nestjs-cls';
 
 describe('CouponController', () => {
   let controller: CouponController;
@@ -14,6 +15,7 @@ describe('CouponController', () => {
         { provide: CouponService, useValue: {} },
         { provide: JwtService, useValue: {} },
         { provide: ConfigService, useValue: {} },
+        { provide: ClsService, useValue: { set: jest.fn(), get: jest.fn() } },
       ],
     }).compile();
 
