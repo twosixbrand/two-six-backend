@@ -96,7 +96,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     // Auditoría global: intercepta create, update, delete
     this.$use(async (params, next) => {
       // Evitar recursión o auditar logs
-      if (params.model === 'SystemAuditLog' || params.model === 'ErrorLog' || params.model === 'AccountingAuditLog') {
+      if (!params.model || params.model === 'SystemAuditLog' || params.model === 'ErrorLog' || params.model === 'AccountingAuditLog') {
         return next(params);
       }
 
@@ -115,7 +115,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       // Si es update o delete, capturar el estado anterior
       if (['update', 'delete'].includes(params.action) && params.args?.where) {
         try {
-          const previous = await (this as any)[params.model].findUnique({
+          const modelNameFirstLower = params.model.charAt(0).toLowerCase() + params.model.slice(1);
+          const previous = await (this as any)[modelNameFirstLower]?.findUnique({
             where: params.args.where,
           });
           oldValues = previous;
