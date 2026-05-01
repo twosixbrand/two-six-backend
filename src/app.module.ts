@@ -55,9 +55,15 @@ import { ConsignmentReturnModule } from './api/consignment-return/consignment-re
 import { ConsignmentCycleCountModule } from './api/consignment-cycle-count/consignment-cycle-count.module';
 import { ConsignmentReportsModule } from './api/consignment-reports/consignment-reports.module';
 import { ConsignmentPaymentModule } from './api/consignment-payment/consignment-payment.module';
+import { ClsModule } from 'nestjs-cls';
+import { SystemAuditModule } from './api/system-audit/system-audit.module';
 
 @Module({
   imports: [
+    ClsModule.forRoot({
+      global: true,
+      middleware: { mount: true },
+    }),
     ScheduleModule.forRoot(),
     LoggerModule.forRoot({
       pinoHttp: {
@@ -137,6 +143,7 @@ import { ConsignmentPaymentModule } from './api/consignment-payment/consignment-
     ConsignmentCycleCountModule,
     ConsignmentReportsModule,
     ConsignmentPaymentModule,
+    SystemAuditModule,
   ],
   controllers: [AppController],
   providers: [

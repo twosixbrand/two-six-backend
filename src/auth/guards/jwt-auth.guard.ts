@@ -7,6 +7,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
+import { ClsService } from 'nestjs-cls';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -14,6 +15,7 @@ export class JwtAuthGuard implements CanActivate {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly reflector: Reflector,
+    private readonly cls: ClsService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -39,6 +41,10 @@ export class JwtAuthGuard implements CanActivate {
 
       // Attach user payload to request for downstream use
       request.user = payload;
+      
+      // Inject into CLS for Prisma Extension to access it globally
+      this.cls.set('userId', payload.sub);
+      this.cls.set('userEmail', payload.email);
     } catch {
       throw new UnauthorizedException('Token de acceso inválido o expirado.');
     }

@@ -1559,3 +1559,20 @@ model ConsignmentPayment {
 
   @@map("consignment_payment")
 }
+
+model SystemAuditLog {
+  id        BigInt   @id @default(autoincrement())
+  tableName String   @map("table_name")
+  recordId  String   @map("record_id")
+  action    String
+  userId    Int?     @map("user_id")
+  oldValues Json?    @map("old_values")
+  newValues Json?    @map("new_values")
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([tableName, recordId])
+  @@index([createdAt])
+  @@index([userId])
+  @@map("system_audit_log")
+}
