@@ -113,7 +113,7 @@ export class CashReceiptService {
    */
   async listPending(advancePucCode: string) {
     const entries = await this.prisma.journalEntry.findMany({
-      where: { source_type: 'CASH_RECEIPT' },
+      where: { source_type: 'CASH_RECEIPT', status: 'POSTED' },
       include: { lines: { include: { pucAccount: true } } },
       orderBy: { entry_date: 'desc' },
     });
