@@ -193,10 +193,10 @@ export class ManualInvoiceService {
     let subtotal = 0;
     let ivaTotal = 0;
     const enrichedLines = dto.items.map((item) => {
-      const unit = Number(item.unit_price.toFixed(2));
-      const lineSubtotal = Number((item.quantity * unit).toFixed(2));
+      const unit = item.unit_price;
+      const lineSubtotal = item.quantity * unit;
       const rate = item.iva_rate ?? 19;
-      const lineIva = Number((lineSubtotal * (rate / 100)).toFixed(2));
+      const lineIva = lineSubtotal * (rate / 100);
       subtotal += lineSubtotal;
       ivaTotal += lineIva;
       return {
