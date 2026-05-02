@@ -13,6 +13,10 @@ async function bootstrap() {
   console.log('Starting bootstrap...');
   const app = await NestFactory.create(AppModule);
 
+  // Confiar en el proxy de Cloudflare para obtener la IP real del cliente
+  // Esto es CRÍTICO para que el Rate Limiting (Throttler) no bloquee a todos los usuarios
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   // Registrar Sentry como filtro global de excepciones (captura errores 5xx)
   const { httpAdapter } = app.get(HttpAdapterHost);
   app.useGlobalFilters(new SentryExceptionFilter(httpAdapter));
