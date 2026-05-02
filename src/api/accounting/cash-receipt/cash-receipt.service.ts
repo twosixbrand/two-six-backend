@@ -112,8 +112,21 @@ export class CashReceiptService {
    * antes de emitir la factura.
    */
   async listPending(advancePucCode: string) {
+    // Obtener IDs de asientos originales que ya fueron reversados
+    const reversedEntryIds = await this.prisma.journalEntry.findMany({
+      where: { source_type: 'REVERSAL' },
+      select: { source_id: true },
+    });
+    const reversedIds = reversedEntryIds
+      .map((r) => r.source_id)
+      .filter((id): id is number => id !== null);
+
     const entries = await this.prisma.journalEntry.findMany({
-      where: { source_type: 'CASH_RECEIPT', status: 'POSTED' },
+      where: {
+        source_type: 'CASH_RECEIPT',
+        status: 'POSTED',
+        ...(reversedIds.length > 0 ? { id: { notIn: reversedIds } } : {}),
+      },
       include: { lines: { include: { pucAccount: true } } },
       orderBy: { entry_date: 'desc' },
     });
@@ -171,6 +184,12 @@ export class CashReceiptService {
         `Recibo de caja #${journalEntryId} no existe.`,
       );
     }
+
+    // Si el asiento fue reversado, su saldo disponible es 0
+    const reversal = await this.prisma.journalEntry.findFirst({
+      where: { source_type: 'REVERSAL', source_id: journalEntryId },
+    });
+    if (reversal) return 0;
 
     const advanceLine = entry.lines.find(
       (l) => l.pucAccount.code === advancePucCode,
