@@ -678,6 +678,55 @@ describe('OrderService', () => {
       // Should NOT update order again
       expect(mockPrisma.order.update).not.toHaveBeenCalled();
     });
+
+    it('should handle DIAN SOAP error without blocking order update', async () => {
+      const transaction = {
+        reference: 'TS-SOAP-ERROR',
+        status: 'APPROVED',
+        amount_in_cents: 10000000,
+        created_at: '2026-03-25T10:00:00Z',
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: transaction }),
+      });
+
+      const order = {
+        id: 10,
+        order_reference: 'TS-SOAP-ERROR',
+        is_paid: false,
+        payment_method: 'WOMPI_FULL',
+        total_payment: 100000,
+        shipping_cost: 0,
+        customer: { email: 'test@test.com', identificationType: { code: '13' } },
+        orderItems: [],
+      };
+
+      mockPrisma.order.findUnique.mockResolvedValue(order);
+      mockPrisma.dianResolution.findFirst.mockResolvedValue({ id: 1, currentNumber: 1, endNumber: 1000 });
+      mockSoapService.sendInvoice.mockRejectedValue(new Error('SOAP timeout'));
+
+      const result = await service.verifyPayment('txn_soap_err');
+
+      expect(result.status).toBe('APPROVED');
+      // Order should still be updated even if DIAN fails
+      expect(mockPrisma.order.update).toHaveBeenCalled();
+    });
+
+    it('should throw error when order is not found', async () => {
+      const transaction = { reference: 'TS-MISSING', status: 'APPROVED' };
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: transaction }),
+      });
+
+      mockPrisma.order.findUnique.mockResolvedValue(null);
+
+      await expect(service.verifyPayment('txn_missing')).rejects.toThrow(
+        'Orden con referencia TS-MISSING no encontrada',
+      );
+    });
   });
 
   // ─── validateDiscountCode ───────────────────────────────────────────
@@ -956,6 +1005,50 @@ describe('OrderService', () => {
       await expect(
         service.validateDiscountCode('MAXED', 'user@test.com'),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+  // ─── pickup methods ─────────────────────────────────────────────
+  describe('pickup methods', () => {
+    it('markAsReadyForPickup should send email and update status', async () => {
+      const order = {
+        id: 1,
+        order_reference: 'TS-PICKUP',
+        delivery_method: 'PICKUP',
+        customer: { email: 'test@test.com', name: 'User' },
+      };
+      mockPrisma.order.findUnique.mockResolvedValue(order);
+      mockPrisma.order.update.mockResolvedValue({ ...order, pickup_status: 'READY', status: 'Listo para Recoger', pickup_pin: '1234' });
+      mockMailerService.sendMail.mockResolvedValue({});
+
+      const result = await service.markAsReadyForPickup(1);
+
+      expect(result.pickup_status).toBe('READY');
+      expect(mockMailerService.sendMail).toHaveBeenCalled();
+    });
+
+    it('markAsReadyForPickup should throw if not PICKUP', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: 1, delivery_method: 'SHIPPING' });
+      await expect(service.markAsReadyForPickup(1)).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('checkStatusByReference', () => {
+    it('should consult Wompi and return status', async () => {
+      const reference = 'TS-CHECK';
+      mockConfigService.get.mockImplementation((key) => {
+        if (key === 'WOMPI_PRIVATE_KEY') return 'prv_123';
+        if (key === 'WOMPI_API_URL') return 'http://api';
+        return 'test';
+      });
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: [{ status: 'APPROVED', id: 'txn_1' }] }),
+      });
+      // Mock verifyPayment to avoid deep call
+      jest.spyOn(service, 'verifyPayment').mockResolvedValue({ status: 'APPROVED', orderId: 1 } as any);
+
+      const result = await service.checkStatusByReference(reference);
+      expect(result.status).toBe('APPROVED');
     });
   });
 });
