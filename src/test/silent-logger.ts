@@ -1,12 +1,10 @@
 import { LoggerService, Logger } from '@nestjs/common';
 
 // Redirect global console methods during tests
-if (process.env.NODE_ENV === 'test') {
-  global.console.log = jest.fn();
-  global.console.info = jest.fn();
-  global.console.warn = jest.fn();
-  global.console.error = jest.fn();
-}
+global.console.log = jest.fn();
+global.console.info = jest.fn();
+global.console.warn = jest.fn();
+global.console.error = jest.fn();
 
 /**
  * A silent logger for tests to keep the console clean.
@@ -21,7 +19,5 @@ export class SilentLogger implements LoggerService {
   setLogLevels?(levels: any[]) {}
 }
 
-// Silence NestJS Logger
-if (process.env.NODE_ENV === 'test') {
-  Logger.overrideLogger(new SilentLogger());
-}
+// Silence NestJS Logger globally for tests
+Logger.overrideLogger(new SilentLogger());

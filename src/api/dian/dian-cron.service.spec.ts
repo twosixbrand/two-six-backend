@@ -261,5 +261,88 @@ describe('DianCronService', () => {
       expect(mockSoapService.getStatusZip).toHaveBeenCalledTimes(2);
       expect(mockPrisma.dianEInvoicing.update).toHaveBeenCalledTimes(1);
     });
+
+    it('should log error if email retry fails', async () => {
+      const invoice = {
+        id: 10,
+        status: 'AUTHORIZED',
+        email_sent: false,
+        document_number: 'FE010',
+      };
+      mockPrisma.dianEInvoicing.findMany.mockResolvedValue([invoice]);
+      mockEmailService.sendDianInvoiceEmail.mockRejectedValue(new Error('Email error'));
+      
+      const loggerSpy = jest.spyOn((service as any).logger, 'error');
+      
+      await service.pollDianInvoices();
+      
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Error retrying email'),
+        expect.any(Error),
+      );
+      loggerSpy.mockRestore();
+    });
+
+    it('should skip if soap response is empty or not a string', async () => {
+      const invoice = {
+        id: 11,
+        status: 'SENT',
+        dian_response: '<b:ZipKey>abc</b:ZipKey>',
+        document_number: 'FE011',
+      };
+      mockPrisma.dianEInvoicing.findMany.mockResolvedValue([invoice]);
+      mockSoapService.getStatusZip.mockResolvedValue(null);
+      
+      await service.pollDianInvoices();
+      
+      expect(mockPrisma.dianEInvoicing.update).not.toHaveBeenCalled();
+    });
+
+    it('should update status to PROCESSED for other non-UNKNOWN status codes', async () => {
+      const invoice = {
+        id: 12,
+        status: 'SENT',
+        dian_response: '<b:ZipKey>abc</b:ZipKey>',
+        document_number: 'FE012',
+      };
+      mockPrisma.dianEInvoicing.findMany.mockResolvedValue([invoice]);
+      
+      const soapResponse = `
+        <b:IsValid>false</b:IsValid>
+        <b:StatusCode>05</b:StatusCode>
+        <b:StatusDescription>Validación en proceso</b:StatusDescription>
+      `;
+      mockSoapService.getStatusZip.mockResolvedValue(soapResponse);
+      mockPrisma.dianEInvoicing.update.mockResolvedValue({});
+      
+      await service.pollDianInvoices();
+      
+      expect(mockPrisma.dianEInvoicing.update).toHaveBeenCalledWith({
+        where: { id: 12 },
+        data: expect.objectContaining({
+          status: 'PROCESSED',
+        }),
+      });
+    });
+
+    it('should do nothing if status is UNKNOWN', async () => {
+      const invoice = {
+        id: 13,
+        status: 'SENT',
+        dian_response: '<b:ZipKey>abc</b:ZipKey>',
+        document_number: 'FE013',
+      };
+      mockPrisma.dianEInvoicing.findMany.mockResolvedValue([invoice]);
+      
+      const soapResponse = `
+        <b:IsValid>false</b:IsValid>
+        <b:StatusCode>UNKNOWN</b:StatusCode>
+      `;
+      mockSoapService.getStatusZip.mockResolvedValue(soapResponse);
+      
+      await service.pollDianInvoices();
+      
+      expect(mockPrisma.dianEInvoicing.update).not.toHaveBeenCalled();
+    });
   });
 });
