@@ -178,7 +178,7 @@ export class OrderService {
 
     // We will override these later after validating with the DB
     const validMethods = ['WOMPI_COD', 'WOMPI_FULL', 'WOMPI_CC', 'BELVO_A2A', 'BANCOLOMBIA_TRANSFER'];
-    const method = validMethods.includes(paymentMethod) ? paymentMethod : 'WOMPI_FULL';
+    const method: string = (paymentMethod && validMethods.includes(paymentMethod)) ? paymentMethod : 'WOMPI_FULL';
     let codAmount = 0;
 
     const order = await this.prisma.$transaction(async (prisma) => {
@@ -1151,6 +1151,7 @@ export class OrderService {
     return invoiceData;
   }
 
+  async checkStatusByReference(reference: string) {
     try {
       const wompiApiUrl = this.configService.get<string>('WOMPI_API_URL');
       const privateKey = this.configService.get<string>('WOMPI_PRIVATE_KEY');
