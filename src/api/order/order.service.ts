@@ -177,7 +177,7 @@ export class OrderService {
     const idIdentType = mapDianCodeToId(customer.document_type || '13');
 
     // We will override these later after validating with the DB
-    const validMethods = ['WOMPI_COD', 'WOMPI_FULL', 'WOMPI_CC', 'BELVO_A2A', 'BANCOLOMBIA_TRANSFER'];
+    const validMethods = ['WOMPI_COD', 'WOMPI_FULL', 'WOMPI_CC'];
     const method: string = (paymentMethod && validMethods.includes(paymentMethod)) ? paymentMethod : 'WOMPI_FULL';
     let codAmount = 0;
 
@@ -485,14 +485,6 @@ export class OrderService {
           integritySignature: signature,
         },
       };
-    } else if (method === 'BELVO_A2A') {
-      return {
-        order,
-        belvo: {
-          reference: order.order_reference,
-          amount: order.total_payment,
-        }
-      }
     } else {
       return { order };
     }
