@@ -5,9 +5,10 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { DianModule } from '../dian/dian.module';
 import { AccountingModule } from '../accounting/accounting.module';
+import { WompiModule } from '../wompi/wompi.module';
 
 @Module({
-  imports: [PrismaModule, MailerModule, DianModule, AccountingModule],
+  imports: [PrismaModule, MailerModule, DianModule, AccountingModule, WompiModule],
   controllers: [OrderController],
   providers: [OrderService],
   exports: [OrderService],

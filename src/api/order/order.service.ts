@@ -18,6 +18,7 @@ import { DianSoapService } from '../dian/dian-soap/dian-soap.service';
 import { DianPdfService } from '../dian/dian-pdf/dian-pdf.service';
 import { DianEmailService } from '../dian/dian-email.service';
 import { JournalAutoService } from '../accounting/journal/journal-auto.service';
+import { WompiService } from '../wompi/wompi.service';
 
 @Injectable()
 export class OrderService {
@@ -32,6 +33,7 @@ export class OrderService {
     private readonly pdfService: DianPdfService,
     private readonly dianEmailService: DianEmailService,
     private readonly journalAutoService: JournalAutoService,
+    private readonly wompiService: WompiService,
   ) {}
 
   async validateDiscountCode(
@@ -429,62 +431,13 @@ export class OrderService {
     });
 
     if (method.startsWith('WOMPI')) {
-      // Generar firma de integridad
-      const integritySecret = this.configService.get<string>(
-        'WOMPI_INTEGRITY_SECRET',
+      const wompiData = this.wompiService.generateCheckoutData(
+        order.order_reference ?? '',
+        order.payment_method ?? 'WOMPI_FULL',
+        order.total_payment,
+        order.shipping_cost,
       );
-      const publicKey = this.configService.get<string>('WOMPI_PUBLIC_KEY');
-
-      if (!integritySecret) {
-        throw new Error('WOMPI_INTEGRITY_SECRET no está configurado');
-      }
-      if (!publicKey) {
-        throw new Error('WOMPI_PUBLIC_KEY no está configurado');
-      }
-
-      // 2. Concatenación EXACTA (Sin espacios adicionales - igual al ejemplo del usuario)
-      // Nota: El usuario sugirió no usar trim(), así que usamos el secreto tal cual viene del env.
-      const integritySecretRaw = integritySecret;
-
-      // Validar formato de llaves (ayuda visual en logs)
-      if (
-        !integritySecretRaw.startsWith('test_integrity_') &&
-        !integritySecretRaw.startsWith('prod_integrity_')
-      ) {
-        console.warn(
-          'ADVERTENCIA: WOMPI_INTEGRITY_SECRET no parece tener el formato correcto (debería empezar por test_integrity_ o prod_integrity_).',
-        );
-      }
-
-      // Determine Wompi checkout amount depending on COD or Full payment
-      const totalToPayNow =
-        order.payment_method === 'WOMPI_COD'
-          ? order.shipping_cost
-          : order.total_payment;
-      const amountInCents = Math.round(totalToPayNow * 100);
-
-      // Usar el order_reference para Wompi
-      const reference = order.order_reference;
-      const currency = 'COP';
-
-      const integrityString = `${reference}${amountInCents}${currency}${integritySecretRaw}`;
-
-      const crypto = require('crypto');
-      const signature = crypto
-        .createHash('sha256')
-        .update(integrityString)
-        .digest('hex');
-
-      return {
-        order,
-        wompi: {
-          publicKey,
-          currency,
-          amountInCents,
-          reference,
-          integritySignature: signature,
-        },
-      };
+      return { order, wompi: wompiData };
     } else {
       return { order };
     }
@@ -492,225 +445,13 @@ export class OrderService {
 
   /**
    * Verifica una transacción de Wompi y actualiza la orden correspondiente.
+   * Delega la lógica de Wompi a WompiService.
    */
   async verifyPayment(transactionId: string) {
-    console.log('Verifying payment for transactionId:', transactionId);
-
-    if (
-      !transactionId ||
-      transactionId === 'undefined' ||
-      transactionId === 'null'
-    ) {
-      throw new Error('Transaction ID inválido o no proporcionado');
-    }
-
-    try {
-      // 1. Consultar la API de Wompi
-      const wompiApiUrl = this.configService.get<string>('WOMPI_API_URL');
-      console.log('WOMPI_API_URL:', wompiApiUrl);
-
-      const response = await fetch(
-        `${wompiApiUrl}/transactions/${transactionId}`,
-      );
-
-      if (!response.ok) {
-        throw new Error(`Error consultando Wompi: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const transaction = data.data;
-
-      // 2. Obtener la referencia de la orden (orderId)
-      const orderReference = transaction.reference;
-
-      if (!orderReference) {
-        throw new Error(
-          `Referencia de orden inválida en la transacción de Wompi: ${transaction.reference}`,
-        );
-      }
-
-      // 3. Buscar la orden por Referencia
-      const order = await this.prisma.order.findUnique({
-        where: { order_reference: orderReference },
-        include: {
-          customer: {
-            include: {
-              identificationType: true,
-            },
-          },
-          orderItems: {
-            include: {
-              product: {
-                include: {
-                  clothingSize: {
-                    include: {
-                      clothingColor: {
-                        include: {
-                          imageClothing: true,
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      });
-
-      if (!order) {
-        throw new Error(`Orden con referencia ${orderReference} no encontrada`);
-      }
-      console.log('Order found:', order.order_reference);
-
-      // 4. Verificar el estado
-      // Estados de Wompi: APPROVED, DECLINED, VOIDED, ERROR
-
-      // Prevenir concurrencia: Si ya se pagó y procesó, evitar doble correo/factura
-      if (order.is_paid && transaction.status === 'APPROVED') {
-        console.log(
-          `La orden ${orderReference} ya fue procesada previamente. Omitiendo duplicados.`,
-        );
-        const existingInvoice = await this.prisma.dianEInvoicing.findFirst({
-          where: { id_order: order.id },
-          orderBy: { createdAt: 'desc' },
-        });
-        return {
-          status: 'APPROVED',
-          orderId: order.id,
-          invoiceNumber: existingInvoice
-            ? existingInvoice.document_number
-            : undefined,
-        };
-      }
-
-      if (transaction.status === 'APPROVED') {
-        // Verificar el monto (opcional pero recomendado)
-        const amountInCents = transaction.amount_in_cents;
-        const expectedPaymentAmount =
-          order.payment_method === 'WOMPI_COD'
-            ? order.shipping_cost
-            : order.total_payment;
-        const orderTotalInCents = expectedPaymentAmount * 100;
-
-        if (amountInCents < orderTotalInCents) {
-          console.warn(
-            `Alerta: El monto pagado (${amountInCents}) es menor al total esperado de la orden (${orderTotalInCents})`,
-          );
-        }
-
-        // 3. Actualizar estado de la orden
-        const nextStatus =
-          order.payment_method === 'WOMPI_COD' ? 'Aprobado PCE' : 'Pagado';
-
-        await this.prisma.order.update({
-          where: { order_reference: orderReference },
-          data: {
-            status: nextStatus,
-            is_paid: order.payment_method === 'WOMPI_COD' ? false : true,
-          },
-        });
-
-        // Mark discount as used if applicable
-        const orderSubtotal = order.orderItems.reduce(
-          (sum, item) => sum + item.unit_price * item.quantity,
-          0,
-        );
-        const expectedTotalWithoutDiscount =
-          orderSubtotal + order.shipping_cost;
-        const hasDiscount = order.total_payment < expectedTotalWithoutDiscount;
-
-        if (order.id_coupon) {
-          try {
-            await this.prisma.couponUsage.create({
-              data: {
-                id_coupon: order.id_coupon,
-                id_customer: order.id_customer,
-                id_order: order.id,
-              },
-            });
-            await this.prisma.coupon.update({
-              where: { id: order.id_coupon },
-              data: { current_uses: { increment: 1 } },
-            });
-          } catch (e) {
-            // Might already be registered
-          }
-        } else if (hasDiscount) {
-          const subscriber = await this.prisma.subscriber.findUnique({
-            where: { email: order.customer.email },
-          });
-
-          if (subscriber && !subscriber.is_discount_used) {
-            await this.prisma.subscriber.update({
-              where: { email: order.customer.email },
-              data: { is_discount_used: true },
-            });
-          }
-        }
-
-        // 4. Registrar el pago en la tabla Payments
-        if (transaction.status === 'APPROVED') {
-          // Verificar si ya existe un pago con esta referencia
-          const existingPayment = await this.prisma.payments.findFirst({
-            where: { transaction_reference: transaction.reference },
-          });
-
-          if (!existingPayment) {
-            // Buscar método de pago (Wompi) o crear uno genérico si no existe
-            let paymentMethod = await this.prisma.paymentMethod.findFirst({
-              where: { name: 'Wompi' },
-            });
-
-            if (!paymentMethod) {
-              paymentMethod = await this.prisma.paymentMethod.create({
-                data: { name: 'Wompi', enabled: true },
-              });
-            }
-
-            await this.prisma.payments.create({
-              data: {
-                id_order: order.id,
-                id_customer: order.id_customer,
-                id_payment_method: paymentMethod.id,
-                status: transaction.status,
-                transaction_date: new Date(transaction.created_at),
-                transaction_reference: transaction.reference,
-                amount: transaction.amount_in_cents / 100, // Convertir a pesos
-              },
-            });
-          }
-        }
-
-        // 5. Generar factura DIAN, correos y asientos contables (Lógica Desacoplada)
-        const invoiceData = await this.processSuccessfulPayment(order);
-
-        return {
-          status: 'APPROVED',
-          orderId: order.id,
-          transactionId: transactionId,
-          message: 'Pago aprobado exitosamente',
-          ...(invoiceData ? { invoice: invoiceData } : {}),
-        };
-      } else {
-        // Si fue rechazada o error
-        await this.prisma.order.update({
-          where: { order_reference: orderReference },
-          data: {
-            status: 'Rechazado', // O el estado que prefieras
-          },
-        });
-
-        return {
-          status: transaction.status,
-          orderId: order.order_reference,
-          message: `El pago no fue aprobado. Estado: ${transaction.status}`,
-        };
-      }
-    } catch (error) {
-      console.error('Error verificando pago Wompi:', error);
-      throw error;
-    }
+    return this.wompiService.verifyAndFulfillTransaction(
+      transactionId,
+      (order) => this.processSuccessfulPayment(order),
+    );
   }
 
   /**
