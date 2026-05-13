@@ -57,6 +57,7 @@ import { ConsignmentReportsModule } from './api/consignment-reports/consignment-
 import { ConsignmentPaymentModule } from './api/consignment-payment/consignment-payment.module';
 import { ClsModule } from 'nestjs-cls';
 import { SystemAuditModule } from './api/system-audit/system-audit.module';
+import { ContactModule } from './api/contact/contact.module';
 
 @Module({
   imports: [
@@ -144,6 +145,7 @@ import { SystemAuditModule } from './api/system-audit/system-audit.module';
     ConsignmentReportsModule,
     ConsignmentPaymentModule,
     SystemAuditModule,
+    ContactModule,
   ],
   controllers: [AppController],
   providers: [
