@@ -10,16 +10,20 @@ export class CollectionService {
   create(createCollectionDto: CreateCollectionDto) {
     return this.prisma.collection.create({
       data: createCollectionDto,
+      include: { season: true, yearProduction: true },
     });
   }
 
   findAll() {
-    return this.prisma.collection.findMany();
+    return this.prisma.collection.findMany({
+      include: { season: true, yearProduction: true },
+    });
   }
 
   findOne(id: number) {
     return this.prisma.collection.findUnique({
       where: { id },
+      include: { season: true, yearProduction: true },
     });
   }
 
@@ -27,6 +31,7 @@ export class CollectionService {
     return this.prisma.collection.update({
       where: { id },
       data: updateCollectionDto,
+      include: { season: true, yearProduction: true },
     });
   }
 
