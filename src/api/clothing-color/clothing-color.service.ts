@@ -21,6 +21,10 @@ export class ClothingColorService {
     id_design: number,
     id_color: number,
     slug: string | undefined,
+    seo_title: string | undefined,
+    seo_desc: string | undefined,
+    seo_h1: string | undefined,
+    seo_alt: string | undefined,
     sizes: {
       id_size: number;
       quantity_produced: number;
@@ -62,6 +66,10 @@ export class ClothingColorService {
             id_design,
             id_color,
             slug,
+            seo_title,
+            seo_desc,
+            seo_h1,
+            seo_alt,
           },
         });
 

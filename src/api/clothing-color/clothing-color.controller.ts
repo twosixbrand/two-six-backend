@@ -51,6 +51,10 @@ export class ClothingColorController {
       id_design: string;
       id_color: string;
       slug?: string;
+      seo_title?: string;
+      seo_desc?: string;
+      seo_h1?: string;
+      seo_alt?: string;
       sizes: string;
     },
   ) {
@@ -60,6 +64,10 @@ export class ClothingColorController {
       const id_design = parseInt(body.id_design, 10);
       const id_color = parseInt(body.id_color, 10);
       const slug = body.slug;
+      const seo_title = body.seo_title;
+      const seo_desc = body.seo_desc;
+      const seo_h1 = body.seo_h1;
+      const seo_alt = body.seo_alt;
       let sizes;
 
       try {
@@ -78,6 +86,10 @@ export class ClothingColorController {
         id_design,
         id_color,
         slug,
+        seo_title,
+        seo_desc,
+        seo_h1,
+        seo_alt,
         sizes,
       );
     } catch (error) {
