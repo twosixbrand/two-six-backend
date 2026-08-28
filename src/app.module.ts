@@ -20,6 +20,7 @@ import { SizeModule } from './api/size/size.module';
 import { ClothingColorModule } from './api/clothing-color/clothing-color.module';
 import { SeasonModule } from './api/season/season.module';
 import { OrderModule } from './api/order/order.module';
+import { PosSalesModule } from './api/pos-sales/pos-sales.module';
 import { ProductionTypeModule } from './api/production-type/production-type.module';
 import { DesignProviderModule } from './api/design-provider/design-provider.module';
 import { LocationModule } from './api/location/location.module';
@@ -101,6 +102,7 @@ import { ContactModule } from './api/contact/contact.module';
     ClothingColorModule,
     SeasonModule,
     OrderModule,
+    PosSalesModule,
     ProductionTypeModule,
     DesignProviderModule,
     LocationModule,

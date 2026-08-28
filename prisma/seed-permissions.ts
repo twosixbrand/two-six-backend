@@ -77,6 +77,8 @@ const permissions: PermissionSeed[] = [
   { code: 'sales.customers.view', name: 'Ver Clientes', group: 'Ventas' },
   { code: 'sales.customers.manage', name: 'Gestionar Clientes', group: 'Ventas' },
   { code: 'sales.reports.view', name: 'Ver Reportes de Ventas', group: 'Ventas' },
+  { code: 'sales.pos.view', name: 'Ver POS Stand Feria', group: 'Ventas' },
+  { code: 'sales.pos_admin.view', name: 'Administrar Ventas Stand', group: 'Ventas' },
   { code: 'sales.dian.view', name: 'Ver Facturación DIAN', group: 'Ventas' },
   { code: 'sales.dian.manage', name: 'Gestionar Facturación DIAN', group: 'Ventas' },
 

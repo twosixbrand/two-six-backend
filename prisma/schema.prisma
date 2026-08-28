@@ -611,6 +611,7 @@ model DianEInvoicing {
   order                   Order?          @relation(fields: [id_order], references: [id])
   cashReceiptJournal      JournalEntry?   @relation("CashReceiptInvoices", fields: [cash_receipt_journal_id], references: [id])
   dianNotes               DianNote[]
+  posSale                 PosSale?
 
   // Índices de rendimiento: búsqueda por orden y número de factura
   @@index([id_order])
@@ -1575,4 +1576,31 @@ model SystemAuditLog {
   @@index([createdAt])
   @@index([userId])
   @@map("system_audit_log")
+}
+
+model PosSale {
+  id               Int       @id @default(autoincrement())
+  
+  customerName     String    @map("customer_name")
+  customerDoc      String    @map("customer_doc")
+  customerDocType  String    @map("customer_doc_type")
+  customerEmail    String?   @map("customer_email")
+  customerPhone    String?   @map("customer_phone")
+  
+  paymentMethod    String    @map("payment_method")
+  subtotal         Float
+  taxTotal         Float     @map("tax_total")
+  total            Float
+  
+  lines            Json
+  
+  status           String    @default("PENDING") // PENDING, INVOICED
+  id_dian_invoice  Int?      @unique @map("id_dian_invoice")
+  
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime? @updatedAt @map("updated_at")
+
+  dianInvoice      DianEInvoicing? @relation(fields: [id_dian_invoice], references: [id])
+
+  @@map("pos_sale")
 }
