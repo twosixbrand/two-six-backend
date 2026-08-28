@@ -44,11 +44,13 @@ describe('JournalAutoService Extra', () => {
 
     service = module.get<JournalAutoService>(JournalAutoService);
     prisma = module.get<PrismaService>(PrismaService);
-    
+
     // Mock private methods if needed or rely on prisma mocks
     (service as any).getNextEntryNumber = jest.fn().mockResolvedValue('AE-001');
-    (service as any).findAccountByCode = jest.fn().mockResolvedValue({ id: 1, code: '1' });
-    
+    (service as any).findAccountByCode = jest
+      .fn()
+      .mockResolvedValue({ id: 1, code: '1' });
+
     jest.clearAllMocks();
   });
 
@@ -66,9 +68,9 @@ describe('JournalAutoService Extra', () => {
       };
       mockPrisma.expense.findUnique.mockResolvedValue(expense);
       mockPrisma.journalEntry.create.mockResolvedValue({ id: 100 });
-      
+
       await service.onExpenseCreated(1);
-      
+
       expect(mockPrisma.journalEntry.create).toHaveBeenCalled();
       const callArgs = mockPrisma.journalEntry.create.mock.calls[0][0].data;
       expect(callArgs.source_type).toBe('EXPENSE');
@@ -77,7 +79,9 @@ describe('JournalAutoService Extra', () => {
 
     it('should throw NotFoundException if expense not found', async () => {
       mockPrisma.expense.findUnique.mockResolvedValue(null);
-      await expect(service.onExpenseCreated(99)).rejects.toThrow(NotFoundException);
+      await expect(service.onExpenseCreated(99)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -93,19 +97,22 @@ describe('JournalAutoService Extra', () => {
             product: {
               clothingSize: {
                 clothingColor: {
-                  design: { manufactured_cost: 40 }
-                }
-              }
-            }
-          }
-        ]
+                  design: { manufactured_cost: 40 },
+                },
+              },
+            },
+          },
+        ],
       };
       mockPrisma.order.findUnique.mockResolvedValue(order);
-      mockPrisma.pucAccount.findUnique.mockResolvedValue({ id: 10, code: '613535' });
+      mockPrisma.pucAccount.findUnique.mockResolvedValue({
+        id: 10,
+        code: '613535',
+      });
       mockPrisma.journalEntry.create.mockResolvedValue({ id: 101 });
-      
+
       await service.onCostOfGoodsSold(1);
-      
+
       expect(mockPrisma.journalEntry.create).toHaveBeenCalled();
       const callArgs = mockPrisma.journalEntry.create.mock.calls[0][0].data;
       expect(callArgs.source_type).toBe('COGS');
@@ -118,13 +125,13 @@ describe('JournalAutoService Extra', () => {
       const adjustment = {
         id: 1,
         reason: 'MERMA',
-        items: [{ unit_cost: 50, quantity: -2 }]
+        items: [{ unit_cost: 50, quantity: -2 }],
       };
       mockPrisma.inventoryAdjustment.findUnique.mockResolvedValue(adjustment);
       mockPrisma.journalEntry.create.mockResolvedValue({ id: 102 });
-      
+
       await service.onInventoryAdjustment(1);
-      
+
       expect(mockPrisma.journalEntry.create).toHaveBeenCalled();
       const callArgs = mockPrisma.journalEntry.create.mock.calls[0][0].data;
       expect(callArgs.source_type).toBe('INVENTORY_ADJUSTMENT');

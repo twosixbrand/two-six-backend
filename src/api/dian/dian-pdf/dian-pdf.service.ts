@@ -98,7 +98,9 @@ export class DianPdfService {
           code: '10',
         };
     const paymentMethodLabel = `${pm.label} (${pm.code})`;
-    const paymentFormLabel = isRegularization ? 'Crédito — Anticipo (2)' : 'Contado (1)';
+    const paymentFormLabel = isRegularization
+      ? 'Crédito — Anticipo (2)'
+      : 'Contado (1)';
 
     // ═══ DESGLOSE IVA ═══
     // Los unit_price ya incluyen IVA, así que para el desglose en factura:
@@ -198,8 +200,12 @@ export class DianPdfService {
       : 'Resolución DIAN no configurada';
 
     const validationDate = invoice.dian_authorized_at
-      ? invoice.dian_authorized_at.toLocaleString('es-CO', { timeZone: 'America/Bogota' })
-      : invoice.createdAt.toLocaleString('es-CO', { timeZone: 'America/Bogota' });
+      ? invoice.dian_authorized_at.toLocaleString('es-CO', {
+          timeZone: 'America/Bogota',
+        })
+      : invoice.createdAt.toLocaleString('es-CO', {
+          timeZone: 'America/Bogota',
+        });
 
     const html = `
     <!DOCTYPE html>

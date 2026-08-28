@@ -699,12 +699,19 @@ describe('OrderService', () => {
         payment_method: 'WOMPI_FULL',
         total_payment: 100000,
         shipping_cost: 0,
-        customer: { email: 'test@test.com', identificationType: { code: '13' } },
+        customer: {
+          email: 'test@test.com',
+          identificationType: { code: '13' },
+        },
         orderItems: [],
       };
 
       mockPrisma.order.findUnique.mockResolvedValue(order);
-      mockPrisma.dianResolution.findFirst.mockResolvedValue({ id: 1, currentNumber: 1, endNumber: 1000 });
+      mockPrisma.dianResolution.findFirst.mockResolvedValue({
+        id: 1,
+        currentNumber: 1,
+        endNumber: 1000,
+      });
       mockSoapService.sendInvoice.mockRejectedValue(new Error('SOAP timeout'));
 
       const result = await service.verifyPayment('txn_soap_err');
@@ -1017,7 +1024,12 @@ describe('OrderService', () => {
         customer: { email: 'test@test.com', name: 'User' },
       };
       mockPrisma.order.findUnique.mockResolvedValue(order);
-      mockPrisma.order.update.mockResolvedValue({ ...order, pickup_status: 'READY', status: 'Listo para Recoger', pickup_pin: '1234' });
+      mockPrisma.order.update.mockResolvedValue({
+        ...order,
+        pickup_status: 'READY',
+        status: 'Listo para Recoger',
+        pickup_pin: '1234',
+      });
       mockMailerService.sendMail.mockResolvedValue({});
 
       const result = await service.markAsReadyForPickup(1);
@@ -1027,8 +1039,13 @@ describe('OrderService', () => {
     });
 
     it('markAsReadyForPickup should throw if not PICKUP', async () => {
-      mockPrisma.order.findUnique.mockResolvedValue({ id: 1, delivery_method: 'SHIPPING' });
-      await expect(service.markAsReadyForPickup(1)).rejects.toThrow(BadRequestException);
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: 1,
+        delivery_method: 'SHIPPING',
+      });
+      await expect(service.markAsReadyForPickup(1)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -1045,7 +1062,9 @@ describe('OrderService', () => {
         json: async () => ({ data: [{ status: 'APPROVED', id: 'txn_1' }] }),
       });
       // Mock verifyPayment to avoid deep call
-      jest.spyOn(service, 'verifyPayment').mockResolvedValue({ status: 'APPROVED', orderId: 1 } as any);
+      jest
+        .spyOn(service, 'verifyPayment')
+        .mockResolvedValue({ status: 'APPROVED', orderId: 1 } as any);
 
       const result = await service.checkStatusByReference(reference);
       expect(result.status).toBe('APPROVED');

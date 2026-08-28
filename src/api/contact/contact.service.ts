@@ -43,7 +43,10 @@ export class ContactService {
 
       return { success: true, message: '¡Mensaje enviado con éxito!' };
     } catch (error) {
-      console.error('Error al enviar email de contacto desde el backend:', error);
+      console.error(
+        'Error al enviar email de contacto desde el backend:',
+        error,
+      );
       throw new InternalServerErrorException(
         'Error al enviar el mensaje. Inténtalo de nuevo más tarde.',
       );

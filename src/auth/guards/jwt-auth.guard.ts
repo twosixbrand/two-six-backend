@@ -41,7 +41,7 @@ export class JwtAuthGuard implements CanActivate {
 
       // Attach user payload to request for downstream use
       request.user = payload;
-      
+
       // Inject into CLS for Prisma Extension to access it globally
       this.cls.set('userId', payload.sub);
       this.cls.set('userEmail', payload.email);

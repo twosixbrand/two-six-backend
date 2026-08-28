@@ -80,7 +80,9 @@ describe('JwtAuthGuard', () => {
     it('should throw UnauthorizedException if no token is provided', async () => {
       mockReflector.getAllAndOverride.mockReturnValue(false);
 
-      await expect(guard.canActivate(mockContext as ExecutionContext)).rejects.toThrow(
+      await expect(
+        guard.canActivate(mockContext as ExecutionContext),
+      ).rejects.toThrow(
         new UnauthorizedException('Token de acceso no proporcionado.'),
       );
     });
@@ -91,7 +93,9 @@ describe('JwtAuthGuard', () => {
         headers: { authorization: 'InvalidToken abc' },
       });
 
-      await expect(guard.canActivate(mockContext as ExecutionContext)).rejects.toThrow(
+      await expect(
+        guard.canActivate(mockContext as ExecutionContext),
+      ).rejects.toThrow(
         new UnauthorizedException('Token de acceso no proporcionado.'),
       );
     });
@@ -103,7 +107,9 @@ describe('JwtAuthGuard', () => {
       });
       mockJwtService.verifyAsync.mockRejectedValue(new Error('Invalid token'));
 
-      await expect(guard.canActivate(mockContext as ExecutionContext)).rejects.toThrow(
+      await expect(
+        guard.canActivate(mockContext as ExecutionContext),
+      ).rejects.toThrow(
         new UnauthorizedException('Token de acceso inválido o expirado.'),
       );
     });
@@ -121,7 +127,10 @@ describe('JwtAuthGuard', () => {
 
       expect(result).toBe(true);
       expect(mockClsService.set).toHaveBeenCalledWith('userId', payload.sub);
-      expect(mockClsService.set).toHaveBeenCalledWith('userEmail', payload.email);
+      expect(mockClsService.set).toHaveBeenCalledWith(
+        'userEmail',
+        payload.email,
+      );
     });
 
     it('should throw UnauthorizedException if required permissions are missing', async () => {
@@ -131,7 +140,11 @@ describe('JwtAuthGuard', () => {
         return null;
       });
 
-      const payload = { sub: 1, email: 'test@test.com', permissions: ['user:read'] };
+      const payload = {
+        sub: 1,
+        email: 'test@test.com',
+        permissions: ['user:read'],
+      };
       const req = {
         headers: { authorization: 'Bearer valid-token' },
         user: payload,
@@ -139,8 +152,12 @@ describe('JwtAuthGuard', () => {
       mockContext.getRequest.mockReturnValue(req);
       mockJwtService.verifyAsync.mockResolvedValue(payload);
 
-      await expect(guard.canActivate(mockContext as ExecutionContext)).rejects.toThrow(
-        new UnauthorizedException('No tienes los permisos necesarios para realizar esta acción.'),
+      await expect(
+        guard.canActivate(mockContext as ExecutionContext),
+      ).rejects.toThrow(
+        new UnauthorizedException(
+          'No tienes los permisos necesarios para realizar esta acción.',
+        ),
       );
     });
 
@@ -151,7 +168,11 @@ describe('JwtAuthGuard', () => {
         return null;
       });
 
-      const payload = { sub: 1, email: 'test@test.com', permissions: ['admin:read', 'admin:write', 'user:read'] };
+      const payload = {
+        sub: 1,
+        email: 'test@test.com',
+        permissions: ['admin:read', 'admin:write', 'user:read'],
+      };
       const req = {
         headers: { authorization: 'Bearer valid-token' },
         user: payload,

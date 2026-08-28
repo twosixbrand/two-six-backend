@@ -58,7 +58,9 @@ describe('UserRoleService', () => {
 
     it('should throw NotFoundException if user does not exist', async () => {
       mockPrisma.userApp.findUnique.mockResolvedValue(null);
-      await expect(service.create({ id_user_app: 99, id_role: 1 })).rejects.toThrow(
+      await expect(
+        service.create({ id_user_app: 99, id_role: 1 }),
+      ).rejects.toThrow(
         new NotFoundException('Usuario con ID #99 no encontrado.'),
       );
     });
@@ -66,9 +68,9 @@ describe('UserRoleService', () => {
     it('should throw NotFoundException if role does not exist', async () => {
       mockPrisma.userApp.findUnique.mockResolvedValue({ id: 1 });
       mockPrisma.role.findUnique.mockResolvedValue(null);
-      await expect(service.create({ id_user_app: 1, id_role: 99 })).rejects.toThrow(
-        new NotFoundException('Rol con ID #99 no encontrado.'),
-      );
+      await expect(
+        service.create({ id_user_app: 1, id_role: 99 }),
+      ).rejects.toThrow(new NotFoundException('Rol con ID #99 no encontrado.'));
     });
   });
 
@@ -111,7 +113,9 @@ describe('UserRoleService', () => {
     it('should delete a user role assignment', async () => {
       mockPrisma.userRole.findUnique.mockResolvedValue({ id: 1 });
       await service.remove(1);
-      expect(mockPrisma.userRole.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(mockPrisma.userRole.delete).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
     });
   });
 });

@@ -24,7 +24,9 @@ describe('Backend E2E Tests', () => {
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     await app.init();
   });
 
@@ -46,11 +48,11 @@ describe('Backend E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .post('/api/auth/login')
         .send({ email: 'twosixmarca@gmail.com' });
-      
+
       if (response.status === 404) {
         console.log('404 Body:', response.body);
       }
-      
+
       expect(response.status).toBe(200);
       expect(response.body.message).toContain('código OTP');
     });

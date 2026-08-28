@@ -14,13 +14,11 @@ describe('SystemAuditController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SystemAuditController],
-      providers: [
-        { provide: SystemAuditService, useValue: mockService },
-      ],
+      providers: [{ provide: SystemAuditService, useValue: mockService }],
     })
-    .overrideGuard(JwtAuthGuard)
-    .useValue({ canActivate: () => true })
-    .compile();
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<SystemAuditController>(SystemAuditController);
     service = module.get<SystemAuditService>(SystemAuditService);

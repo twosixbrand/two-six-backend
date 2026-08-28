@@ -164,7 +164,11 @@ describe('AuthService', () => {
       mockPrisma.customer.findFirst.mockResolvedValue(null);
       mockPrisma.customer.findUnique.mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-otp');
-      mockPrisma.customer.create.mockResolvedValue({ id: 10, name: 'Ana', email: 'new@test.com' });
+      mockPrisma.customer.create.mockResolvedValue({
+        id: 10,
+        name: 'Ana',
+        email: 'new@test.com',
+      });
       mockMailerService.sendMail.mockResolvedValue(undefined);
 
       await service.registerCustomer(dtoNoId as any);
@@ -288,7 +292,9 @@ describe('AuthService', () => {
   describe('login', () => {
     it('should throw NotFoundException if user not found', async () => {
       mockPrisma.userApp.findUnique.mockResolvedValue(null);
-      await expect(service.login('ghost@test.com')).rejects.toThrow(NotFoundException);
+      await expect(service.login('ghost@test.com')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should generate OTP, hash it, and send email', async () => {
@@ -314,7 +320,9 @@ describe('AuthService', () => {
       await service.login('twosixmarca@gmail.com');
 
       expect(mockMailerService.sendMail).not.toHaveBeenCalled();
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[E2E Bypass]'));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[E2E Bypass]'),
+      );
       consoleSpy.mockRestore();
     });
   });
@@ -323,26 +331,45 @@ describe('AuthService', () => {
   describe('verifyOtp', () => {
     it('should throw UnauthorizedException if OTP not requested', async () => {
       mockPrisma.userApp.findUnique.mockResolvedValue({ id: 1, otp: null });
-      await expect(service.verifyOtp('a@b.com', '123')).rejects.toThrow(UnauthorizedException);
+      await expect(service.verifyOtp('a@b.com', '123')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw UnauthorizedException if OTP expired', async () => {
       const expiredDate = new Date(Date.now() - 1000);
-      mockPrisma.userApp.findUnique.mockResolvedValue({ id: 1, otp: 'h', otpExpiresAt: expiredDate });
+      mockPrisma.userApp.findUnique.mockResolvedValue({
+        id: 1,
+        otp: 'h',
+        otpExpiresAt: expiredDate,
+      });
       mockPrisma.userApp.update.mockResolvedValue({});
-      await expect(service.verifyOtp('a@b.com', '123')).rejects.toThrow('El OTP ha expirado.');
+      await expect(service.verifyOtp('a@b.com', '123')).rejects.toThrow(
+        'El OTP ha expirado.',
+      );
     });
 
     it('should throw UnauthorizedException if OTP incorrect', async () => {
       const futureDate = new Date(Date.now() + 100000);
-      mockPrisma.userApp.findUnique.mockResolvedValue({ id: 1, otp: 'hashed', otpExpiresAt: futureDate });
+      mockPrisma.userApp.findUnique.mockResolvedValue({
+        id: 1,
+        otp: 'hashed',
+        otpExpiresAt: futureDate,
+      });
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
-      await expect(service.verifyOtp('a@b.com', 'wrong')).rejects.toThrow('El OTP es incorrecto.');
+      await expect(service.verifyOtp('a@b.com', 'wrong')).rejects.toThrow(
+        'El OTP es incorrecto.',
+      );
     });
 
     it('should return token and roles/permissions on valid OTP', async () => {
       const futureDate = new Date(Date.now() + 100000);
-      const user = { id: 1, email: 'a@b.com', otp: 'h', otpExpiresAt: futureDate };
+      const user = {
+        id: 1,
+        email: 'a@b.com',
+        otp: 'h',
+        otpExpiresAt: futureDate,
+      };
       const roleData = [
         {
           role: {
@@ -360,10 +387,12 @@ describe('AuthService', () => {
       const result = await service.verifyOtp('a@b.com', '123');
 
       expect(result.accessToken).toBe('token');
-      expect(mockJwtService.sign).toHaveBeenCalledWith(expect.objectContaining({
-        roles: ['ADMIN'],
-        permissions: ['READ_ALL'],
-      }));
+      expect(mockJwtService.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roles: ['ADMIN'],
+          permissions: ['READ_ALL'],
+        }),
+      );
     });
 
     it('should bypass verification for twosixmarca@gmail.com with 999999', async () => {
@@ -380,7 +409,9 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException on bypass if user not found', async () => {
       mockPrisma.userApp.findUnique.mockResolvedValue(null);
-      await expect(service.verifyOtp('twosixmarca@gmail.com', '999999')).rejects.toThrow(UnauthorizedException);
+      await expect(
+        service.verifyOtp('twosixmarca@gmail.com', '999999'),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 });

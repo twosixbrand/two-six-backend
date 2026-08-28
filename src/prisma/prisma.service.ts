@@ -96,7 +96,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     // Auditoría global: intercepta create, update, delete
     this.$use(async (params, next) => {
       // Evitar recursión o auditar logs
-      if (!params.model || params.model === 'SystemAuditLog' || params.model === 'ErrorLog' || params.model === 'AccountingAuditLog') {
+      if (
+        !params.model ||
+        params.model === 'SystemAuditLog' ||
+        params.model === 'ErrorLog' ||
+        params.model === 'AccountingAuditLog'
+      ) {
         return next(params);
       }
 
@@ -115,10 +120,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       // Si es update o delete, capturar el estado anterior
       if (['update', 'delete'].includes(params.action) && params.args?.where) {
         try {
-          const modelNameFirstLower = params.model.charAt(0).toLowerCase() + params.model.slice(1);
-          const previous = await (this as any)[modelNameFirstLower]?.findUnique({
-            where: params.args.where,
-          });
+          const modelNameFirstLower =
+            params.model.charAt(0).toLowerCase() + params.model.slice(1);
+          const previous = await (this as any)[modelNameFirstLower]?.findUnique(
+            {
+              where: params.args.where,
+            },
+          );
           oldValues = previous;
         } catch (err) {
           // Si no se encuentra, ignorar
@@ -143,18 +151,20 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
           actionName = oldValues ? 'UPDATE' : 'CREATE';
         }
 
-        this.systemAuditLog.create({
-          data: {
-            tableName: params.model,
-            recordId,
-            action: actionName,
-            userId: userId ? Number(userId) : null,
-            oldValues: oldValues ? (oldValues as any) : undefined,
-            newValues: newValues ? (newValues as any) : undefined,
-          },
-        }).catch(err => {
+        this.systemAuditLog
+          .create({
+            data: {
+              tableName: params.model,
+              recordId,
+              action: actionName,
+              userId: userId ? Number(userId) : null,
+              oldValues: oldValues ? (oldValues as any) : undefined,
+              newValues: newValues ? (newValues as any) : undefined,
+            },
+          })
+          .catch((err) => {
             console.error('Error guardando en SystemAuditLog:', err.message);
-        });
+          });
       }
 
       return result;

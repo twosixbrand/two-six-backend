@@ -19,10 +19,7 @@ describe('TagService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        TagService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [TagService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
 
     service = module.get<TagService>(TagService);
@@ -46,7 +43,9 @@ describe('TagService', () => {
 
       const result = await service.create(data);
 
-      expect(mockPrisma.tag.findUnique).toHaveBeenCalledWith({ where: { slug } });
+      expect(mockPrisma.tag.findUnique).toHaveBeenCalledWith({
+        where: { slug },
+      });
       expect(mockPrisma.tag.create).toHaveBeenCalledWith({
         data: { name: data.name, slug },
       });
@@ -56,13 +55,18 @@ describe('TagService', () => {
     it('should throw ConflictException if slug already exists', async () => {
       mockPrisma.tag.findUnique.mockResolvedValue({ id: 1, slug: 'test-tag' });
 
-      await expect(service.create({ name: 'Test Tag' })).rejects.toThrow(ConflictException);
+      await expect(service.create({ name: 'Test Tag' })).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
   describe('findAll', () => {
     it('should return all tags ordered by name', async () => {
-      const mockTags = [{ id: 1, name: 'A' }, { id: 2, name: 'B' }];
+      const mockTags = [
+        { id: 1, name: 'A' },
+        { id: 2, name: 'B' },
+      ];
       mockPrisma.tag.findMany.mockResolvedValue(mockTags);
 
       const result = await service.findAll();
@@ -94,7 +98,11 @@ describe('TagService', () => {
       const tag = { id: 1, name: 'Old', slug: 'old' };
       mockPrisma.tag.findUnique.mockResolvedValueOnce(tag); // for findOne check
       mockPrisma.tag.findUnique.mockResolvedValueOnce(null); // for slug collision check
-      mockPrisma.tag.update.mockResolvedValue({ id: 1, name: 'New', slug: 'new' });
+      mockPrisma.tag.update.mockResolvedValue({
+        id: 1,
+        name: 'New',
+        slug: 'new',
+      });
 
       const result = await service.update(1, { name: 'New' });
 
@@ -103,10 +111,16 @@ describe('TagService', () => {
     });
 
     it('should throw ConflictException if updated slug already exists for another tag', async () => {
-        mockPrisma.tag.findUnique.mockResolvedValueOnce({ id: 1, name: 'Old' }); // findOne
-        mockPrisma.tag.findUnique.mockResolvedValueOnce({ id: 2, name: 'Other', slug: 'new' }); // collision check
-  
-        await expect(service.update(1, { name: 'New' })).rejects.toThrow(ConflictException);
+      mockPrisma.tag.findUnique.mockResolvedValueOnce({ id: 1, name: 'Old' }); // findOne
+      mockPrisma.tag.findUnique.mockResolvedValueOnce({
+        id: 2,
+        name: 'Other',
+        slug: 'new',
+      }); // collision check
+
+      await expect(service.update(1, { name: 'New' })).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 

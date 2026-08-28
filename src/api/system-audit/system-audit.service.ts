@@ -39,7 +39,7 @@ export class SystemAuditService {
     });
 
     // Convert BigInt to string so JSON.stringify doesn't throw Error
-    return logs.map(log => ({
+    return logs.map((log) => ({
       ...log,
       id: log.id.toString(),
     }));

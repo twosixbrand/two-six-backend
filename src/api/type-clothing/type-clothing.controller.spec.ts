@@ -18,13 +18,11 @@ describe('TypeClothingController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TypeClothingController],
-      providers: [
-        { provide: TypeClothingService, useValue: mockService },
-      ],
+      providers: [{ provide: TypeClothingService, useValue: mockService }],
     })
-    .overrideGuard(JwtAuthGuard)
-    .useValue({ canActivate: () => true })
-    .compile();
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<TypeClothingController>(TypeClothingController);
     service = module.get<TypeClothingService>(TypeClothingService);

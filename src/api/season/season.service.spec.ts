@@ -45,7 +45,9 @@ describe('SeasonService', () => {
 
   it('should find one season', async () => {
     await service.findOne(1);
-    expect(mockPrisma.season.findUnique).toHaveBeenCalledWith({ where: { id: 1 } });
+    expect(mockPrisma.season.findUnique).toHaveBeenCalledWith({
+      where: { id: 1 },
+    });
   });
 
   it('should update a season', async () => {

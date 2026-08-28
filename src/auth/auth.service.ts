@@ -143,15 +143,16 @@ export class AuthService {
     ];
 
     const payload = { sub: user.id, email: user.email, roles, permissions };
-    
+
     // Alternativa 1: Token de Larga Duración para el Stand de Feria
     // Si el usuario tiene permisos de POS Stand, el token expira en 30 días.
-    const expiresIn = permissions.includes('sales.pos.view') ? '30d' : undefined;
-    
-    const accessToken = this.jwtService.sign(
-      payload, 
-      expiresIn ? { expiresIn } : undefined
-    );
+    const expiresIn = permissions.includes('sales.pos.view')
+      ? '30d'
+      : undefined;
+
+    const accessToken = expiresIn
+      ? this.jwtService.sign(payload, { expiresIn })
+      : this.jwtService.sign(payload);
 
     return { accessToken };
   }

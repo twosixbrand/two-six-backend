@@ -69,6 +69,8 @@ describe('TypeClothingService', () => {
   it('should remove a type clothing', async () => {
     mockPrisma.typeClothing.findUnique.mockResolvedValue({ id: '1' });
     await service.remove('1');
-    expect(mockPrisma.typeClothing.delete).toHaveBeenCalledWith({ where: { id: '1' } });
+    expect(mockPrisma.typeClothing.delete).toHaveBeenCalledWith({
+      where: { id: '1' },
+    });
   });
 });

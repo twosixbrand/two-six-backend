@@ -31,8 +31,18 @@ describe('SystemAuditService', () => {
   describe('findAll', () => {
     it('should call findMany with correct filters', async () => {
       const mockLogs = [
-        { id: BigInt(1), tableName: 'order', action: 'UPDATE', createdAt: new Date() },
-        { id: BigInt(2), tableName: 'order', action: 'CREATE', createdAt: new Date() },
+        {
+          id: BigInt(1),
+          tableName: 'order',
+          action: 'UPDATE',
+          createdAt: new Date(),
+        },
+        {
+          id: BigInt(2),
+          tableName: 'order',
+          action: 'CREATE',
+          createdAt: new Date(),
+        },
       ];
       mockPrisma.systemAuditLog.findMany.mockResolvedValue(mockLogs);
 
@@ -77,17 +87,17 @@ describe('SystemAuditService', () => {
     });
 
     it('should handle missing date filters', async () => {
-        mockPrisma.systemAuditLog.findMany.mockResolvedValue([]);
-  
-        await service.findAll({ tableName: 'product' });
-  
-        expect(mockPrisma.systemAuditLog.findMany).toHaveBeenCalledWith({
-          where: {
-            tableName: 'product',
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 100,
-        });
+      mockPrisma.systemAuditLog.findMany.mockResolvedValue([]);
+
+      await service.findAll({ tableName: 'product' });
+
+      expect(mockPrisma.systemAuditLog.findMany).toHaveBeenCalledWith({
+        where: {
+          tableName: 'product',
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
       });
+    });
   });
 });

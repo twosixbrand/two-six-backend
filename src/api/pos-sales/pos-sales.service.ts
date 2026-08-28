@@ -29,7 +29,7 @@ export class PosSalesService {
   async findAll() {
     return this.prisma.posSale.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { dianInvoice: true }
+      include: { dianInvoice: true },
     });
   }
 }

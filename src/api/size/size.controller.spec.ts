@@ -18,13 +18,11 @@ describe('SizeController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SizeController],
-      providers: [
-        { provide: SizeService, useValue: mockService },
-      ],
+      providers: [{ provide: SizeService, useValue: mockService }],
     })
-    .overrideGuard(JwtAuthGuard)
-    .useValue({ canActivate: () => true })
-    .compile();
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<SizeController>(SizeController);
     service = module.get<SizeService>(SizeService);

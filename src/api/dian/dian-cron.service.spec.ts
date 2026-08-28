@@ -270,12 +270,14 @@ describe('DianCronService', () => {
         document_number: 'FE010',
       };
       mockPrisma.dianEInvoicing.findMany.mockResolvedValue([invoice]);
-      mockEmailService.sendDianInvoiceEmail.mockRejectedValue(new Error('Email error'));
-      
+      mockEmailService.sendDianInvoiceEmail.mockRejectedValue(
+        new Error('Email error'),
+      );
+
       const loggerSpy = jest.spyOn((service as any).logger, 'error');
-      
+
       await service.pollDianInvoices();
-      
+
       expect(loggerSpy).toHaveBeenCalledWith(
         expect.stringContaining('Error retrying email'),
         expect.any(Error),
@@ -292,9 +294,9 @@ describe('DianCronService', () => {
       };
       mockPrisma.dianEInvoicing.findMany.mockResolvedValue([invoice]);
       mockSoapService.getStatusZip.mockResolvedValue(null);
-      
+
       await service.pollDianInvoices();
-      
+
       expect(mockPrisma.dianEInvoicing.update).not.toHaveBeenCalled();
     });
 
@@ -306,7 +308,7 @@ describe('DianCronService', () => {
         document_number: 'FE012',
       };
       mockPrisma.dianEInvoicing.findMany.mockResolvedValue([invoice]);
-      
+
       const soapResponse = `
         <b:IsValid>false</b:IsValid>
         <b:StatusCode>05</b:StatusCode>
@@ -314,9 +316,9 @@ describe('DianCronService', () => {
       `;
       mockSoapService.getStatusZip.mockResolvedValue(soapResponse);
       mockPrisma.dianEInvoicing.update.mockResolvedValue({});
-      
+
       await service.pollDianInvoices();
-      
+
       expect(mockPrisma.dianEInvoicing.update).toHaveBeenCalledWith({
         where: { id: 12 },
         data: expect.objectContaining({
@@ -333,15 +335,15 @@ describe('DianCronService', () => {
         document_number: 'FE013',
       };
       mockPrisma.dianEInvoicing.findMany.mockResolvedValue([invoice]);
-      
+
       const soapResponse = `
         <b:IsValid>false</b:IsValid>
         <b:StatusCode>UNKNOWN</b:StatusCode>
       `;
       mockSoapService.getStatusZip.mockResolvedValue(soapResponse);
-      
+
       await service.pollDianInvoices();
-      
+
       expect(mockPrisma.dianEInvoicing.update).not.toHaveBeenCalled();
     });
   });

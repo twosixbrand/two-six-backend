@@ -19,13 +19,11 @@ describe('TagController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TagController],
-      providers: [
-        { provide: TagService, useValue: mockService },
-      ],
+      providers: [{ provide: TagService, useValue: mockService }],
     })
-    .overrideGuard(JwtAuthGuard)
-    .useValue({ canActivate: () => true })
-    .compile();
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<TagController>(TagController);
     service = module.get<TagService>(TagService);

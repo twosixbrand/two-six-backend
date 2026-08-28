@@ -18,13 +18,11 @@ describe('SeasonController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SeasonController],
-      providers: [
-        { provide: SeasonService, useValue: mockService },
-      ],
+      providers: [{ provide: SeasonService, useValue: mockService }],
     })
-    .overrideGuard(JwtAuthGuard)
-    .useValue({ canActivate: () => true })
-    .compile();
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<SeasonController>(SeasonController);
     service = module.get<SeasonService>(SeasonService);

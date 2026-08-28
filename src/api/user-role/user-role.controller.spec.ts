@@ -18,13 +18,11 @@ describe('UserRoleController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UserRoleController],
-      providers: [
-        { provide: UserRoleService, useValue: mockService },
-      ],
+      providers: [{ provide: UserRoleService, useValue: mockService }],
     })
-    .overrideGuard(JwtAuthGuard)
-    .useValue({ canActivate: () => true })
-    .compile();
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<UserRoleController>(UserRoleController);
     service = module.get<UserRoleService>(UserRoleService);

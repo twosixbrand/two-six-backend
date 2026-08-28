@@ -64,7 +64,9 @@ export class SystemAuditCronService {
         },
       });
 
-      this.logger.log(`Purgados ${deleted.count} registros antiguos de la base de datos.`);
+      this.logger.log(
+        `Purgados ${deleted.count} registros antiguos de la base de datos.`,
+      );
 
       // Borrar el archivo local tras confirmación
       // fs.unlinkSync(tempFilePath);

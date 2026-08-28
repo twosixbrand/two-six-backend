@@ -64,7 +64,10 @@ describe('ClosingService', () => {
       expect(mockPrisma.accountingClosing.findFirst).toHaveBeenCalledWith({
         where: {
           year: 2024,
-          OR: [{ month: 1, closing_type: 'MONTHLY' }, { closing_type: 'ANNUAL' }],
+          OR: [
+            { month: 1, closing_type: 'MONTHLY' },
+            { closing_type: 'ANNUAL' },
+          ],
           status: 'CLOSED',
         },
       });
@@ -79,17 +82,21 @@ describe('ClosingService', () => {
 
   describe('closePeriod', () => {
     it('should throw BadRequestException for invalid month', async () => {
-      await expect(service.closePeriod(2024, 13)).rejects.toThrow(BadRequestException);
+      await expect(service.closePeriod(2024, 13)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException if already closed', async () => {
       mockPrisma.accountingClosing.findUnique.mockResolvedValue({ id: 1 });
-      await expect(service.closePeriod(2024, 1)).rejects.toThrow('Ya existe un cierre');
+      await expect(service.closePeriod(2024, 1)).rejects.toThrow(
+        'Ya existe un cierre',
+      );
     });
 
     it('should perform closing and create journal entry', async () => {
       mockPrisma.accountingClosing.findUnique.mockResolvedValue(null);
-      
+
       // Lines for period
       const mockLines = [
         {
@@ -106,15 +113,21 @@ describe('ClosingService', () => {
         },
       ];
       mockPrisma.journalEntryLine.findMany.mockResolvedValue(mockLines);
-      
+
       // Result account
-      mockPrisma.pucAccount.findUnique.mockResolvedValue({ id: 301, code: '360505' });
-      
+      mockPrisma.pucAccount.findUnique.mockResolvedValue({
+        id: 301,
+        code: '360505',
+      });
+
       // Entry number sequence mock
       mockPrisma.$queryRawUnsafe.mockResolvedValue([{ nextval: 123n }]);
-      
+
       mockPrisma.journalEntry.create.mockResolvedValue({ id: 500 });
-      mockPrisma.accountingClosing.create.mockResolvedValue({ id: 1, profit_loss: 600 });
+      mockPrisma.accountingClosing.create.mockResolvedValue({
+        id: 1,
+        profit_loss: 600,
+      });
 
       const result = await service.closePeriod(2024, 1, 'admin');
 
@@ -126,17 +139,27 @@ describe('ClosingService', () => {
           closed_by: 'admin',
         }),
       });
-      expect(mockAuditService.log).toHaveBeenCalledWith('CLOSE_PERIOD', 'ACCOUNTING_CLOSING', 1, expect.any(String));
+      expect(mockAuditService.log).toHaveBeenCalledWith(
+        'CLOSE_PERIOD',
+        'ACCOUNTING_CLOSING',
+        1,
+        expect.any(String),
+      );
     });
 
     it('should fallback to MAX entry number if sequence fails', async () => {
       mockPrisma.accountingClosing.findUnique.mockResolvedValue(null);
       mockPrisma.journalEntryLine.findMany.mockResolvedValue([]);
-      mockPrisma.pucAccount.findUnique.mockResolvedValue({ id: 301, code: '360505' });
-      
+      mockPrisma.pucAccount.findUnique.mockResolvedValue({
+        id: 301,
+        code: '360505',
+      });
+
       mockPrisma.$queryRawUnsafe.mockRejectedValue(new Error('no seq'));
-      mockPrisma.journalEntry.findFirst.mockResolvedValue({ entry_number: 'AC-000005' });
-      
+      mockPrisma.journalEntry.findFirst.mockResolvedValue({
+        entry_number: 'AC-000005',
+      });
+
       mockPrisma.accountingClosing.create.mockResolvedValue({ id: 2 });
 
       await service.closePeriod(2024, 2);
@@ -152,16 +175,21 @@ describe('ClosingService', () => {
   describe('annualClose', () => {
     it('should throw if annual closing exists', async () => {
       mockPrisma.accountingClosing.findUnique.mockResolvedValue({ id: 1 });
-      await expect(service.annualClose(2024)).rejects.toThrow('Ya existe un cierre anual');
+      await expect(service.annualClose(2024)).rejects.toThrow(
+        'Ya existe un cierre anual',
+      );
     });
 
     it('should transfer 3605 to 3705', async () => {
       // Month 1-12 already closed
-      mockPrisma.accountingClosing.findUnique.mockImplementation(({ where }) => {
-        if (where.year_month_closing_type?.closing_type === 'ANNUAL') return null;
-        return { id: 99 };
-      });
-      
+      mockPrisma.accountingClosing.findUnique.mockImplementation(
+        ({ where }) => {
+          if (where.year_month_closing_type?.closing_type === 'ANNUAL')
+            return null;
+          return { id: 99 };
+        },
+      );
+
       // Monthly results (debit 3605, credit 3605)
       const mockResultLines = [
         {
@@ -172,7 +200,10 @@ describe('ClosingService', () => {
         },
       ];
       mockPrisma.journalEntryLine.findMany.mockResolvedValue(mockResultLines);
-      mockPrisma.pucAccount.findUnique.mockResolvedValue({ id: 401, code: '370505' });
+      mockPrisma.pucAccount.findUnique.mockResolvedValue({
+        id: 401,
+        code: '370505',
+      });
       mockPrisma.$queryRawUnsafe.mockResolvedValue([{ nextval: 999n }]);
       mockPrisma.journalEntry.create.mockResolvedValue({ id: 600 });
       mockPrisma.accountingClosing.create.mockResolvedValue({ id: 10 });
@@ -190,8 +221,10 @@ describe('ClosingService', () => {
     it('should skip months without movements in annualClose', async () => {
       mockPrisma.accountingClosing.findUnique.mockResolvedValue(null);
       // Simulate closePeriod throwing NotFoundException (no movements)
-      const spy = jest.spyOn(service, 'closePeriod').mockRejectedValue(new NotFoundException());
-      
+      const spy = jest
+        .spyOn(service, 'closePeriod')
+        .mockRejectedValue(new NotFoundException());
+
       mockPrisma.journalEntryLine.findMany.mockResolvedValue([]);
       mockPrisma.accountingClosing.create.mockResolvedValue({ id: 20 });
 
@@ -228,10 +261,16 @@ describe('ClosingService', () => {
       ];
       mockPrisma.journalEntryLine.findMany.mockResolvedValue(mockLines);
       mockPrisma.pucAccount.findUnique.mockResolvedValue(null); // No exact match for 361005
-      mockPrisma.pucAccount.findFirst.mockResolvedValue({ id: 302, code: '361005' }); // Fallback
+      mockPrisma.pucAccount.findFirst.mockResolvedValue({
+        id: 302,
+        code: '361005',
+      }); // Fallback
       mockPrisma.$queryRawUnsafe.mockResolvedValue([{ nextval: 1n }]);
       mockPrisma.journalEntry.create.mockResolvedValue({ id: 1 });
-      mockPrisma.accountingClosing.create.mockResolvedValue({ id: 1, profit_loss: -50 });
+      mockPrisma.accountingClosing.create.mockResolvedValue({
+        id: 1,
+        profit_loss: -50,
+      });
 
       await service.closePeriod(2024, 1);
 
@@ -245,10 +284,13 @@ describe('ClosingService', () => {
       mockPrisma.journalEntryLine.findMany.mockResolvedValue([]);
       mockPrisma.accountingClosing.create.mockResolvedValue({ id: 1 });
       mockAuditService.log.mockRejectedValue(new Error('audit fail'));
-      
+
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       await service.closePeriod(2024, 1);
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Error registrando auditoría'), 'audit fail');
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Error registrando auditoría'),
+        'audit fail',
+      );
       consoleSpy.mockRestore();
     });
 
@@ -257,8 +299,10 @@ describe('ClosingService', () => {
       mockPrisma.journalEntryLine.findMany.mockResolvedValue([]);
       mockPrisma.pucAccount.findUnique.mockResolvedValue(null);
       mockPrisma.pucAccount.findFirst.mockResolvedValue(null);
-      
-      await expect(service.closePeriod(2024, 1)).rejects.toThrow(NotFoundException);
+
+      await expect(service.closePeriod(2024, 1)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

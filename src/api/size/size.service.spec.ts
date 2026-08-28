@@ -45,7 +45,9 @@ describe('SizeService', () => {
 
   it('should find one size', async () => {
     await service.findOne(1);
-    expect(mockPrisma.size.findUnique).toHaveBeenCalledWith({ where: { id: 1 } });
+    expect(mockPrisma.size.findUnique).toHaveBeenCalledWith({
+      where: { id: 1 },
+    });
   });
 
   it('should update a size', async () => {

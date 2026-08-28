@@ -864,9 +864,10 @@ export class ExportService {
 
     const date = new Date().toLocaleDateString('es-CO');
 
-    const periodLabel = filters.startDate && filters.endDate
-      ? `${filters.startDate} a ${filters.endDate}`
-      : `Generado: ${date}`;
+    const periodLabel =
+      filters.startDate && filters.endDate
+        ? `${filters.startDate} a ${filters.endDate}`
+        : `Generado: ${date}`;
 
     const rows: any[][] = [
       ...this.companyHeader('Kardex de Inventario', periodLabel),
@@ -894,9 +895,7 @@ export class ExportService {
       const design = cc?.design;
 
       rows.push([
-        mov.date
-          ? new Date(mov.date).toLocaleDateString('es-CO')
-          : '',
+        mov.date ? new Date(mov.date).toLocaleDateString('es-CO') : '',
         design?.reference || '',
         design?.clothing?.name || '',
         cc?.color?.name || '',
@@ -916,21 +915,36 @@ export class ExportService {
     // Totales
     const totals = data.reduce(
       (acc, m) => ({
-        entradas: acc.entradas + (m.type === 'ENTRADA' || m.type === 'IN' ? Math.abs(m.quantity || 0) : 0),
-        salidas: acc.salidas + (m.type === 'SALIDA' || m.type === 'OUT' ? Math.abs(m.quantity || 0) : 0),
-        valorTotal: acc.valorTotal + Math.abs(m.quantity || 0) * (m.unit_cost || 0),
+        entradas:
+          acc.entradas +
+          (m.type === 'ENTRADA' || m.type === 'IN'
+            ? Math.abs(m.quantity || 0)
+            : 0),
+        salidas:
+          acc.salidas +
+          (m.type === 'SALIDA' || m.type === 'OUT'
+            ? Math.abs(m.quantity || 0)
+            : 0),
+        valorTotal:
+          acc.valorTotal + Math.abs(m.quantity || 0) * (m.unit_cost || 0),
       }),
       { entradas: 0, salidas: 0, valorTotal: 0 },
     );
 
     rows.push([]);
     rows.push([
-      '', '', '', '', '',
+      '',
+      '',
+      '',
+      '',
+      '',
       'TOTALES',
       '',
       '',
       `E: ${totals.entradas} / S: ${totals.salidas}`,
-      '', '', '',
+      '',
+      '',
+      '',
       totals.valorTotal,
       `${data.length} movimientos`,
     ]);
