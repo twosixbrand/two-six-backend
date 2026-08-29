@@ -8,6 +8,8 @@ import { DianPdfService } from './dian-pdf/dian-pdf.service';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 
+import { DianOrchestratorService } from './dian-orchestrator.service';
+
 describe('DianController', () => {
   let controller: DianController;
 
@@ -41,6 +43,10 @@ describe('DianController', () => {
     },
     order: { findUnique: jest.fn() },
   };
+  
+  const mockOrchestrator = {
+    generateAndSendInvoice: jest.fn(),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -53,6 +59,7 @@ describe('DianController', () => {
         { provide: DianPdfService, useValue: mockPdfService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: DianOrchestratorService, useValue: mockOrchestrator },
       ],
     }).compile();
 
