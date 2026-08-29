@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DianService } from './dian.service';
+import { DianOrchestratorService } from './dian-orchestrator.service';
 import { DianController } from './dian.controller';
 import { DianUblService } from './dian-ubl/dian-ubl.service';
 import { DianSignerService } from './dian-signer/dian-signer.service';
@@ -19,6 +20,7 @@ import { DianCronService } from './dian-cron.service';
     DianPdfService,
     DianEmailService,
     DianCronService,
+    DianOrchestratorService,
   ],
   controllers: [DianController],
   exports: [
@@ -29,6 +31,7 @@ import { DianCronService } from './dian-cron.service';
     DianPdfService,
     DianEmailService,
     DianService,
+    DianOrchestratorService,
   ],
 })
 export class DianModule {}

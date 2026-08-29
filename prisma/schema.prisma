@@ -1594,8 +1594,9 @@ model PosSale {
   
   lines            Json
   
-  status           String    @default("PENDING") // PENDING, INVOICED
+  status           String    @default("PENDING") // PENDING, QUEUED, INVOICED, ERROR
   id_dian_invoice  Int?      @unique @map("id_dian_invoice")
+  dian_error_msg   String?   @map("dian_error_msg")
   
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime? @updatedAt @map("updated_at")
