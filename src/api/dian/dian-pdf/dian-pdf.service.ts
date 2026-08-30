@@ -42,6 +42,7 @@ export class DianPdfService {
       this.configService.get<string>('DIAN_COMPANY_NAME') || 'TWO SIX S.A.S.';
 
     const order = invoice.order;
+    const posSale = invoice.posSale;
 
     // Snapshot de factura manual (regularización sin Order). Si existe, sus
     // datos se usan para renderizar el PDF en vez de los defaults genéricos.
@@ -57,28 +58,50 @@ export class DianPdfService {
       }
     }
 
-    const items = snapshot?.items
-      ? snapshot.items.map((it: any) => ({
-          id_product: null,
-          product_name: it.description,
-          size: null,
-          quantity: it.quantity,
-          // unit_price en este servicio se asume CON IVA, así que reconstruimos
-          unit_price: Number(
-            (it.unit_price * (1 + (it.iva_rate || 0) / 100)).toFixed(2),
-          ),
-        }))
-      : order?.orderItems || [];
-    const customer = snapshot?.customer
-      ? {
-          name: snapshot.customer.name,
-          document_number: snapshot.customer.doc_number,
-          identification_number: snapshot.customer.doc_number,
-          current_phone_number: snapshot.customer.phone || null,
-          shipping_address: snapshot.customer.address,
-          email: snapshot.customer.email,
-        }
-      : order?.customer;
+    let items: any[] = [];
+    if (snapshot?.items) {
+      items = snapshot.items.map((it: any) => ({
+        id_product: null,
+        product_name: it.description,
+        size: null,
+        quantity: it.quantity,
+        unit_price: Number((it.unit_price * (1 + (it.iva_rate || 0) / 100)).toFixed(2)),
+      }));
+    } else if (posSale) {
+      const posLines = typeof posSale.lines === 'string' ? JSON.parse(posSale.lines) : posSale.lines;
+      items = posLines.map((it: any, i: number) => ({
+        id_product: null,
+        product_name: it.description,
+        size: null,
+        quantity: it.quantity,
+        unit_price: Number((it.unitPrice * (1 + (it.taxPercent || 0) / 100)).toFixed(2)),
+      }));
+    } else {
+      items = order?.orderItems || [];
+    }
+
+    let customer: any = null;
+    if (snapshot?.customer) {
+      customer = {
+        name: snapshot.customer.name,
+        document_number: snapshot.customer.doc_number,
+        identification_number: snapshot.customer.doc_number,
+        current_phone_number: snapshot.customer.phone || null,
+        shipping_address: snapshot.customer.address,
+        email: snapshot.customer.email,
+      };
+    } else if (posSale) {
+      customer = {
+        name: posSale.customerName,
+        document_number: posSale.customerDoc,
+        identification_number: posSale.customerDoc,
+        current_phone_number: posSale.customerPhone || null,
+        shipping_address: 'Compra en Punto de Venta / Stand',
+        email: posSale.customerEmail || null,
+      };
+    } else {
+      customer = order?.customer;
+    }
 
     // ═══ MEDIO DE PAGO (mapeo real) ═══
     const paymentMethodMap: Record<string, { label: string; code: string }> = {
@@ -91,12 +114,20 @@ export class DianPdfService {
     };
     // Detectar si es factura de regularización (snapshot sin Order)
     const isRegularization = !!snapshot && !order;
-    const pm = isRegularization
-      ? { label: 'Cruce Anticipo / Compensación', code: '1' }
-      : paymentMethodMap[order?.payment_method] || {
-          label: 'Instrumento no definido',
-          code: '10',
-        };
+    const isPosSale = !!posSale;
+    
+    let pm = { label: 'Instrumento no definido', code: '10' };
+    if (isRegularization) {
+      pm = { label: 'Cruce Anticipo / Compensación', code: '1' };
+    } else if (isPosSale) {
+      if (posSale.paymentMethod === '10') pm = { label: 'Efectivo', code: '10' };
+      if (posSale.paymentMethod === '48') pm = { label: 'Tarjeta de Crédito', code: '48' };
+      if (posSale.paymentMethod === '49') pm = { label: 'Transferencia / Tarjeta Débito', code: '49' };
+      if (posSale.paymentMethod === '42') pm = { label: 'Consignación / Transferencia', code: '42' };
+    } else {
+      pm = paymentMethodMap[order?.payment_method] || pm;
+    }
+    
     const paymentMethodLabel = `${pm.label} (${pm.code})`;
     const paymentFormLabel = isRegularization
       ? 'Crédito — Anticipo (2)'
@@ -107,7 +138,9 @@ export class DianPdfService {
     // basePrice = unitPrice / 1.19   cuando hay IVA
     const hasIva = snapshot
       ? snapshot.iva_total && snapshot.iva_total > 0
-      : order?.iva && order.iva > 0;
+      : isPosSale
+        ? posSale.taxTotal > 0
+        : order?.iva && order.iva > 0;
     const ivaRate = hasIva ? 0.19 : 0;
 
     // Calcular subtotal base (sin IVA) e IVA desglosado
@@ -115,7 +148,7 @@ export class DianPdfService {
       (sum, item) => sum + item.unit_price * item.quantity,
       0,
     );
-    const shipping = snapshot ? 0 : order?.shipping_cost || 0;
+    const shipping = snapshot ? 0 : isPosSale ? 0 : order?.shipping_cost || 0;
     // Desglose individual para la representación gráfica
     const productosBase = hasIva
       ? Math.round(totalProductos / 1.19)

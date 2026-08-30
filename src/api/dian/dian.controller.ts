@@ -273,6 +273,7 @@ export class DianController {
     const invoice = await this.prisma.dianEInvoicing.findUnique({
       where: { id: Number(id) },
       include: {
+        posSale: true,
         order: {
           include: {
             customer: true,
