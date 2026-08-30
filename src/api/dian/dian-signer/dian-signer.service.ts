@@ -45,9 +45,13 @@ export class DianSignerService {
       const invoiceTime = issueTimeMatch ? issueTimeMatch[1] : '12:00:00-05:00';
       const signingTime = `${invoiceDate}T${invoiceTime}`;
 
-      const issuerName =
-        'CN=OlimpiaIT ECD Sub, O=OlimpiaIT, OU=OlimpiaIT ECD, E=servicioalcliente@olimpiait.com, C=CO, S=Bogotá D.C., L=Bogotá D.C., SERIALNUMBER=900032774-4';
-      const serialNumber = '89407279672106850539243115121212403761';
+      const pemCert = `-----BEGIN CERTIFICATE-----\n${cleanCert.match(/.{1,64}/g)?.join('\n') || cleanCert}\n-----END CERTIFICATE-----\n`;
+      const x509 = new crypto.X509Certificate(pemCert);
+      
+      const issuerName = x509.issuer.split('\n').join(', ');
+      
+      const hexSerial = x509.serialNumber.replace(/:/g, '');
+      const serialNumber = BigInt('0x' + hexSerial).toString();
 
       const sigId = 'xmldsig-Signature-TwoSix';
       const signedPropsId = `xades-${sigId}-signedprops`;
