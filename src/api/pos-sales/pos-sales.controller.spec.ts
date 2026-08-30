@@ -15,9 +15,7 @@ describe('PosSalesController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PosSalesController],
-      providers: [
-        { provide: PosSalesService, useValue: mockPosSalesService },
-      ],
+      providers: [{ provide: PosSalesService, useValue: mockPosSalesService }],
     }).compile();
 
     controller = module.get<PosSalesController>(PosSalesController);
@@ -64,7 +62,10 @@ describe('PosSalesController', () => {
 
     it('should queue sales for DIAN', async () => {
       const payload = { saleIds: [1, 2] };
-      mockPosSalesService.queueBatch.mockResolvedValueOnce({ success: true, enqueued: 2 });
+      mockPosSalesService.queueBatch.mockResolvedValueOnce({
+        success: true,
+        enqueued: 2,
+      });
 
       const result = await controller.queueBatchForDian(payload);
 

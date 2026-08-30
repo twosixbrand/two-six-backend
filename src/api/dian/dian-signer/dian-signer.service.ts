@@ -47,9 +47,9 @@ export class DianSignerService {
 
       const pemCert = `-----BEGIN CERTIFICATE-----\n${cleanCert.match(/.{1,64}/g)?.join('\n') || cleanCert}\n-----END CERTIFICATE-----\n`;
       const x509 = new crypto.X509Certificate(pemCert);
-      
+
       const issuerName = x509.issuer.split('\n').join(', ');
-      
+
       const hexSerial = x509.serialNumber.replace(/:/g, '');
       const serialNumber = BigInt('0x' + hexSerial).toString();
 

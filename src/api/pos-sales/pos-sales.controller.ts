@@ -20,12 +20,14 @@ export class PosSalesController {
   }
 
   @Post('batch-dian')
-  @ApiOperation({ summary: 'Encolar múltiples ventas POS para envío a la DIAN' })
+  @ApiOperation({
+    summary: 'Encolar múltiples ventas POS para envío a la DIAN',
+  })
   async queueBatchForDian(@Body() body: { saleIds: number[] }) {
     if (!body.saleIds || !body.saleIds.length) {
       return { message: 'No hay ventas para procesar' };
     }
-    
+
     // El servicio actualizará el status a QUEUED y devolverá un 202
     return this.posSalesService.queueBatch(body.saleIds);
   }

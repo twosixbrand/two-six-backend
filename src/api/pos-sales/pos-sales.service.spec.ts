@@ -24,7 +24,7 @@ describe('PosSalesService', () => {
 
     service = module.get<PosSalesService>(PosSalesService);
     prismaService = module.get<PrismaService>(PrismaService);
-    
+
     jest.clearAllMocks();
   });
 
@@ -48,7 +48,7 @@ describe('PosSalesService', () => {
       mockPrismaService.posSale.create.mockResolvedValueOnce({
         id: 1,
         ...payload,
-        status: 'PENDING'
+        status: 'PENDING',
       });
 
       const result = await service.create(payload);
@@ -59,7 +59,7 @@ describe('PosSalesService', () => {
           customerEmail: null,
           customerPhone: null,
           status: 'PENDING',
-        }
+        },
       });
       expect(result).toEqual({ id: 1, ...payload, status: 'PENDING' });
     });
@@ -67,7 +67,9 @@ describe('PosSalesService', () => {
 
   describe('findAll', () => {
     it('should return all pos sales including dianInvoice', async () => {
-      const mockSales = [{ id: 1, customerName: 'Juan', dianInvoice: { id: 99 } }];
+      const mockSales = [
+        { id: 1, customerName: 'Juan', dianInvoice: { id: 99 } },
+      ];
       mockPrismaService.posSale.findMany.mockResolvedValueOnce(mockSales);
 
       const result = await service.findAll();
@@ -89,9 +91,9 @@ describe('PosSalesService', () => {
       expect(mockPrismaService.posSale.updateMany).toHaveBeenCalledWith({
         where: {
           id: { in: [1, 2] },
-          status: { in: ['PENDING', 'ERROR'] }
+          status: { in: ['PENDING', 'ERROR'] },
         },
-        data: { status: 'QUEUED', dian_error_msg: null }
+        data: { status: 'QUEUED', dian_error_msg: null },
       });
       expect(result).toEqual({ success: true, enqueued: 2 });
     });

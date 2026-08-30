@@ -157,6 +157,7 @@ export class DianOrchestratorService {
           typeof soapResponse === 'string'
             ? soapResponse
             : JSON.stringify(soapResponse),
+        dian_xml_content: signedXml,
         environment: env,
         ...(body.orderId ? { id_order: parseInt(body.orderId, 10) } : {}),
       },

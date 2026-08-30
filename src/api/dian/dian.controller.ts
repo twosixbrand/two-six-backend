@@ -224,6 +224,16 @@ export class DianController {
     if (!invoice)
       throw new HttpException('Factura no encontrada', HttpStatus.NOT_FOUND);
 
+    // Si ya tenemos el XML real guardado en BD, lo servimos directamente (fidelidad 100%)
+    if (invoice.dian_xml_content) {
+      res.set('Content-Type', 'application/xml');
+      res.set(
+        'Content-Disposition',
+        `attachment; filename="factura_${invoice.document_number}.xml"`,
+      );
+      return res.send(invoice.dian_xml_content);
+    }
+
     // Regenerar el XML firmado con CUFE real
     const resolution =
       (await this.prisma.dianResolution.findFirst({

@@ -36,11 +36,11 @@ export class PosSalesService {
   async queueBatch(saleIds: number[]) {
     this.logger.log(`Encolando ${saleIds.length} ventas POS para DIAN`);
     const updated = await this.prisma.posSale.updateMany({
-      where: { 
+      where: {
         id: { in: saleIds },
-        status: { in: ['PENDING', 'ERROR'] }
+        status: { in: ['PENDING', 'ERROR'] },
       },
-      data: { status: 'QUEUED', dian_error_msg: null }
+      data: { status: 'QUEUED', dian_error_msg: null },
     });
     return { success: true, enqueued: updated.count };
   }

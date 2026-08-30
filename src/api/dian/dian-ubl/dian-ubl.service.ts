@@ -306,9 +306,10 @@ export class DianUblService {
     const companyIdAttrs: any = {
       schemeName: invoiceObj.customerDocType,
       schemeAgencyID: '195',
-      schemeAgencyName: 'CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)',
+      schemeAgencyName:
+        'CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)',
     };
-    
+
     // Si es NIT (31) y tenemos el DV, lo mandamos en schemeID. Para Cédula (13) no aplica DV.
     // Asumiremos que si hay guión en el doc, el último es el DV, si no omitimos schemeID para 13.
     if (invoiceObj.customerDocType === '31') {

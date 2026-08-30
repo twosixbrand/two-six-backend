@@ -52,7 +52,7 @@ describe('PosSalesCronService', () => {
 
     it('should handle no queued sales gracefully', async () => {
       mockPrismaService.posSale.findMany.mockResolvedValueOnce([]);
-      
+
       await service.processQueuedPosSales();
 
       expect(mockPrismaService.posSale.findMany).toHaveBeenCalledWith({
@@ -60,7 +60,9 @@ describe('PosSalesCronService', () => {
         orderBy: { createdAt: 'asc' },
         take: 10,
       });
-      expect(mockDianOrchestrator.generateAndSendInvoice).not.toHaveBeenCalled();
+      expect(
+        mockDianOrchestrator.generateAndSendInvoice,
+      ).not.toHaveBeenCalled();
     });
 
     it('should successfully process queued sales and update status to INVOICED', async () => {
@@ -70,7 +72,9 @@ describe('PosSalesCronService', () => {
           status: 'QUEUED',
           customerName: 'Juan',
           customerDoc: '1111',
-          lines: JSON.stringify([{ product_name: 'Camisa', quantity: 2, unit_price: 50000 }]),
+          lines: JSON.stringify([
+            { product_name: 'Camisa', quantity: 2, unit_price: 50000 },
+          ]),
         },
       ];
       mockPrismaService.posSale.findMany.mockResolvedValueOnce(mockSales);
@@ -85,7 +89,12 @@ describe('PosSalesCronService', () => {
         customerDoc: '1111',
         customerDocType: '13',
         lines: [
-          { description: 'Camisa', quantity: 2, unitPrice: 50000, taxPercent: 19 },
+          {
+            description: 'Camisa',
+            quantity: 2,
+            unitPrice: 50000,
+            taxPercent: 19,
+          },
         ],
       });
 
