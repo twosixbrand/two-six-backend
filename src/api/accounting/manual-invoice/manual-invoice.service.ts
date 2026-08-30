@@ -353,6 +353,7 @@ export class ManualInvoiceService {
           typeof soapResponse === 'string'
             ? soapResponse
             : JSON.stringify(soapResponse),
+        dian_xml_content: signedXml,
         environment: env,
         id_dian_resolution: resolution.id,
         cash_receipt_journal_id: dto.cash_receipt_journal_id,

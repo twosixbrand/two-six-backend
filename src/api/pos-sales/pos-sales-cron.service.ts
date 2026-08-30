@@ -29,16 +29,23 @@ export class PosSalesCronService {
       });
 
       if (queuedSales.length > 0) {
-        this.logger.log(`Encontradas ${queuedSales.length} ventas POS encoladas para la DIAN.`);
+        this.logger.log(
+          `Encontradas ${queuedSales.length} ventas POS encoladas para la DIAN.`,
+        );
       }
 
       for (const sale of queuedSales) {
         try {
-          this.logger.log(`Procesando Factura DIAN para PosSale #${sale.id}...`);
+          this.logger.log(
+            `Procesando Factura DIAN para PosSale #${sale.id}...`,
+          );
 
           // Armar payload compatible con DianOrchestratorService
-          const parsedLines = typeof sale.lines === 'string' ? JSON.parse(sale.lines as string) : sale.lines;
-          
+          const parsedLines =
+            typeof sale.lines === 'string'
+              ? JSON.parse(sale.lines as string)
+              : sale.lines;
+
           // Compatibilidad: la orquestación espera array de items
           const linesForDian = Array.isArray(parsedLines) ? parsedLines.map(line => ({
              description: line.description || line.product_name || 'Producto POS',
@@ -56,27 +63,31 @@ export class PosSalesCronService {
             // Opcional: pasar el ID de pos_sale para que la factura generada se pueda linkear
           };
 
-          const result = await this.dianOrchestrator.generateAndSendInvoice(payload);
+          const result =
+            await this.dianOrchestrator.generateAndSendInvoice(payload);
 
           // Si fue exitoso, actualizar el estado de la venta POS
           await this.prisma.posSale.update({
             where: { id: sale.id },
-            data: { 
-              status: 'INVOICED', 
+            data: {
+              status: 'INVOICED',
               id_dian_invoice: result.dianRecordId,
-              dian_error_msg: null
+              dian_error_msg: null,
             },
           });
-          
-          this.logger.log(`PosSale #${sale.id} procesado exitosamente. DIAN Invoice ID: ${result.dianRecordId}`);
 
+          this.logger.log(
+            `PosSale #${sale.id} procesado exitosamente. DIAN Invoice ID: ${result.dianRecordId}`,
+          );
         } catch (error) {
-          this.logger.error(`Error enviando PosSale #${sale.id} a DIAN: ${error.message}`);
+          this.logger.error(
+            `Error enviando PosSale #${sale.id} a DIAN: ${error.message}`,
+          );
           await this.prisma.posSale.update({
             where: { id: sale.id },
-            data: { 
+            data: {
               status: 'ERROR',
-              dian_error_msg: error.message || 'Error desconocido'
+              dian_error_msg: error.message || 'Error desconocido',
             },
           });
         }

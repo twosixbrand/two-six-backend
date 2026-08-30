@@ -598,8 +598,9 @@ model DianEInvoicing {
   createdAt               DateTime        @default(now()) @map("created_at")
   updatedAt               DateTime?       @updatedAt @map("updated_at")
   dian_authorized_at      DateTime?       @map("dian_authorized_at")
-  dian_response           String?
-  dian_zip_base64         String?         @map("dian_zip_base64")
+  dian_response           String?         @db.Text
+  dian_zip_base64         String?         @map("dian_zip_base64") @db.Text
+  dian_xml_content        String?         @map("dian_xml_content") @db.Text
   email_sent              Boolean         @default(false) @map("email_sent")
   environment             String          @default("TEST")
   id_dian_resolution      Int?            @map("id_dian_resolution")

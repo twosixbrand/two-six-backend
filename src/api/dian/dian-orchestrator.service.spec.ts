@@ -36,7 +36,9 @@ describe('DianOrchestratorService', () => {
   };
 
   const mockUblService = {
-    generateInvoiceXml: jest.fn().mockReturnValue('<xml>CUFE_PLACEHOLDER</xml>'),
+    generateInvoiceXml: jest
+      .fn()
+      .mockReturnValue('<xml>CUFE_PLACEHOLDER</xml>'),
   };
 
   const mockSignerService = {
@@ -72,7 +74,7 @@ describe('DianOrchestratorService', () => {
     service = module.get<DianOrchestratorService>(DianOrchestratorService);
     prismaService = module.get<PrismaService>(PrismaService);
     configService = module.get<ConfigService>(ConfigService);
-    
+
     jest.clearAllMocks();
   });
 
@@ -119,9 +121,13 @@ describe('DianOrchestratorService', () => {
         resolutionNumber: '18760000001',
         technicalKey: 'test-key',
       };
-      
-      mockPrismaService.dianResolution.findFirst.mockResolvedValueOnce(activeResolution);
-      mockPrismaService.dianResolution.update.mockResolvedValueOnce(activeResolution);
+
+      mockPrismaService.dianResolution.findFirst.mockResolvedValueOnce(
+        activeResolution,
+      );
+      mockPrismaService.dianResolution.update.mockResolvedValueOnce(
+        activeResolution,
+      );
       mockPrismaService.dianEInvoicing.create.mockResolvedValueOnce({ id: 99 });
 
       const payload = {
@@ -129,8 +135,13 @@ describe('DianOrchestratorService', () => {
         customerDoc: '12345678',
         customerDocType: '13',
         lines: [
-          { description: 'Camiseta', quantity: 2, unitPrice: 50000, taxPercent: 19 }
-        ]
+          {
+            description: 'Camiseta',
+            quantity: 2,
+            unitPrice: 50000,
+            taxPercent: 19,
+          },
+        ],
       };
 
       const result = await service.generateAndSendInvoice(payload);
@@ -144,7 +155,7 @@ describe('DianOrchestratorService', () => {
       expect(mockSignerService.signXml).toHaveBeenCalled();
       expect(mockSoapService.sendInvoice).toHaveBeenCalled();
       expect(mockPrismaService.dianEInvoicing.create).toHaveBeenCalled();
-      
+
       expect(result).toEqual({
         success: true,
         invoiceNumber: 'SETP11',
