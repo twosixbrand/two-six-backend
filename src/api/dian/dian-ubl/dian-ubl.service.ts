@@ -301,7 +301,20 @@ export class DianUblService {
       .up();
 
     // Cliente (Customer)
-    const customerAccountType = invoiceObj.customerDocType === '31' ? '2' : '1'; // '31' is NIT
+    const customerAccountType = invoiceObj.customerDocType === '31' ? '1' : '2'; // 1 = Jurídica (NIT), 2 = Natural
+
+    const companyIdAttrs: any = {
+      schemeName: invoiceObj.customerDocType,
+      schemeAgencyID: '195',
+      schemeAgencyName: 'CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)',
+    };
+    
+    // Si es NIT (31) y tenemos el DV, lo mandamos en schemeID. Para Cédula (13) no aplica DV.
+    // Asumiremos que si hay guión en el doc, el último es el DV, si no omitimos schemeID para 13.
+    if (invoiceObj.customerDocType === '31') {
+      // Como fallback de DV, usar '1' o extraer del documento si aplica.
+      companyIdAttrs.schemeID = '1';
+    }
 
     const customerParty = doc
       .ele('cac:AccountingCustomerParty')
@@ -313,13 +326,7 @@ export class DianUblService {
       .ele('cbc:RegistrationName')
       .txt(invoiceObj.customerName)
       .up()
-      .ele('cbc:CompanyID', {
-        schemeID: invoiceObj.customerDocType,
-        schemeName: invoiceObj.customerDocType,
-        schemeAgencyID: '195',
-        schemeAgencyName:
-          'CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)',
-      })
+      .ele('cbc:CompanyID', companyIdAttrs)
       .txt(invoiceObj.customerDoc)
       .up()
       .ele('cbc:TaxLevelCode', { listName: '48' })
