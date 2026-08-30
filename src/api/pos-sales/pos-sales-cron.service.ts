@@ -41,10 +41,10 @@ export class PosSalesCronService {
           
           // Compatibilidad: la orquestación espera array de items
           const linesForDian = Array.isArray(parsedLines) ? parsedLines.map(line => ({
-             description: line.product_name || 'Producto POS',
+             description: line.description || line.product_name || 'Producto POS',
              quantity: line.quantity || 1,
-             unitPrice: line.unit_price || 0,
-             taxPercent: 19 // Fijo en 19% o extraer si se guarda
+             unitPrice: line.unitPrice !== undefined ? line.unitPrice : (line.unit_price || 0),
+             taxPercent: line.taxPercent !== undefined ? line.taxPercent : 19
           })) : [];
 
           const payload = {
@@ -52,6 +52,7 @@ export class PosSalesCronService {
             customerDoc: sale.customerDoc || '222222222222',
             customerDocType: sale.customerDocType || '13',
             lines: linesForDian,
+            paymentMethod: sale.paymentMethod,
             // Opcional: pasar el ID de pos_sale para que la factura generada se pueda linkear
           };
 

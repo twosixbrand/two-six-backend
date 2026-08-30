@@ -46,6 +46,8 @@ export class DianOrchestratorService {
 
     let orderLines = body.lines;
     let customerName = body.customerName;
+    let paymentMeansCode = body.paymentMethod;
+
     if (body.orderId && !orderLines) {
       const order = await this.prisma.order.findUnique({
         where: { id: parseInt(body.orderId, 10) },
@@ -59,6 +61,17 @@ export class DianOrchestratorService {
           unitPrice: item.unit_price,
           taxPercent: 19,
         }));
+        
+        if (!paymentMeansCode && order.payment_method) {
+          const pmMap: any = {
+            WOMPI_FULL: '48',
+            WOMPI_COD: '10',
+            PSE: '49',
+            CASH: '10',
+            TRANSFER: '31',
+          };
+          paymentMeansCode = pmMap[order.payment_method] || '10';
+        }
       }
     }
 
@@ -70,6 +83,7 @@ export class DianOrchestratorService {
       customerDoc: body.customerDoc || '222222222222',
       customerDocType: body.customerDocType || '13',
       lines: orderLines,
+      paymentMeansCode: paymentMeansCode || '10',
 
       resolutionPrefix: resolution.prefix,
       resolutionNumber: resolution.resolutionNumber,

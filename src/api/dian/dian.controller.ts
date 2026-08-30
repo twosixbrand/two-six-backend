@@ -220,6 +220,15 @@ export class DianController {
   async downloadXml(@Param('id') id: string, @Res() res: Response) {
     const invoice = await this.prisma.dianEInvoicing.findUnique({
       where: { id: Number(id) },
+      include: {
+        posSale: true,
+        order: {
+          include: {
+            customer: true,
+            orderItems: true,
+          },
+        },
+      },
     });
     if (!invoice)
       throw new HttpException('Factura no encontrada', HttpStatus.NOT_FOUND);
@@ -237,18 +246,55 @@ export class DianController {
         },
       }));
 
+    let customerName = 'Cliente';
+    let customerDoc = '222222222222';
+    let customerDocType = '13';
+    let lines = undefined;
+    let paymentMeansCode = '10';
+
+    if (invoice.posSale) {
+      customerName = invoice.posSale.customerName || 'Consumidor Final';
+      customerDoc = invoice.posSale.customerDoc || '222222222222';
+      customerDocType = invoice.posSale.customerDocType || '13';
+      paymentMeansCode = invoice.posSale.paymentMethod || '10';
+      const parsedLines = typeof invoice.posSale.lines === 'string' ? JSON.parse(invoice.posSale.lines) : invoice.posSale.lines;
+      if (Array.isArray(parsedLines)) {
+        lines = parsedLines.map((l: any) => ({
+          description: l.description || l.product_name || 'Producto POS',
+          quantity: l.quantity || 1,
+          unitPrice: l.unitPrice !== undefined ? l.unitPrice : (l.unit_price || 0),
+          taxPercent: l.taxPercent !== undefined ? l.taxPercent : 19
+        }));
+      }
+    } else if (invoice.order) {
+      customerName = invoice.order.customer?.name || 'Cliente';
+      customerDoc = invoice.order.customer?.identification_number || invoice.order.customer?.document_number || '222222222222';
+      lines = invoice.order.orderItems.map((item) => ({
+        description: item.product_name,
+        quantity: item.quantity,
+        unitPrice: item.unit_price,
+        taxPercent: 19,
+      }));
+      if (invoice.order.payment_method) {
+        const pmMap: any = { WOMPI_FULL: '48', WOMPI_COD: '10', PSE: '49', CASH: '10', TRANSFER: '31' };
+        paymentMeansCode = pmMap[invoice.order.payment_method] || '10';
+      }
+    }
+
     const invoiceDto: InvoiceDto = {
       number: invoice.document_number,
       date: invoice.issue_date.toISOString().split('T')[0],
       time: '12:00:00-05:00',
-      customerName: 'Cliente',
-      customerDoc: '222222222222',
-      customerDocType: '13',
+      customerName,
+      customerDoc,
+      customerDocType,
+      lines,
+      paymentMeansCode,
       // Resolution data
       resolutionPrefix: resolution?.prefix,
       resolutionNumber: resolution?.resolutionNumber,
-      resolutionStartDate: resolution?.startDate.toISOString().split('T')[0],
-      resolutionEndDate: resolution?.endDate.toISOString().split('T')[0],
+      resolutionStartDate: resolution?.startDate?.toISOString().split('T')[0],
+      resolutionEndDate: resolution?.endDate?.toISOString().split('T')[0],
       resolutionStartNumber: resolution?.startNumber,
       resolutionEndNumber: resolution?.endNumber,
     };
