@@ -259,7 +259,7 @@ export class DianController {
     let customerName = 'Cliente';
     let customerDoc = '222222222222';
     let customerDocType = '13';
-    let lines = undefined;
+    let lines: any[] | undefined = undefined;
     let paymentMeansCode = '10';
 
     if (invoice.posSale) {
@@ -278,7 +278,7 @@ export class DianController {
       }
     } else if (invoice.order) {
       customerName = invoice.order.customer?.name || 'Cliente';
-      customerDoc = invoice.order.customer?.identification_number || invoice.order.customer?.document_number || '222222222222';
+      customerDoc = (invoice.order.customer as any)?.identification_number || (invoice.order.customer as any)?.document_number || '222222222222';
       lines = invoice.order.orderItems.map((item) => ({
         description: item.product_name,
         quantity: item.quantity,
