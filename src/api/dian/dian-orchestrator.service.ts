@@ -187,9 +187,16 @@ export class DianOrchestratorService {
         const isValidMatch = statusResponse.match(/<b:IsValid>(true|false)<\/b:IsValid>/);
         if (isValidMatch) {
           if (isValidMatch[1] === 'false') {
-            finalStatus = 'ERROR';
-            const errorMsgMatch = statusResponse.match(/<[a-z]:string>([^<]+)<\/[a-z]:string>/);
-            errorMessage = errorMsgMatch ? errorMsgMatch[1] : 'Rechazo DIAN (GetStatusZip)';
+            const statusDescMatch = statusResponse.match(/<b:StatusDescription>([^<]+)<\/b:StatusDescription>/);
+            const statusDesc = statusDescMatch ? statusDescMatch[1] : '';
+            
+            if (statusDesc.includes('en proceso')) {
+              finalStatus = 'SENT';
+            } else {
+              finalStatus = 'ERROR';
+              const errorMsgMatch = statusResponse.match(/<[a-z]:string>([^<]+)<\/[a-z]:string>/);
+              errorMessage = errorMsgMatch ? errorMsgMatch[1] : statusDesc || 'Rechazo DIAN (GetStatusZip)';
+            }
           } else {
             finalStatus = 'SENT';
           }

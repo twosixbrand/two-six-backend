@@ -75,26 +75,38 @@ export class PosSalesCronService {
             await this.dianOrchestrator.generateAndSendInvoice(payload);
 
           // Si fue exitoso, actualizar el estado de la venta POS
-          await this.prisma.posSale.update({
-            where: { id: sale.id },
-            data: {
-              status: 'INVOICED',
-              id_dian_invoice: result.dianRecordId,
-              dian_error_msg: null,
-            },
-          });
+          if (result.success) {
+            await this.prisma.posSale.update({
+              where: { id: sale.id },
+              data: {
+                status: 'INVOICED',
+                id_dian_invoice: result.dianRecordId,
+                dian_error_msg: null,
+              },
+            });
+            
+            // Generar el asiento contable de ingreso y costo
+            try {
+              await this.journalAutoService.onPosSaleCompleted(sale.id);
+              this.logger.log(`Asiento contable generado exitosamente para PosSale #${sale.id}`);
+            } catch (accErr) {
+              this.logger.error(`Error generando asiento contable para PosSale #${sale.id}: ${accErr.message}`);
+            }
 
-          // Generar el asiento contable de ingreso y costo
-          try {
-            await this.journalAutoService.onPosSaleCompleted(sale.id);
-            this.logger.log(`Asiento contable generado exitosamente para PosSale #${sale.id}`);
-          } catch (accErr) {
-            this.logger.error(`Error generando asiento contable para PosSale #${sale.id}: ${accErr.message}`);
+            this.logger.log(
+              `PosSale #${sale.id} procesado exitosamente. DIAN Invoice ID: ${result.dianRecordId}`,
+            );
+          } else {
+            await this.prisma.posSale.update({
+              where: { id: sale.id },
+              data: {
+                status: 'ERROR',
+                id_dian_invoice: result.dianRecordId,
+                dian_error_msg: result.error || 'Rechazo asíncrono DIAN',
+              },
+            });
+            this.logger.warn(`PosSale #${sale.id} enviado pero con ERROR en DIAN: ${result.error}`);
           }
-
-          this.logger.log(
-            `PosSale #${sale.id} procesado exitosamente. DIAN Invoice ID: ${result.dianRecordId}`,
-          );
         } catch (error) {
           this.logger.error(
             `Error enviando PosSale #${sale.id} a DIAN: ${error.message}`,
