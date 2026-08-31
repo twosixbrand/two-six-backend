@@ -2,11 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PosSalesCronService } from './pos-sales-cron.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DianOrchestratorService } from '../dian/dian-orchestrator.service';
+import { JournalAutoService } from '../accounting/journal/journal-auto.service';
 
 describe('PosSalesCronService', () => {
   let service: PosSalesCronService;
   let prismaService: PrismaService;
   let dianOrchestrator: DianOrchestratorService;
+  let journalAutoService: JournalAutoService;
 
   const mockPrismaService = {
     posSale: {
@@ -19,12 +21,17 @@ describe('PosSalesCronService', () => {
     generateAndSendInvoice: jest.fn(),
   };
 
+  const mockJournalAutoService = {
+    onPosSaleCompleted: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PosSalesCronService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: DianOrchestratorService, useValue: mockDianOrchestrator },
+        { provide: JournalAutoService, useValue: mockJournalAutoService },
       ],
     }).compile();
 

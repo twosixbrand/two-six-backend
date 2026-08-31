@@ -1273,4 +1273,169 @@ export class JournalAutoService {
       });
     });
   }
+
+  /**
+   * Auto-create journal entry for a POS Sale when successfully reported to DIAN.
+   */
+  async onPosSaleCompleted(posSaleId: number) {
+    const sale = await this.prisma.posSale.findUnique({
+      where: { id: posSaleId },
+    });
+
+    if (!sale) {
+      throw new NotFoundException(`PosSale con ID ${posSaleId} no encontrada`);
+    }
+
+    const entryDate = new Date();
+    const isClosed = await this.closingService.isPeriodClosed(entryDate);
+    if (isClosed) {
+      console.error(
+        `Cierre preventivo: No se puede generar asiento para PosSale ${posSaleId} porque el periodo actual ya está cerrado contablemente.`,
+      );
+      return null;
+    }
+
+    return this.prisma.$transaction(async (prisma) => {
+      const entryNumber = await this.getNextEntryNumber(prisma);
+
+      // Determine debit account based on payment method ('10' = Efectivo, others usually Banks)
+      const debitAccountCode = sale.paymentMethod === '10' ? '110505' : '111005';
+      const debitAccount = await this.findAccountByCode(prisma, debitAccountCode);
+      const ivaAccount = await this.findAccountByCode(prisma, '240801');
+      const ingresosAccount = await this.findAccountByCode(prisma, '413524');
+
+      const lines: any[] = [
+        {
+          id_puc_account: debitAccount.id,
+          description: `Ingreso por venta POS Feria`,
+          debit: sale.total,
+          credit: 0,
+        },
+        {
+          id_puc_account: ivaAccount.id,
+          description: 'IVA generado por venta POS',
+          debit: 0,
+          credit: sale.taxTotal,
+        },
+        {
+          id_puc_account: ingresosAccount.id,
+          description: 'Ingresos por venta POS',
+          debit: 0,
+          credit: sale.subtotal,
+        },
+      ];
+
+      // Parse lines to calculate COGS and deduct inventory
+      let totalActualCost = 0;
+      let parsedLines: any[] = [];
+      if (typeof sale.lines === 'string') {
+        try {
+          parsedLines = JSON.parse(sale.lines);
+        } catch (e) {}
+      } else if (Array.isArray(sale.lines)) {
+        parsedLines = sale.lines;
+      }
+
+      for (const item of parsedLines) {
+        if (item.id_product) {
+          const product = await prisma.product.findUnique({
+            where: { id: item.id_product },
+            include: {
+              clothingSize: {
+                include: {
+                  clothingColor: {
+                    include: { design: true },
+                  },
+                },
+              },
+            },
+          });
+
+          if (product) {
+            // Calculate cost
+            const manufacturedCost =
+              product.clothingSize?.clothingColor?.design?.manufactured_cost;
+            if (manufacturedCost && manufacturedCost > 0) {
+              totalActualCost += manufacturedCost * (item.quantity || 1);
+            } else {
+              const fallbackPercentage =
+                (this.configService.get<number>('COST_PERCENTAGE') || 60) / 100;
+              const unitPrice = item.unitPrice || item.unit_price || 0;
+              totalActualCost += unitPrice * (item.quantity || 1) * fallbackPercentage;
+            }
+
+            // Deduct inventory physical stock
+            await prisma.clothingSize.update({
+              where: { id: product.id_clothing_size },
+              data: { quantity_available: { decrement: item.quantity || 1 } },
+            });
+          }
+        }
+      }
+
+      const costAmount = Number(totalActualCost.toFixed(2));
+      if (costAmount > 0) {
+        let cogsAccount = await prisma.pucAccount.findUnique({
+          where: { code: '613535' },
+        });
+        if (!cogsAccount) {
+          cogsAccount = await prisma.pucAccount.findFirst({
+            where: {
+              code: { startsWith: '6135' },
+              accepts_movements: true,
+              is_active: true,
+            },
+          });
+        }
+        let invAccount = await prisma.pucAccount.findUnique({
+          where: { code: '143505' },
+        });
+        if (!invAccount) {
+          invAccount = await prisma.pucAccount.findFirst({
+            where: {
+              code: { startsWith: '1435' },
+              accepts_movements: true,
+              is_active: true,
+            },
+          });
+        }
+
+        if (cogsAccount && invAccount) {
+          lines.push({
+            id_puc_account: cogsAccount.id,
+            description: 'Costo de mercancía vendida POS',
+            debit: costAmount,
+            credit: 0,
+          });
+          lines.push({
+            id_puc_account: invAccount.id,
+            description: 'Salida de inventario por venta POS',
+            debit: 0,
+            credit: costAmount,
+          });
+        }
+      }
+
+      const totalDebit = Number(lines.reduce((acc, l) => acc + l.debit, 0).toFixed(2));
+      const totalCredit = Number(lines.reduce((acc, l) => acc + l.credit, 0).toFixed(2));
+
+      const entry = await prisma.journalEntry.create({
+        data: {
+          entry_number: entryNumber,
+          entry_date: entryDate,
+          description: `Venta POS Feria #${sale.id}`,
+          source_type: 'POS_SALE',
+          source_id: sale.id,
+          status: 'POSTED',
+          total_debit: totalDebit,
+          total_credit: totalCredit,
+          lines: {
+            create: lines,
+          },
+        },
+      });
+
+      return entry;
+    });
+  }
 }

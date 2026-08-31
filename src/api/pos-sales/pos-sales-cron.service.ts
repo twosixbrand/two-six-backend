@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DianOrchestratorService } from '../dian/dian-orchestrator.service';
+import { JournalAutoService } from '../accounting/journal/journal-auto.service';
 
 @Injectable()
 export class PosSalesCronService {
@@ -11,6 +12,7 @@ export class PosSalesCronService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly dianOrchestrator: DianOrchestratorService,
+    private readonly journalAutoService: JournalAutoService,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -75,6 +77,14 @@ export class PosSalesCronService {
               dian_error_msg: null,
             },
           });
+
+          // Generar el asiento contable de ingreso y costo
+          try {
+            await this.journalAutoService.onPosSaleCompleted(sale.id);
+            this.logger.log(`Asiento contable generado exitosamente para PosSale #${sale.id}`);
+          } catch (accErr) {
+            this.logger.error(`Error generando asiento contable para PosSale #${sale.id}: ${accErr.message}`);
+          }
 
           this.logger.log(
             `PosSale #${sale.id} procesado exitosamente. DIAN Invoice ID: ${result.dianRecordId}`,
