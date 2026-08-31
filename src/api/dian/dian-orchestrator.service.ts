@@ -75,10 +75,19 @@ export class DianOrchestratorService {
       }
     }
 
+    const now = new Date();
+    
+    // Obtener fecha y hora en zona horaria America/Bogota
+    const dateFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const bogotaDate = dateFormatter.format(now);
+    
+    const timeFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    const bogotaTime = `${timeFormatter.format(now)}-05:00`;
+
     const invoiceDto: InvoiceDto = {
       number: invoiceNumber,
-      date: body.date || new Date().toISOString().split('T')[0],
-      time: body.time || '12:00:00-05:00',
+      date: body.date || bogotaDate,
+      time: body.time || bogotaTime,
       customerName: customerName || 'Consumidor Final',
       customerDoc: body.customerDoc || '222222222222',
       customerDocType: body.customerDocType || '13',
@@ -158,19 +167,47 @@ export class DianOrchestratorService {
       invoiceDto.date,
     );
 
-    const now = new Date();
+    const currentDate = new Date();
+    
+    let finalStatus = 'SENT';
+    let dianResponseStr = typeof soapResponse === 'string' ? soapResponse : JSON.stringify(soapResponse);
+    let errorMessage = null;
+
+    // Verificar asíncrono (ZipKey)
+    const zipKeyMatch = dianResponseStr.match(/<b:ZipKey>([^<]+)<\/b:ZipKey>/);
+    if (zipKeyMatch && zipKeyMatch[1]) {
+      const zipKey = zipKeyMatch[1];
+      try {
+        // Pausar 2 segundos para dar tiempo a DIAN de procesar el ZIP
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        const statusResponse = await this.soapService.getStatusZip(zipKey);
+        dianResponseStr = statusResponse; // Actualizar la respuesta guardada
+        
+        const isValidMatch = statusResponse.match(/<b:IsValid>(true|false)<\/b:IsValid>/);
+        if (isValidMatch) {
+          if (isValidMatch[1] === 'false') {
+            finalStatus = 'ERROR';
+            const errorMsgMatch = statusResponse.match(/<[a-z]:string>([^<]+)<\/[a-z]:string>/);
+            errorMessage = errorMsgMatch ? errorMsgMatch[1] : 'Rechazo DIAN (GetStatusZip)';
+          } else {
+            finalStatus = 'SENT';
+          }
+        }
+      } catch (e) {
+        this.logger.error(`Error verificando ZipKey ${zipKey}:`, e);
+      }
+    }
+
     const saved = await this.prisma.dianEInvoicing.create({
       data: {
         document_number: invoiceDto.number,
         cufe_code: cufe,
         qr_code: qrBase64,
-        issue_date: now,
-        due_date: now,
-        status: 'SENT',
-        dian_response:
-          typeof soapResponse === 'string'
-            ? soapResponse
-            : JSON.stringify(soapResponse),
+        issue_date: currentDate,
+        due_date: currentDate,
+        status: finalStatus,
+        dian_response: dianResponseStr,
         dian_xml_content: signedXml,
         environment: env,
         ...(body.orderId ? { id_order: parseInt(body.orderId, 10) } : {}),
@@ -178,6 +215,14 @@ export class DianOrchestratorService {
     });
 
     this.logger.log(`Factura guardada exitosamente en BD con ID: ${saved.id}`);
+
+    if (finalStatus === 'ERROR') {
+      return {
+        success: false,
+        error: errorMessage || 'Rechazo asíncrono DIAN',
+        dianRecordId: saved.id
+      };
+    }
 
     return {
       success: true,

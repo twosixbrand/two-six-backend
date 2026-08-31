@@ -311,10 +311,11 @@ export class DianUblService {
     };
 
     // Si es NIT (31) y tenemos el DV, lo mandamos en schemeID. Para Cédula (13) no aplica DV.
-    // Asumiremos que si hay guión en el doc, el último es el DV, si no omitimos schemeID para 13.
+    // Si es NIT (31) y tenemos el DV, lo mandamos en schemeID. Para Cédula (13) no aplica DV.
     if (invoiceObj.customerDocType === '31') {
-      // Como fallback de DV, usar '1' o extraer del documento si aplica.
-      companyIdAttrs.schemeID = '1';
+      companyIdAttrs.schemeID = '1'; // DV fallback
+    } else if (invoiceObj.customerDocType === '13') {
+      delete companyIdAttrs.schemeID;
     }
 
     const customerParty = doc
@@ -350,25 +351,19 @@ export class DianUblService {
       .up()
       .up();
 
-    if (customerAccountType === '2') {
-      // Legal entity
+    if (customerAccountType === '1') {
+      // Legal entity (NIT)
       customerParty
         .ele('cac:PartyLegalEntity')
         .ele('cbc:RegistrationName')
         .txt(invoiceObj.customerName)
         .up()
-        .ele('cbc:CompanyID', {
-          schemeID: invoiceObj.customerDocType,
-          schemeName: invoiceObj.customerDocType,
-          schemeAgencyID: '195',
-          schemeAgencyName:
-            'CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)',
-        })
+        .ele('cbc:CompanyID', companyIdAttrs)
         .txt(invoiceObj.customerDoc)
         .up()
         .up();
     } else {
-      // Natural person
+      // Natural person (Cédula, etc.)
       customerParty
         .ele('cac:Person')
         .ele('cbc:FirstName')
