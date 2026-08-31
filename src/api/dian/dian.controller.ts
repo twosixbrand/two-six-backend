@@ -727,7 +727,7 @@ export class DianController {
         number: noteNumber,
         date: new Date().toISOString().split('T')[0],
         time: '12:00:00-05:00',
-        customerName: customer?.name || 'Cliente',
+        customerName: body.customerName || customer?.name || 'Cliente',
         customerDoc: body.customerDoc || '222222222222',
         customerDocType: body.customerDocType || '13',
         paymentMeansCode: '10',
@@ -735,8 +735,8 @@ export class DianController {
           {
             description: 'Devolución Total',
             quantity: 1,
-            unitPrice: invoice.order!.iva
-              ? invoice.order!.total_payment - invoice.order!.iva
+            unitPrice: invoice.order && invoice.order.iva
+              ? invoice.order.total_payment - invoice.order.iva
               : 100000,
             taxPercent: 19,
           },
