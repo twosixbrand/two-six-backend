@@ -86,6 +86,7 @@ describe('PosSalesCronService', () => {
       ];
       mockPrismaService.posSale.findMany.mockResolvedValueOnce(mockSales);
       mockDianOrchestrator.generateAndSendInvoice.mockResolvedValueOnce({
+        success: true,
         dianRecordId: 99,
       });
 
@@ -103,11 +104,18 @@ describe('PosSalesCronService', () => {
             taxPercent: 19,
           },
         ],
+        paymentMethod: undefined,
+        date: expect.any(String),
+        time: expect.any(String),
       });
 
       expect(mockPrismaService.posSale.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { status: 'INVOICED', id_dian_invoice: 99, dian_error_msg: null },
+        data: {
+          status: 'INVOICED',
+          id_dian_invoice: 99,
+          dian_error_msg: null,
+        },
       });
     });
 
