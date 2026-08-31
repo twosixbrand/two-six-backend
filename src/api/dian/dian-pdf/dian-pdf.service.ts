@@ -366,7 +366,7 @@ export class DianPdfService {
               <div class="doc-num">${invoice.document_number}</div>
             </div>
             <div class="doc-dates">
-              Emitida: <b>${invoice.createdAt.toLocaleString('es-CO', { timeZone: 'America/Bogota' })}</b><br>
+              Emitida: <b>${invoice.issue_date.toLocaleString('es-CO', { timeZone: 'America/Bogota' })}</b><br>
               Validación DIAN: <b>${validationDate}</b>
             </div>
           </div>
