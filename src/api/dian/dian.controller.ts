@@ -349,20 +349,24 @@ export class DianController {
       },
     });
 
-    const pdfBuffer = await this.pdfService.generateInvoicePdf(
-      invoice,
-      resolution,
-    );
-    const fileName = invoice.order
-      ? `Factura_${invoice.document_number}_${invoice.order.order_reference}.pdf`
-      : `Factura_${invoice.document_number}.pdf`;
+    try {
+      const pdfBuffer = await this.pdfService.generateInvoicePdf(
+        invoice,
+        resolution,
+      );
+      const fileName = invoice.order
+        ? `Factura_${invoice.document_number}_${invoice.order.order_reference}.pdf`
+        : `Factura_${invoice.document_number}.pdf`;
 
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${fileName}"`,
-      'Access-Control-Expose-Headers': 'Content-Disposition',
-    });
-    res.send(pdfBuffer);
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${fileName}"`,
+        'Access-Control-Expose-Headers': 'Content-Disposition',
+      });
+      res.send(pdfBuffer);
+    } catch (error) {
+      res.status(500).json({ statusCode: 500, message: "Internal server error: " + error.message, stack: error.stack });
+    }
   }
 
   @Post('invoice')
