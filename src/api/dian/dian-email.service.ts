@@ -53,7 +53,10 @@ export class DianEmailService {
 
     const invoice = await this.prisma.dianEInvoicing.findUnique({
       where: { id: invoiceId },
-      include: { order: { include: { customer: true, orderItems: true } } },
+      include: { 
+        order: { include: { customer: true, orderItems: true } },
+        posSale: true
+      },
     });
 
     if (!invoice) {
@@ -77,14 +80,8 @@ export class DianEmailService {
       }
     }
 
-    const hasOrderCustomer = !!(invoice.order && invoice.order.customer);
-    if (!hasOrderCustomer && !manualSnapshot?.customer?.email) {
-      this.logger.warn(
-        `Factura ${invoice.document_number}: sin Order ni snapshot con email. Se omite envío.`,
-      );
-      return false;
-    }
-
+    // Eliminamos la restricción que cancelaba el envío si no había "Order".
+    // Ahora si no hay correo, se enviará al correo por defecto de Two Six.
     if (invoice.email_sent) {
       this.logger.warn(
         `El correo de la Factura ${invoice.document_number} ya fue enviado previamente.`,
@@ -110,50 +107,57 @@ export class DianEmailService {
           },
         }));
 
-      const invoiceDto: InvoiceDto = manualSnapshot
-        ? {
-            number: invoice.document_number,
-            date: invoice.issue_date.toISOString().split('T')[0],
-            time: '12:00:00-05:00',
-            customerName: manualSnapshot.customer.name,
-            customerDoc: manualSnapshot.customer.doc_number,
-            customerDocType: manualSnapshot.customer.doc_type,
-            resolutionPrefix: resolution?.prefix,
-            resolutionNumber: resolution?.resolutionNumber,
-            resolutionStartDate: resolution?.startDate
-              .toISOString()
-              .split('T')[0],
-            resolutionEndDate: resolution?.endDate.toISOString().split('T')[0],
-            resolutionStartNumber: resolution?.startNumber,
-            resolutionEndNumber: resolution?.endNumber,
-          }
-        : {
-            number: invoice.document_number,
-            date: invoice.issue_date.toISOString().split('T')[0],
-            time: '12:00:00-05:00',
-            customerName: invoice.order!.customer.name,
-            customerDoc:
-              (invoice.order!.customer as any).document_number ||
-              (invoice.order!.customer as any).identification_number ||
-              '222222222222',
-            customerDocType:
-              String(invoice.order!.customer.id_identification_type) || '13',
-            resolutionPrefix: resolution?.prefix,
-            resolutionNumber: resolution?.resolutionNumber,
-            resolutionStartDate: resolution?.startDate
-              .toISOString()
-              .split('T')[0],
-            resolutionEndDate: resolution?.endDate.toISOString().split('T')[0],
-            resolutionStartNumber: resolution?.startNumber,
-            resolutionEndNumber: resolution?.endNumber,
-          };
+      // 1. Obtener XML firmado. Si ya existe en BD, lo usamos directamente.
+      let signedXml = invoice.dian_xml_content;
 
-      const xmlBase = this.ublService.generateInvoiceXml(invoiceDto);
-      const xmlWithCufe = xmlBase.replace(
-        /CUFE_PLACEHOLDER/g,
-        invoice.cufe_code || '',
-      );
-      const signedXml = this.signerService.signXml(xmlWithCufe);
+      if (!signedXml) {
+        // Fallback: Si no hay XML guardado (facturas antiguas), lo reconstruimos.
+        // Solo aplica para Order o snapshot manual, porque POS siempre guarda el XML.
+        const invoiceDto: InvoiceDto = manualSnapshot
+          ? {
+              number: invoice.document_number,
+              date: invoice.issue_date.toISOString().split('T')[0],
+              time: '12:00:00-05:00',
+              customerName: manualSnapshot.customer.name,
+              customerDoc: manualSnapshot.customer.doc_number,
+              customerDocType: manualSnapshot.customer.doc_type,
+              resolutionPrefix: resolution?.prefix,
+              resolutionNumber: resolution?.resolutionNumber,
+              resolutionStartDate: resolution?.startDate
+                .toISOString()
+                .split('T')[0],
+              resolutionEndDate: resolution?.endDate.toISOString().split('T')[0],
+              resolutionStartNumber: resolution?.startNumber,
+              resolutionEndNumber: resolution?.endNumber,
+            }
+          : {
+              number: invoice.document_number,
+              date: invoice.issue_date.toISOString().split('T')[0],
+              time: '12:00:00-05:00',
+              customerName: invoice.order!.customer.name,
+              customerDoc:
+                (invoice.order!.customer as any).document_number ||
+                (invoice.order!.customer as any).identification_number ||
+                '222222222222',
+              customerDocType:
+                String(invoice.order!.customer.id_identification_type) || '13',
+              resolutionPrefix: resolution?.prefix,
+              resolutionNumber: resolution?.resolutionNumber,
+              resolutionStartDate: resolution?.startDate
+                .toISOString()
+                .split('T')[0],
+              resolutionEndDate: resolution?.endDate.toISOString().split('T')[0],
+              resolutionStartNumber: resolution?.startNumber,
+              resolutionEndNumber: resolution?.endNumber,
+            };
+
+        const xmlBase = this.ublService.generateInvoiceXml(invoiceDto);
+        const xmlWithCufe = xmlBase.replace(
+          /CUFE_PLACEHOLDER/g,
+          invoice.cufe_code || '',
+        );
+        signedXml = this.signerService.signXml(xmlWithCufe);
+      }
 
       // 2. Generar PDF (Usando DianPdfService unificado)
       const pdfBuffer = await this.pdfService.generateInvoicePdf(
@@ -170,11 +174,22 @@ export class DianEmailService {
       zip.addFile(`Factura_${invoice.document_number}.pdf`, pdfBuffer);
       const zipBuffer = zip.toBuffer();
 
-      const customerEmail =
-        manualSnapshot?.customer?.email || invoice.order?.customer?.email;
       const dianSender =
         this.configService.get<string>('DIAN_EMAIL_USER') ||
         'twosixfacturaelectronica@gmail.com';
+        
+      const customerEmail =
+        invoice.posSale?.customerEmail ||
+        manualSnapshot?.customer?.email || 
+        invoice.order?.customer?.email ||
+        dianSender; // Fallback para Consumidor Final (POS)
+
+      const emailCustomerName = 
+        invoice.posSale?.customerName || 
+        manualSnapshot?.customer?.name || 
+        invoice.order?.customer?.name || 
+        'Cliente';
+
       const companyName =
         this.configService.get<string>('DIAN_COMPANY_NAME') || 'TWO SIX S.A.S.';
 
@@ -190,7 +205,7 @@ export class DianEmailService {
              <p style="color: #666; font-size: 14px; letter-spacing: 2px;">FACTURA ELECTRÓNICA DE VENTA</p>
           </div>
           <div style="padding: 20px;">
-             <p>Estimado/a <strong>${manualSnapshot?.customer?.name || invoice.order?.customer?.name || 'cliente'}</strong>,</p>
+             <p>Estimado/a <strong>${emailCustomerName}</strong>,</p>
              <p>Adjunto a este correo encontrará el documento electrónico <b>.zip</b> correspondiente a su compra (Factura No. ${invoice.document_number}), en cumplimiento con la normatividad de Facturación Electrónica de la DIAN (Anexo Técnico 1.8).</p>
              <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; border-left: 4px solid #000; word-break: break-all; font-size: 11px;">
                 <strong>CUFE:</strong><br/> ${invoice.cufe_code || 'N/A'}
