@@ -56,12 +56,18 @@ export class PosSalesCronService {
              taxPercent: line.taxPercent !== undefined ? line.taxPercent : 19
           })) : [];
 
+          const saleDate = sale.createdAt;
+          const dateFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
+          const timeFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+          
           const payload = {
             customerName: sale.customerName || 'Consumidor Final',
             customerDoc: sale.customerDoc || '222222222222',
             customerDocType: sale.customerDocType || '13',
             lines: linesForDian,
             paymentMethod: sale.paymentMethod,
+            date: dateFormatter.format(saleDate),
+            time: `${timeFormatter.format(saleDate)}-05:00`,
             // Opcional: pasar el ID de pos_sale para que la factura generada se pueda linkear
           };
 
