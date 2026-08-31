@@ -182,7 +182,7 @@ export class DianOrchestratorService {
         await new Promise(resolve => setTimeout(resolve, 2000));
         
         const statusResponse = await this.soapService.getStatusZip(zipKey);
-        dianResponseStr = statusResponse; // Actualizar la respuesta guardada
+        // NO actualizar dianResponseStr para no perder el ZipKey que necesita el cronjob
         
         const isValidMatch = statusResponse.match(/<b:IsValid>(true|false)<\/b:IsValid>/);
         if (isValidMatch) {
